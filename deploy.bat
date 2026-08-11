@@ -30,20 +30,15 @@ echo [2/4] Staging all files...
 git add -A
 
 echo [3/4] Committing changes...
-setlocal enabledelayedexpansion
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
-set "YY=%dt:~2,2%"
-set "MM=%dt:~4,2%"
-set "DD=%dt:~6,2%"
-set "HH=%dt:~8,2%"
-set "Min=%dt:~10,2%"
-set "SS=%dt:~12,2%"
-set "timestamp=%YY%%MM%%DD%_%HH%%Min%%SS%"
-git commit -m "update_website_%timestamp%" 2>nul
+REM Use simple date/time vars (no wmic dependency, compatible with all Windows versions)
+set "d=%date:/=-%_%time::=-%"
+set "d=%d:,=0%"
+set "d=%d:.=0%"
+set "commit_msg=update_website_%d%"
+git commit -m "%commit_msg%" 2>nul
 if errorlevel 1 (
     echo No new changes to commit.
 )
-endlocal
 
 echo [4/4] Pushing to Gitee...
 git remote remove origin 2>nul
