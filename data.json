@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "张三",
+    "role": "技术部 - 前端工程师",
+    "phone": "13800138001",
+    "email": "zhangsan@example.com",
+    "avatar": "",
+    "description": "负责前端页面开发与维护，精通 Vue、React 框架。",
+    "tags": ["前端", "Vue", "React"]
+  },
+  {
+    "id": 2,
+    "name": "李四",
+    "role": "技术部 - 后端工程师",
+    "phone": "13800138002",
+    "email": "lisi@example.com",
+    "avatar": "",
+    "description": "负责服务器端接口开发，擅长 Python、Java、数据库设计。",
+    "tags": ["后端", "Python", "Java"]
+  },
+  {
+    "id": 3,
+    "name": "王五",
+    "role": "市场部 - 市场经理",
+    "phone": "13800138003",
+    "email": "wangwu@example.com",
+    "avatar": "",
+    "description": "负责市场推广与品牌运营，拥有5年以上市场营销经验。",
+    "tags": ["市场", "运营", "品牌"]
+  },
+  {
+    "id": 4,
+    "name": "赵六",
+    "role": "人事部 - HR专员",
+    "phone": "13800138004",
+    "email": "zhaoliu@example.com",
+    "avatar": "",
+    "description": "负责招聘、员工关系及绩效考核管理。",
+    "tags": ["人事", "招聘", "HR"]
+  },
+  {
+    "id": 5,
+    "name": "钱七",
+    "role": "设计部 - UI设计师",
+    "phone": "13800138005",
+    "email": "qianqi@example.com",
+    "avatar": "",
+    "description": "负责产品界面设计与视觉规范制定，精通 Figma、Sketch。",
+    "tags": ["设计", "UI", "Figma"]
+  },
+  {
+    "id": 6,
+    "name": "孙八",
+    "role": "财务部 - 财务主管",
+    "phone": "13800138006",
+    "email": "sunba@example.com",
+    "avatar": "",
+    "description": "负责公司财务核算、预算管理及税务申报。",
+    "tags": ["财务", "会计", "税务"]
+  }
+]

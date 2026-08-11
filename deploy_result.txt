@@ -1,0 +1,5 @@
+push_exit_code=0
+stderr=Everything up-to-date
+
+stdout=branch 'master' set up to track 'origin/master'.
+
