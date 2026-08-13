@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -276,47 +276,74 @@ window.addEventListener('DOMContentLoaded', function(){
   try {
     var loader = document.createElement('script');
     loader.src = 'pat.js?t=' + Date.now(); // 加随机数防浏览器缓存旧的 PAT
+    var loadedFlag = false;
+    var statusMsg = function(cls, text) {
+      var s = document.getElementById('loginStatus');
+      if (!s) return;
+      s.className = 'status show ' + cls;
+      s.textContent = text;
+    };
     loader.onload = function() {
+      loadedFlag = true;
+      var status = document.getElementById('loginStatus');
       // pat.js 加载完成后，从 window._GH_PAT 取 PAT
-      if (window._GH_PAT && typeof window._GH_PAT === 'string' && window._GH_PAT.trim().length > 0) {
-        var patFromFile = window._GH_PAT.trim();
-        // 自动填到输入框
-        try {
-          if (patInput) {
-            patInput.type = 'password';
-            patInput.value = patFromFile;
-          }
-        } catch (e) {}
-        // 如果 localStorage 里还没保存 PAT，就把文件里的 PAT 也存到 localStorage（双保险）
-        if (!savedLs) {
-          try { localStorage.setItem(PAT_KEY, patFromFile); savedLs = patFromFile; } catch (e) {}
-        }
-        var status = document.getElementById('loginStatus');
-        if (status) {
-          status.className = 'status show info';
-          status.textContent = '✅ 已从本地 pat.js 自动读取 PAT（共'+patFromFile.length+'位），直接输入密码登录即可。';
-        }
+      var hasVal = (window._GH_PAT && typeof window._GH_PAT === 'string' && window._GH_PAT.trim().length > 0);
+      if (!hasVal) {
+        // ------- 情况：pat.js 文件存在但是 PAT 是空字符串（典型：用户把 pat.example.js 复制过去但没填内容）-------
+        try { if (patInput) { patInput.type = 'password'; patInput.value = ''; } } catch (e) {}
+        var extra = savedLs
+          ? '（浏览器里还存了上次的 '+savedLs.length+' 位 PAT，你也可以直接输密码登录试试能不能用）'
+          : '';
+        statusMsg('err',
+          '❌ pat.js 文件已经存在，但里面的 PAT 是空字符串！说明只复制了模板还没填真实内容。请 3 选 1：'
+          + ' ① 双击 2-VBS图形界面写入PAT.vbs（弹框粘贴最省事）'
+          + ' ② 双击 3-记事本编辑PAT.vbs（记事本打开后粘贴到 window._GH_PAT = \'贴这里\' 的两个单引号中间）'
+          + ' ③ 双击 1-写入PAT到本地.bat。做完之后刷新本页面。' + extra);
+        return;
       }
+      var patFromFile = window._GH_PAT.trim();
+      // 自动填到输入框
+      try {
+        if (patInput) {
+          patInput.type = 'password';
+          patInput.value = patFromFile;
+        }
+      } catch (e) {}
+      // 如果 localStorage 里还没保存 PAT，就把文件里的 PAT 也存到 localStorage（双保险）
+      if (!savedLs) {
+        try { localStorage.setItem(PAT_KEY, patFromFile); savedLs = patFromFile; } catch (e) {}
+      }
+      statusMsg('info', '✅ 已从本地 pat.js 自动读取 PAT（共'+patFromFile.length+'位），直接输入密码登录即可。');
     };
     loader.onerror = function() {
-      // pat.js 文件不存在（正常：第一次使用还没写入），忽略即可
+      // pat.js 文件不存在：不立刻报错，看下面步骤 2 是否有 localStorage
+      loadedFlag = false;
     };
     document.head.appendChild(loader);
+
+    // 2 秒后如果还没加载到 localStorage 也没 pat.js，就给用户显示三种写入方法
+    setTimeout(function(){
+      if (loadedFlag) return; // pat.js 存在（不管有没有值）都不触发这段
+      var ls = localStorage.getItem(PAT_KEY);
+      if (ls) return;        // localStorage 已有，不用提示写 pat.js
+      statusMsg('info',
+        '💡 还没设置 PAT。3 种方法任选其一（做完刷新页面）：'
+        + ' ① 双击 2-VBS图形界面写入PAT.vbs（弹框粘贴最推荐）'
+        + ' ② 双击 1-写入PAT到本地.bat（命令行粘贴）'
+        + ' ③ 双击 3-记事本编辑PAT.vbs（手动粘贴到单引号里）。'
+        + ' 或者 直接在下面「PAT访问令牌」输入框粘贴也行。');
+    }, 2000);
   } catch (e) {}
 
-  // --- 步骤 2：给用户提示 localStorage 的状态
+  // --- 步骤 2：给用户提示 localStorage 的状态（只在 pat.js 没给出"更重要"的提示时显示）
   if (savedLs) {
-    var s = document.getElementById('loginStatus');
-    if (s && s.textContent === '') {
+    setTimeout(function(){
+      var s = document.getElementById('loginStatus');
+      if (!s || !s.textContent || s.textContent.indexOf('已从本地 pat.js 自动读取') !== -1) return;
+      if (s.textContent.indexOf('❌ pat.js 文件已经存在') !== -1) return;
       s.className = 'status show info';
-      s.textContent = '💡 本机已保存 PAT（共'+savedLs.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填，或双击「1-写入PAT到本地.bat」写新PAT。';
-    }
-  } else {
-    var s2 = document.getElementById('loginStatus');
-    if (s2 && s2.textContent === '') {
-      s2.className = 'status show info';
-      s2.textContent = '💡 提示：双击项目目录里的「1-写入PAT到本地.bat」，粘贴一次 PAT，以后打开后台就自动读取，不用每次手动粘贴。';
-    }
+      s.textContent = '💡 本机已保存 PAT（共'+savedLs.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填，或用 2-VBS/1-bat/3-记事本 写新PAT。';
+    }, 2500);
   }
 });
 
@@ -410,14 +437,49 @@ function ghPut(path, body){
   });
 }
 function getContent(path){
-  // 返回 {sha, content(base64 decoded string)} 或 null
+  // 返回 {sha, content(base64 decoded as UTF-8 string)} 或 null
   return ghGet('/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(path)+'?ref='+BRANCH)
   .then(function(data){
     if(!data) return null;
     if(Array.isArray(data)) return null;
-    var content = data.content ? atob(data.content.replace(/\s/g,'')) : '';
+    var content = data.content ? base64ToUtf8(data.content.replace(/\s/g,'')) : '';
     return { sha: data.sha, content: content };
   });
+}
+// ======== UTF-8 安全的 Base64 编解码（中文不乱码）========
+// GitHub API 的 content 是 base64(UTF-8字节)，直接 atob 会把多字节中文拆成乱码。
+// 优先用现代 TextEncoder/TextDecoder，老浏览器回退 unescape/encodeURIComponent
+function base64ToUtf8(b64) {
+  if (!b64) return '';
+  try {
+    var bin = atob(b64);
+    if (typeof TextDecoder !== 'undefined') {
+      var buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i) & 0xff;
+      return new TextDecoder('utf-8').decode(buf);
+    }
+    // 老浏览器回退
+    var str = '';
+    for (var j = 0; j < bin.length; j++) str += '%' + ('00' + bin.charCodeAt(j).toString(16)).slice(-2);
+    return decodeURIComponent(str);
+  } catch (e) {
+    return '';
+  }
+}
+function utf8ToBase64(str) {
+  if (str == null) return '';
+  str = String(str);
+  try {
+    if (typeof TextEncoder !== 'undefined') {
+      var bytes = new TextEncoder().encode(str);
+      var bin = '';
+      for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+  } catch (e) {}
+  // 老浏览器回退
+  try { return btoa(unescape(encodeURIComponent(str))); }
+  catch (e2) { return ''; }
 }
 function writeFile(path, contentBase64, sha, message){
   var body = { message: message || ('后台更新: '+path), content: contentBase64, branch: BRANCH };
@@ -735,7 +797,7 @@ async function saveAllToRepo(){
     var dsha = PEOPLE._sha || null;
     if (!dsha) { try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha;} catch(e){} }
     var dataStr = JSON.stringify(PEOPLE, null, 2);
-    var dataB64 = btoa(unescape(encodeURIComponent(dataStr)));
+    var dataB64 = utf8ToBase64(dataStr);
     await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
     PEOPLE._sha = null; // 下次刷新重新拉
     status.push('✅ 更新 data.json（共 '+PEOPLE.length+' 人）');
@@ -749,7 +811,7 @@ async function saveAllToRepo(){
     var recruitCopy = {};
     for (var k in RECRUIT) if (k !== '_sha') recruitCopy[k] = RECRUIT[k];
     var rStr = JSON.stringify(recruitCopy, null, 2);
-    var rB64 = btoa(rStr);
+    var rB64 = utf8ToBase64(rStr);
     await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
     RECRUIT._sha = null;
     status.push('✅ 更新 team_recruit.json');
