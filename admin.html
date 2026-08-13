@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -126,10 +126,16 @@
         2. Note（备注）随便填：比如 "9178gg 后台"<br>
         3. Expiration（过期时间）选 <b>No expiration</b>（永不过期）<br>
         4. <b>勾选 repo 这一大项</b>（第一个复选框）<br>
+        <span style="color:#c62828;">⚠️ 如果用的是「细粒度令牌」(Fine-grained token)：<br>
+        &nbsp;&nbsp;→ Repository access 必须包含 Xjrxjr/9178gg<br>
+        &nbsp;&nbsp;→ Permissions → Repository permissions → Contents 必须选 <b>Read and write</b></span><br>
         5. 滚到最下面点绿色 <b>Generate token</b><br>
         6. 复制那串 <code>ghp_xxxxxxxxxxxx</code> 粘贴到上面框里
       </div>
-      <button id="patToggle" class="btn-secondary" style="align-self: flex-start;">📖 查看 / 隐藏 PAT 生成方法</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button id="patToggle" class="btn-secondary">📖 查看 / 隐藏 PAT 生成方法</button>
+        <button id="clearPatBtn" class="btn-warning" style="padding:6px 12px; font-size:12px;">🧹 清除已保存的 PAT</button>
+      </div>
       <button id="loginBtn" class="btn-primary">登录</button>
       <div id="loginStatus" class="status"></div>
     </div>
@@ -143,7 +149,7 @@
         <button class="btn-secondary" id="reloadBtn">🔄 刷新数据</button>
       </div>
       <div style="color:white; font-size:13px;">
-        仓库：<b>Xjrxjr/9178gg</b>（main 分支）
+        仓库：<b>Xjrxjr/9178gg</b>（分支：<span id="branchLabel">检测中...</span>）
       </div>
     </div>
 
@@ -218,7 +224,7 @@
 // ========== 全局配置（与主网站 index.html 保持一致）==========
 var OWNER = 'Xjrxjr';
 var REPO  = '9178gg';
-var BRANCH = 'main';
+var BRANCH = 'main';   // 登录后会自动检测仓库默认分支，必要时覆盖此值
 var PWD_KEY = 'admin_pwd_v2';
 var PAT_KEY = 'gh_pat_9178gg_v1';
 var DEFAULT_PWD = 'xX20130810';
@@ -252,15 +258,100 @@ function showStatus(elId, msg, type){
 document.getElementById('patToggle').onclick = function(){
   document.getElementById('patHelp').classList.toggle('hidden');
 };
+document.getElementById('clearPatBtn').onclick = function(){
+  try { localStorage.removeItem(PAT_KEY); } catch(e) {}
+  document.getElementById('pat').value = '';
+  showStatus('loginStatus', '🧹 已清除本机保存的 PAT，请重新输入新的 PAT 后登录。', 'info');
+};
 document.getElementById('loginBtn').onclick = doLogin;
 document.getElementById('pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 document.getElementById('pat').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+
+// 页面加载时：自动读取 PAT（三重来源：① localStorage ② pat.js 本地文件自动注入）
+window.addEventListener('DOMContentLoaded', function(){
+  var patInput = document.getElementById('pat');
+  var savedLs = localStorage.getItem(PAT_KEY);
+
+  // --- 步骤 1：先加载 pat.js（和 admin.html 同目录），只要存在就自动填入 PAT 输入框
+  try {
+    var loader = document.createElement('script');
+    loader.src = 'pat.js?t=' + Date.now(); // 加随机数防浏览器缓存旧的 PAT
+    var loadedFlag = false;
+    var statusMsg = function(cls, text) {
+      var s = document.getElementById('loginStatus');
+      if (!s) return;
+      s.className = 'status show ' + cls;
+      s.textContent = text;
+    };
+    loader.onload = function() {
+      loadedFlag = true;
+      var status = document.getElementById('loginStatus');
+      // pat.js 加载完成后，从 window._GH_PAT 取 PAT
+      var hasVal = (window._GH_PAT && typeof window._GH_PAT === 'string' && window._GH_PAT.trim().length > 0);
+      if (!hasVal) {
+        // ------- 情况：pat.js 文件存在但是 PAT 是空字符串（典型：用户把 pat.example.js 复制过去但没填内容）-------
+        try { if (patInput) { patInput.type = 'password'; patInput.value = ''; } } catch (e) {}
+        var extra = savedLs
+          ? '（浏览器里还存了上次的 '+savedLs.length+' 位 PAT，你也可以直接输密码登录试试能不能用）'
+          : '';
+        statusMsg('err',
+          '❌ pat.js 文件已经存在，但里面的 PAT 是空字符串！说明只复制了模板还没填真实内容。请 3 选 1：'
+          + ' ① 双击 2-VBS图形界面写入PAT.vbs（弹框粘贴最省事）'
+          + ' ② 双击 3-记事本编辑PAT.vbs（记事本打开后粘贴到 window._GH_PAT = \'贴这里\' 的两个单引号中间）'
+          + ' ③ 双击 1-写入PAT到本地.bat。做完之后刷新本页面。' + extra);
+        return;
+      }
+      var patFromFile = window._GH_PAT.trim();
+      // 自动填到输入框
+      try {
+        if (patInput) {
+          patInput.type = 'password';
+          patInput.value = patFromFile;
+        }
+      } catch (e) {}
+      // 如果 localStorage 里还没保存 PAT，就把文件里的 PAT 也存到 localStorage（双保险）
+      if (!savedLs) {
+        try { localStorage.setItem(PAT_KEY, patFromFile); savedLs = patFromFile; } catch (e) {}
+      }
+      statusMsg('info', '✅ 已从本地 pat.js 自动读取 PAT（共'+patFromFile.length+'位），直接输入密码登录即可。');
+    };
+    loader.onerror = function() {
+      // pat.js 文件不存在：不立刻报错，看下面步骤 2 是否有 localStorage
+      loadedFlag = false;
+    };
+    document.head.appendChild(loader);
+
+    // 2 秒后如果还没加载到 localStorage 也没 pat.js，就给用户显示三种写入方法
+    setTimeout(function(){
+      if (loadedFlag) return; // pat.js 存在（不管有没有值）都不触发这段
+      var ls = localStorage.getItem(PAT_KEY);
+      if (ls) return;        // localStorage 已有，不用提示写 pat.js
+      statusMsg('info',
+        '💡 还没设置 PAT。3 种方法任选其一（做完刷新页面）：'
+        + ' ① 双击 2-VBS图形界面写入PAT.vbs（弹框粘贴最推荐）'
+        + ' ② 双击 1-写入PAT到本地.bat（命令行粘贴）'
+        + ' ③ 双击 3-记事本编辑PAT.vbs（手动粘贴到单引号里）。'
+        + ' 或者 直接在下面「PAT访问令牌」输入框粘贴也行。');
+    }, 2000);
+  } catch (e) {}
+
+  // --- 步骤 2：给用户提示 localStorage 的状态（只在 pat.js 没给出"更重要"的提示时显示）
+  if (savedLs) {
+    setTimeout(function(){
+      var s = document.getElementById('loginStatus');
+      if (!s || !s.textContent || s.textContent.indexOf('已从本地 pat.js 自动读取') !== -1) return;
+      if (s.textContent.indexOf('❌ pat.js 文件已经存在') !== -1) return;
+      s.className = 'status show info';
+      s.textContent = '💡 本机已保存 PAT（共'+savedLs.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填，或用 2-VBS/1-bat/3-记事本 写新PAT。';
+    }, 2500);
+  }
+});
 
 function doLogin(){
   var pwd = document.getElementById('pwd').value.trim();
   var pat = document.getElementById('pat').value.trim();
   if (!verifyPwd(pwd)) {
-    showStatus('loginStatus', '密码错误！默认密码是 admin123（如果你改过，用新密码）', 'err');
+    showStatus('loginStatus', '密码错误！默认密码是 xX20130810（如果你改过，用新密码）', 'err');
     return;
   }
   if (!pat) {
@@ -305,29 +396,90 @@ function ghHeaders(extra){
   if (extra) for (var k in extra) h[k] = extra[k];
   return h;
 }
+// 把 GitHub 返回的 401/403/404 转成更易懂的中文错误
+function explainGhError(status, fallbackMsg){
+  if (status === 401) {
+    return 'PAT 无效（401）：Token 过期或输错了字符。建议点「清除已保存PAT」→ 重新生成一次。';
+  }
+  if (status === 403) {
+    return 'PAT 没有权限（403）：常见原因\n' +
+      '① 经典Token：没勾选 repo 权限（重新生成时 repo 必须打勾）\n' +
+      '② 细粒度Token：Repository access 没包含 '+OWNER+'/'+REPO+' 或 Contents 不是 Read and write\n' +
+      '③ Token 属于别的账号，对该仓库没写权限';
+  }
+  if (status === 404) {
+    return '仓库/路径不存在（404）：\n' +
+      '① Token 对私有仓库没权限时 GitHub 也会故意返回 404 隐藏存在，请核对权限；\n' +
+      '② 仓库 OWNER/REPO 拼写或分支名错了（当前目标：'+OWNER+'/'+REPO+' @ '+BRANCH+'）';
+  }
+  return 'GitHub API 错误: '+status + ' ' + (fallbackMsg||'');
+}
 function ghGet(path){
   return fetch('https://api.github.com' + path, { headers: ghHeaders() })
-  .then(function(r){ if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限，请重新生成并勾选 repo'); } if(r.status===404){ return null; } if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); } return r.json(); });
+  .then(function(r){
+    if(r.status===401 || r.status===403 || r.status===404){ throw new Error(explainGhError(r.status)); }
+    if(r.status===304) return null;
+    if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); }
+    if (r.status === 204) return null;
+    return r.json();
+  });
 }
 function ghPut(path, body){
   return fetch('https://api.github.com' + path, {
     method: 'PUT', headers: ghHeaders({'Content-Type':'application/json'}),
     body: JSON.stringify(body)
   }).then(function(r){
-    if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限'); }
-    if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err)); }); }
+    if(r.status===401 || r.status===403 || r.status===404){
+      return r.text().then(function(t){ throw new Error(explainGhError(r.status) + '\n详细信息：' + (t||'').slice(0,300)); });
+    }
+    if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err).slice(0,400)); }); }
     return r.json();
   });
 }
 function getContent(path){
-  // 返回 {sha, content(base64 decoded string)} 或 null
+  // 返回 {sha, content(base64 decoded as UTF-8 string)} 或 null
   return ghGet('/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(path)+'?ref='+BRANCH)
   .then(function(data){
     if(!data) return null;
     if(Array.isArray(data)) return null;
-    var content = data.content ? atob(data.content.replace(/\s/g,'')) : '';
+    var content = data.content ? base64ToUtf8(data.content.replace(/\s/g,'')) : '';
     return { sha: data.sha, content: content };
   });
+}
+// ======== UTF-8 安全的 Base64 编解码（中文不乱码）========
+// GitHub API 的 content 是 base64(UTF-8字节)，直接 atob 会把多字节中文拆成乱码。
+// 优先用现代 TextEncoder/TextDecoder，老浏览器回退 unescape/encodeURIComponent
+function base64ToUtf8(b64) {
+  if (!b64) return '';
+  try {
+    var bin = atob(b64);
+    if (typeof TextDecoder !== 'undefined') {
+      var buf = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i) & 0xff;
+      return new TextDecoder('utf-8').decode(buf);
+    }
+    // 老浏览器回退
+    var str = '';
+    for (var j = 0; j < bin.length; j++) str += '%' + ('00' + bin.charCodeAt(j).toString(16)).slice(-2);
+    return decodeURIComponent(str);
+  } catch (e) {
+    return '';
+  }
+}
+function utf8ToBase64(str) {
+  if (str == null) return '';
+  str = String(str);
+  try {
+    if (typeof TextEncoder !== 'undefined') {
+      var bytes = new TextEncoder().encode(str);
+      var bin = '';
+      for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+  } catch (e) {}
+  // 老浏览器回退
+  try { return btoa(unescape(encodeURIComponent(str))); }
+  catch (e2) { return ''; }
 }
 function writeFile(path, contentBase64, sha, message){
   var body = { message: message || ('后台更新: '+path), content: contentBase64, branch: BRANCH };
@@ -336,15 +488,72 @@ function writeFile(path, contentBase64, sha, message){
 }
 
 // ========== 进入后台 ==========
-function enterAdmin(pat){
+async function enterAdmin(pat){
   PAT = pat;
-  document.getElementById('loginView').classList.add('hidden');
-  document.getElementById('adminView').classList.remove('hidden');
-  document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
-  document.getElementById('reloadBtn').onclick = loadAll;
-  // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
-  try { renderTeamOptions(); } catch(e) {}
-  loadAll();
+  var loginBtn = document.getElementById('loginBtn');
+  loginBtn.disabled = true;
+  try {
+    showStatus('loginStatus', '🔐 正在验证 PAT 身份与仓库权限（自动检测默认分支）...', 'info');
+
+    // 步骤 A：验证 PAT 身份（GET /user）
+    var user = null;
+    try {
+      user = await ghGet('/user');
+    } catch (e) {
+      throw new Error('PAT 身份验证失败：'+e.message);
+    }
+    if (!user || !user.login) {
+      throw new Error('PAT 身份验证失败：无法读取当前 GitHub 账号信息，请重新生成 PAT。');
+    }
+
+    // 步骤 B：读取仓库信息 → 1. 验证对仓库是否有读写权限；2. 自动拿 default_branch
+    var repoInfo = null;
+    try {
+      repoInfo = await ghGet('/repos/'+OWNER+'/'+REPO);
+    } catch (e) {
+      throw new Error('仓库 '+OWNER+'/'+REPO+' 访问失败：'+e.message);
+    }
+    if (!repoInfo || !repoInfo.default_branch) {
+      throw new Error('无法读取仓库 '+OWNER+'/'+REPO+' 的默认分支，请检查仓库存在与否。');
+    }
+    // 自动覆盖 BRANCH 为仓库实际默认分支（不用写死 main）
+    BRANCH = repoInfo.default_branch;
+
+    // 步骤 C：权限检查 — 对私有仓库需要 push 权限（permissions.push===true）
+    var canPush = true;
+    if (repoInfo.private) {
+      canPush = !!(repoInfo.permissions && (repoInfo.permissions.push === true || repoInfo.permissions.admin === true));
+      if (!canPush) {
+        throw new Error(
+          '该 PAT 对私有仓库 '+OWNER+'/'+REPO+' 没有写权限（403）。\n' +
+          '请重新生成 PAT：\n' +
+          '· 经典 Token：必须勾选 repo 大项；\n' +
+          '· 细粒度 Token：对该仓库 Repository permissions → Contents 必须选「Read and write」。'
+        );
+      }
+    }
+
+    // 登录通过：显示主界面 + 更新顶部栏分支信息
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('adminView').classList.remove('hidden');
+    document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
+    document.getElementById('reloadBtn').onclick = loadAll;
+    var bl = document.getElementById('branchLabel');
+    if (bl) {
+      var pushTip = repoInfo.private ? (canPush?' ✓有写权限':' ✗无写权限') : '';
+      bl.textContent = BRANCH + pushTip + '（账号：@' + user.login + '）';
+    }
+
+    // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
+    try { renderTeamOptions(); } catch(e) {}
+    loadAll();
+  } catch (err) {
+    // 登录失败：把详细错误显示在登录状态条，让用户看到具体原因
+    showStatus('loginStatus', '❌ 登录失败：\n' + (err.message || String(err)), 'err');
+    // 失败时 PAT 一般是错的，让用户可以直接重填
+  } finally {
+    loginBtn.disabled = false;
+  }
 }
 
 function loadAll(){
@@ -588,7 +797,7 @@ async function saveAllToRepo(){
     var dsha = PEOPLE._sha || null;
     if (!dsha) { try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha;} catch(e){} }
     var dataStr = JSON.stringify(PEOPLE, null, 2);
-    var dataB64 = btoa(unescape(encodeURIComponent(dataStr)));
+    var dataB64 = utf8ToBase64(dataStr);
     await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
     PEOPLE._sha = null; // 下次刷新重新拉
     status.push('✅ 更新 data.json（共 '+PEOPLE.length+' 人）');
@@ -602,7 +811,7 @@ async function saveAllToRepo(){
     var recruitCopy = {};
     for (var k in RECRUIT) if (k !== '_sha') recruitCopy[k] = RECRUIT[k];
     var rStr = JSON.stringify(recruitCopy, null, 2);
-    var rB64 = btoa(rStr);
+    var rB64 = utf8ToBase64(rStr);
     await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
     RECRUIT._sha = null;
     status.push('✅ 更新 team_recruit.json');
