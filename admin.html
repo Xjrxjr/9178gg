@@ -481,6 +481,62 @@ function utf8ToBase64(str) {
   try { return btoa(unescape(encodeURIComponent(str))); }
   catch (e2) { return ''; }
 }
+// ======== 修复 GitHub 旧坏数据里的"中文变乱码"（UTF-8 字节被误存成 Latin-1 字符，比如 沃克 → æ²å）=======
+// 原理：对字符串里每个 char，如果 code<256，取低字节拼起来，再按 UTF-8 解码。
+// 检测：字符串里有大量 [\x80-\xFF] 区间字符（乱码区）且包含 UTF-8 合法序列（如 å\x82/æ³ 等）时才修复，避免误伤正常英文。
+function _isGarbledString(s) {
+  // 快速拒绝：长度<2 或没有 Latin-1 高字节
+  if (!s || s.length < 2) return false;
+  var hi = 0;
+  for (var i = 0; i < s.length; i++) { if (s.charCodeAt(i) >= 0x80 && s.charCodeAt(i) <= 0xFF) hi++; }
+  if (hi === 0) return false;
+  // 乱码占比要高（>=30% 的字节是 Latin-1 高字节，说明是"乱码串"不是偶尔夹带的特殊字符）
+  if (hi / s.length < 0.3) return false;
+  return true;
+}
+function _tryFixGarbledString(s) {
+  if (!_isGarbledString(s)) return s;
+  try {
+    var bytes = [];
+    for (var i = 0; i < s.length; i++) {
+      var code = s.charCodeAt(i);
+      if (code <= 0xFF) { bytes.push(code & 0xFF); }
+      else {
+        // 遇到真正的中文（>255）说明不是纯乱码串，停止修复、原样返回
+        return s;
+      }
+    }
+    if (bytes.length === 0) return s;
+    var buf = new Uint8Array(bytes.length);
+    for (var j = 0; j < bytes.length; j++) buf[j] = bytes[j];
+    var fixed = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+    // 解码后如果又出现很多乱码替代字符（U+FFFD），说明不是有效 UTF-8，放弃修复
+    var repl = 0;
+    for (var k = 0; k < fixed.length; k++) if (fixed.charCodeAt(k) === 0xFFFD) repl++;
+    if (repl > 0 && repl / fixed.length > 0.1) return s;
+    // 成功：返回修复后的中文
+    return fixed;
+  } catch (e) { return s; }
+}
+// 递归清理对象/数组里所有字符串
+function fixGarbledInObject(obj) {
+  if (obj == null) return obj;
+  if (typeof obj === 'string') return _tryFixGarbledString(obj);
+  if (Array.isArray(obj)) {
+    for (var i = 0; i < obj.length; i++) obj[i] = fixGarbledInObject(obj[i]);
+    return obj;
+  }
+  if (typeof obj === 'object') {
+    for (var k in obj) {
+      if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+      // 内部保留字段跳过（sha、id、phone、图片URL等可能包含非乱码高字节概率低但保险）
+      if (k === '_sha' || k === 'id' || k === 'phone') continue;
+      obj[k] = fixGarbledInObject(obj[k]);
+    }
+    return obj;
+  }
+  return obj;
+}
 function writeFile(path, contentBase64, sha, message){
   var body = { message: message || ('后台更新: '+path), content: contentBase64, branch: BRANCH };
   if (sha) body.sha = sha;
@@ -567,8 +623,48 @@ function loadAll(){
     try { RECRUIT = r ? JSON.parse(r.content) : {}; }
     catch(e){ RECRUIT = {}; }
     RECRUIT._sha = r? r.sha : null;
-    DIRTY_PEOPLE = false; DIRTY_RECRUIT = false; PENDING_IMAGES = [];
-    showStatus('saveStatus','加载成功：'+PEOPLE.length+' 名人员。可开始修改。','ok');
+
+    // --- 自动修复之前错误编码写进仓库的乱码（UTF-8 字节被当成 Latin-1 的那种） ---
+    var fixedCount = 0;
+    (function(){
+      function snap(s){ return (typeof s === 'string') ? s : null; }
+      function walk(o, onStr){
+        if (o == null) return;
+        if (typeof o === 'string') return onStr(o);
+        if (Array.isArray(o)) { for (var i = 0; i < o.length; i++) walk(o[i], onStr); return; }
+        if (typeof o !== 'object') return;
+        for (var k in o) {
+          if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
+          if (k === '_sha' || k === 'id' || k === 'phone') continue;
+          walk(o[k], onStr);
+        }
+      }
+      // 先收集所有原字符串，再做修复，比对差异数量
+      var before = [];
+      walk(PEOPLE,  function(s){ before.push(snap(s)); });
+      walk(RECRUIT, function(s){ before.push(snap(s)); });
+      fixGarbledInObject(PEOPLE);
+      fixGarbledInObject(RECRUIT);
+      var after = [];
+      walk(PEOPLE,  function(s){ after.push(snap(s)); });
+      walk(RECRUIT, function(s){ after.push(snap(s)); });
+      for (var i = 0; i < before.length; i++) {
+        if (before[i] !== null && before[i] !== after[i]) fixedCount++;
+      }
+    })();
+    if (fixedCount > 0) {
+      DIRTY_PEOPLE = true; // 修复了就标记为"已改变"，用户点保存就能写回正确中文
+      DIRTY_RECRUIT = true;
+      setTimeout(function(){
+        showStatus('saveStatus',
+          '✅ 加载成功：'+PEOPLE.length+' 名人员，已自动修复 '+fixedCount+' 条乱码（如：沃克/杰森/警官/三合会成员等）。\n'
+          + '📌 请立即点击右下角「保存所有改动到仓库」按钮把修复后的正确中文写回 GitHub，以后加载就不需要再修复。',
+          'ok');
+      }, 400);
+    } else {
+      showStatus('saveStatus','加载成功：'+PEOPLE.length+' 名人员。可开始修改。','ok');
+    }
+
     renderRecruitPanel();
     renderTeamFilter();
     renderTeamOptions();
