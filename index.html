@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -8,10 +8,30 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d47a1 0%, #1565c0 50%, #1976d2 100%);
     min-height: 100vh;
     padding: 20px;
+    position: relative;
+    overflow-x: hidden;
   }
+  /* 背景中间大 LSPD 徽章水印（已隐藏） */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    height: 580px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 580'><defs><filter id='glow'><feGaussianBlur stdDeviation='4'/></filter></defs><path d='M250 30 L420 90 L420 260 Q420 420 250 540 Q80 420 80 260 L80 90 Z' fill='none' stroke='%23ffd700' stroke-width='5' opacity='0.15'/><path d='M250 50 L400 100 L400 260 Q400 400 250 510 Q100 400 100 260 L100 100 Z' fill='%230d3d8a' opacity='0.12' stroke='%23ffd700' stroke-width='3' stroke-opacity='0.2'/><circle cx='250' cy='220' r='90' fill='none' stroke='%23ffd700' stroke-width='4' opacity='0.18'/><polygon points='250,140 270,200 250,260 230,200' fill='%23ffd700' opacity='0.15'/><path d='M180 220 Q180 170 220 170 L280 170 Q320 170 320 220 Q320 270 280 280 L220 280 Q180 270 180 220 Z' fill='none' stroke='%23ffd700' stroke-width='3' opacity='0.18'/><text x='250' y='350' text-anchor='middle' fill='%23ffd700' font-size='56' font-family='Arial' font-weight='bold' letter-spacing='8' opacity='0.18'>LSPD</text><text x='250' y='395' text-anchor='middle' fill='white' font-size='20' font-family='Arial' letter-spacing='6' opacity='0.12'>LOS SANTOS</text><text x='250' y='425' text-anchor='middle' fill='white' font-size='20' font-family='Arial' letter-spacing='6' opacity='0.12'>POLICE DEPT</text><text x='250' y='470' text-anchor='middle' fill='%23ffd700' font-size='16' font-family='Arial' letter-spacing='4' opacity='0.12'>TO PROTECT AND SERVE</text></svg>");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+  }
+  .container { position: relative; z-index: 1; }
   .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -30,12 +50,225 @@
     color: #333;
     font-size: 26px;
   }
+  /* 团队标题区域（返回按钮+团队名） */
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .back-btn {
+    background: #ffd700;
+    color: #0d47a1;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    display: none;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { background: #ffc107; transform: translateX(-2px); }
+  .back-btn.show { display: inline-flex; align-items: center; gap: 6px; }
+  .team-title-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: rgba(255,215,0,0.15);
+    border-left: 4px solid #ffd700;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    color: white;
+    font-size: 15px;
+    display: none;
+  }
+  .team-title-bar.show { display: flex; }
+  .team-title-bar .tt-icon { font-size: 28px; }
+  .team-title-bar .tt-name { font-size: 22px; font-weight: bold; color: #fff; }
+  .team-title-bar .tt-en { font-size: 12px; opacity: 0.85; }
+  .team-title-bar .tt-count {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+  }
+  /* 团队选择页样式 */
+  .teams-view {
+    display: none;
+  }
+  .teams-view.show { display: block; }
+  .teams-subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.9);
+    font-size: 15px;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+  }
+  .teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 280px));
+    gap: 18px;
+    margin: 0 auto;
+    max-width: 1000px;
+    justify-items: center;
+  }
+  .team-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px 22px;
+    cursor: pointer;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    border-top: 6px solid;
+  }
+  .team-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    border-radius: 0 0 0 100%;
+    opacity: 0.08;
+  }
+  .team-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.28);
+  }
+  .team-card .tc-icon {
+    font-size: 52px;
+    margin-bottom: 14px;
+    display: block;
+  }
+  .team-card .tc-name {
+    font-size: 22px;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 6px;
+  }
+  .team-card .tc-en {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    opacity: 0.6;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .team-card .tc-count {
+    display: inline-block;
+    background: #f0f4f8;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #555;
+    font-weight: bold;
+  }
+  .recruit-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    border: 1.5px dashed transparent;
+  }
+  .recruit-badge:hover { transform: scale(1.04); }
+  .recruit-on  { background: rgba(46, 125, 50, 0.15); color: #2e7d32; border-color: #2e7d32; border-style: solid; }
+  .recruit-off { background: rgba(211, 47, 47, 0.12); color: #c62828; border-color: #c62828; border-style: solid; }
+  .recruit-null { background: rgba(158, 158, 158, 0.12); color: #757575; border-color: #bdbdbd; }
+  .recruit-hint { font-size: 11px; opacity: 0.75; margin-top: 6px; }
+  /* 人员列表页显示切换 */
+  #peopleGridWrapper { display: none; }
+  #peopleGridWrapper.show { display: block; }
+  /* 屏保：瓦格纳 */
+  #screensaver {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: radial-gradient(ellipse at center, #1a1a1a 0%, #000000 100%);
+    z-index: 9999;
+    display: none;
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #d4af37;
+    text-align: center;
+    animation: ssFadeIn 0.6s ease;
+  }
+  #screensaver.show { display: flex; }
+  @keyframes ssFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #screensaver .ss-hammer {
+    display: none;
+  }
+  @keyframes ssPulse {
+    0%,100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.06); opacity: 1; }
+  }
+  #screensaver .ss-title {
+    font-size: 72px;
+    font-weight: bold;
+    letter-spacing: 18px;
+    color: #d4af37;
+    text-shadow: 0 0 30px rgba(212,175,55,0.6);
+    margin-bottom: 14px;
+  }
+  #screensaver .ss-logo {
+    width: 280px;
+    height: auto;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    box-shadow: 0 0 40px rgba(212,175,55,0.4);
+    animation: ssPulse 3s ease-in-out infinite;
+  }
+  #screensaver .ss-en {
+    font-size: 18px;
+    letter-spacing: 8px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 36px;
+  }
+  #screensaver .ss-alt-badge {
+    display: inline-block;
+    border: 1.5px solid #d4af37;
+    color: #d4af37;
+    padding: 6px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    margin-bottom: 30px;
+  }
+  #screensaver .ss-text-line {
+    font-size: 20px;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 3px;
+    margin-bottom: 14px;
+  }
+  #screensaver .ss-hint {
+    font-size: 14px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 2px;
+    margin-top: 24px;
+    animation: ssBlink 1.8s ease-in-out infinite;
+  }
+  @keyframes ssBlink {
+    0%,100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
+  }
   .header-actions {
     display: flex;
     gap: 12px;
   }
   .btn {
-    background: #667eea;
+    background: #1565c0;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -55,26 +288,6 @@
   .btn-warning:hover { background: #d68910; }
   .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255,255,255,0.95);
-    padding: 15px 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    gap: 15px;
-    flex-wrap: wrap;
-  }
-  .search-box {
-    flex: 1;
-    min-width: 200px;
-    padding: 10px 15px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-  }
-  .search-box:focus { outline: none; border-color: #667eea; }
 
   .admin-panel {
     background: rgba(255,255,255,0.95);
@@ -93,12 +306,12 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
   }
   .card {
     background: white;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 6px 18px rgba(0,0,0,0.15);
     transition: transform 0.2s, box-shadow 0.2s;
@@ -107,23 +320,23 @@
   .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
   .card img {
     width: 100%;
-    height: 240px;
+    height: 80px;
     object-fit: cover;
     background: #f0f0f0;
     display: block;
   }
   .card .info {
-    padding: 15px;
+    padding: 6px;
     text-align: center;
   }
   .card .name {
-    font-size: 18px;
+    font-size: 13px;
     font-weight: bold;
     color: #333;
-    margin-bottom: 5px;
+    margin-bottom: 2px;
   }
   .card .desc {
-    font-size: 13px;
+    font-size: 10px;
     color: #777;
   }
   .card .actions {
@@ -200,7 +413,7 @@
   }
   .form-group input:focus, .form-group textarea:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #1565c0;
   }
   .form-group .hint {
     font-size: 12px;
@@ -221,7 +434,7 @@
   }
   .detail-header {
     position: relative;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d47a1 0%, #1565c0 50%, #1976d2 100%);
     padding: 30px;
     color: white;
     display: flex;
@@ -248,6 +461,7 @@
   }
   .detail-subtitle {
     font-size: 15px;
+    color: white;
     opacity: 0.9;
     margin-bottom: 6px;
   }
@@ -307,7 +521,7 @@
     word-break: break-all;
   }
   .detail-info-item a {
-    color: #667eea;
+    color: #1565c0;
     text-decoration: none;
   }
   .detail-info-item a:hover {
@@ -356,7 +570,10 @@
 <body>
 <div class="container">
   <header>
-    <h1>👤 人员展示</h1>
+    <div class="header-left">
+      <button class="back-btn" id="backBtn" onclick="goBackToTeams()">← 返回</button>
+      <h1><svg width="36" height="36" viewBox="0 0 110 80" style="vertical-align:middle;margin-right:8px;"><path d="M55 4 L78 14 L78 34 Q78 54 55 72 Q32 54 32 34 L32 14 Z" fill="#0d47a1" stroke="#ffd700" stroke-width="2"/><polygon points="55,16 58,26 55,36 52,26" fill="#ffd700"/><text x="55" y="74" text-anchor="middle" fill="#ffd700" font-size="10" font-family="Arial" font-weight="bold">LSPD</text></svg> 人员展示</h1>
+    </div>
     <div class="header-actions">
       <button class="btn btn-secondary" id="adminToggleBtn" onclick="toggleAdmin()">管理员登录</button>
     </div>
@@ -375,11 +592,17 @@
     </div>
   </div>
 
-  <div class="toolbar">
-    <input type="text" class="search-box" id="searchBox" placeholder="🔍 搜索人员姓名..." oninput="renderGrid()">
+  <!-- 团队选择页 -->
+  <div class="teams-view" id="teamsView">
+    <div class="teams-subtitle">— LOS SANTOS POLICE DEPARTMENT —</div>
+    <div class="teams-grid" id="teamsGrid"></div>
   </div>
 
-  <div class="grid" id="peopleGrid"></div>
+  <!-- 人员名单页 -->
+  <div id="peopleGridWrapper">
+    <div class="team-title-bar" id="teamTitleBar"></div>
+    <div class="grid" id="peopleGrid"></div>
+  </div>
 </div>
 
 <!-- 添加/编辑模态框 -->
@@ -390,6 +613,12 @@
     <div class="form-group">
       <label>姓名 *</label>
       <input type="text" id="personName" placeholder="请输入姓名">
+    </div>
+    <div class="form-group">
+      <label>所属团队 *</label>
+      <select id="personTeam" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:white;">
+        <option value="">-- 请选择团队 --</option>
+      </select>
     </div>
     <div class="form-group">
       <label>图片来源 *</label>
@@ -519,20 +748,91 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  var STORAGE_KEY = 'people_data_v1';
+  var STORAGE_KEY = 'people_data_v2'; // v2：支持 team 字段，自动清除 v1 旧数据
+  var TEAM_RECRUIT_KEY = 'team_recruit_v1';
+  function getRecruitMap() {
+    try {
+      var raw = localStorage.getItem(TEAM_RECRUIT_KEY);
+      if (!raw) return {};
+      var obj = JSON.parse(raw);
+      return obj && typeof obj === 'object' ? obj : {};
+    } catch (e) { return {}; }
+  }
+  function setRecruitMap(map) {
+    try { localStorage.setItem(TEAM_RECRUIT_KEY, JSON.stringify(map || {})); } catch (e) {}
+  }
+  function getRecruit(teamId) {
+    var m = getRecruitMap();
+    var v = m[String(teamId)];
+    return v === true || v === false ? v : null;
+  }
+  function toggleRecruit(teamId, e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (!isAdmin()) { showToast('请先登录管理员再切换招募状态', 'error'); return; }
+    var cur = getRecruit(teamId);
+    var map = getRecruitMap();
+    var next;
+    if (cur === null) next = true;
+    else if (cur === true) next = false;
+    else next = true;
+    map[String(teamId)] = next;
+    setRecruitMap(map);
+    var msg = next ? '招募中' : '暂停招募';
+    showToast('已设置为：' + msg, 'success');
+    renderTeams();
+  }
+  function getRecruitBadgeClass(teamId) {
+    var r = getRecruit(teamId);
+    if (r === true) return 'recruit-on';
+    if (r === false) return 'recruit-off';
+    return 'recruit-null';
+  }
+  function getRecruitBadgeText(teamId) {
+    var r = getRecruit(teamId);
+    if (r === true) return '🔵 招募中';
+    if (r === false) return '⚪ 暂停招募';
+    return '⭕ 是否招募未定';
+  }
+  function getRecruitBadgeTitle() {
+    return isAdmin() ? '管理模式：点击切换招募状态' : '招募状态';
+  }
+  function getRecruitAdminHint() {
+    return isAdmin() ? '<div class="recruit-hint">管理员：点击徽章切换</div>' : '';
+  }
   var PWD_KEY = 'admin_pwd_v1';
   var DEFAULT_PWD = 'admin123';
 
   var PEOPLE_DATA = []; // 全局内存中的数据（来自 data.json 或 localStorage）
 
-  // 内联默认数据（防止 file:// 协议下无法 fetch data.json 时页面空）
-  var DEFAULT_PEOPLE_DATA = [
-    {"id":1,"name":"张三","role":"技术部 - 前端工程师","phone":"13800138001","email":"zhangsan@example.com","avatar":"","description":"负责前端页面开发与维护，精通 Vue、React 框架。","tags":["前端","Vue","React"]},
-    {"id":2,"name":"李四","role":"技术部 - 后端工程师","phone":"13800138002","email":"lisi@example.com","avatar":"","description":"负责服务器端接口开发，擅长 Python、Java、数据库设计。","tags":["后端","Python","Java"]},
-    {"id":3,"name":"王五","role":"市场部 - 市场经理","phone":"13800138003","email":"wangwu@example.com","avatar":"","description":"负责市场推广与品牌运营，拥有5年以上市场营销经验。","tags":["市场","运营","品牌"]},
-    {"id":4,"name":"赵六","role":"人事部 - HR专员","phone":"13800138004","email":"zhaoliu@example.com","avatar":"","description":"负责招聘、员工关系及绩效考核管理。","tags":["人事","招聘","HR"]},
-    {"id":5,"name":"钱七","role":"设计部 - UI设计师","phone":"13800138005","email":"qianqi@example.com","avatar":"","description":"负责产品界面设计与视觉规范制定，精通 Figma、Sketch。","tags":["设计","UI","Figma"]},
-    {"id":6,"name":"孙八","role":"财务部 - 财务主管","phone":"13800138006","email":"sunba@example.com","avatar":"","description":"负责公司财务核算、预算管理及税务申报。","tags":["财务","会计","税务"]}
+  // 8 个团队定义（LSPD 风格）
+  var TEAMS = [
+    { id: 1, name: 'LSPD',   icon: '🚓', color: '#1976d2', en: '' },
+    { id: 2, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
+    { id: 3, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
+    { id: 4, name: '三合会', icon: '🏔️', color: '#2e7d32', en: '' },
+    { id: 5, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
+    { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: ''                  },
+    { id: 7, name: '',       icon: '⬜', color: '#9e9e9e', en: ''                  },
+    { id: 8, name: '',       icon: '⬜', color: '#9e9e9e', en: ''                  }
+  ];
+  var CURRENT_TEAM = null; // null = 团队选择页
+
+  // 内嵌默认数据（双击打开index.html时fetch会被浏览器拦截，用这个兜底）
+  var EMBEDDED_DATA = [
+    {"id":1,"name":"局长：卢克肖","team":1,"image":"AA0089A8DB366925CF4C9F2957123C8C.png","desc":"警号：2001","phone":"13800138001","email":"zhangsan@example.com","bio":"5000块一小时","wechat":"","qqcontact":""},
+    {"id":2,"name":"罗伯特","team":1,"image":"qq:3958907838","desc":"警督-警号2002","phone":"","email":"","bio":"4000一小时","wechat":"","qqcontact":""},
+    {"id":3,"name":"奥利弗","team":1,"image":"qq:1248643085","desc":"警员-警号2010","phone":"13800138003","email":"wangwu@example.com","bio":"负责市场推广与品牌运营，拥有5年以上市场营销经验。","wechat":"","qqcontact":""},
+    {"id":4,"name":"艾丽莎","team":1,"image":"qq:596573006","desc":"警员-警号2014","phone":"13800138004","email":"zhaoliu@example.com","bio":"负责招聘、员工关系及绩效考核管理。","wechat":"","qqcontact":""},
+    {"id":5,"name":"法克","team":1,"image":"qq:3681125762","desc":"警员-警号2009","phone":"13800138005","email":"qianqi@example.com","bio":"负责产品界面设计与视觉规范制定，精通 Figma、Sketch。","wechat":"","qqcontact":""},
+    {"id":6,"name":"库克","team":1,"image":"qq:2399882689","desc":"警员-警号2013","phone":"13800138006","email":"sunba@example.com","bio":"负责公司财务核算、预算管理及税务申报。","wechat":"","qqcontact":""},
+    {"id":"178651296996995di","name":"迈克","team":1,"image":"qq:2351385206","desc":"警员-警号2008","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513030728lb9l","name":"麦克","team":1,"image":"qq:3754023007","desc":"警员-警号2011","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"178651309018350nz","name":"麦斯","team":1,"image":"qq:2672932145","desc":"警员-警号2003","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513151019gt6d","name":"乔治","team":1,"image":"qq:3989954841","desc":"警员-警号2012","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513237908z30k","name":"托利","team":1,"image":"qq:2831194491","desc":"警员-警号2007","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513288223ddvy","name":"泰森","team":1,"image":"qq:3347398790","desc":"警员-警号2004","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513325782sks7","name":"沃克","team":1,"image":"qq:2448024334","desc":"警员-警号2006","phone":"","email":"","wechat":"","qqcontact":"","bio":""},
+    {"id":"1786513366673092l","name":"雷克夫","team":1,"image":"qq:3751211611","desc":"一级警员-警号2005","phone":"","email":"","wechat":"","qqcontact":"","bio":""}
   ];
 
   // 初始化：加载 data.json
@@ -559,16 +859,7 @@
         .catch(function() {
           // fetch 失败（file:// 协议下可能被浏览器拦截），降级用 localStorage
           var raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) {
-            try {
-              var parsed = JSON.parse(raw);
-              PEOPLE_DATA = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_PEOPLE_DATA;
-            } catch (e) {
-              PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-            }
-          } else {
-            PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-          }
+          PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
           callback(false);
         });
     } else {
@@ -591,16 +882,7 @@
             } catch (e) {}
           }
           var raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) {
-            try {
-              var parsed = JSON.parse(raw);
-              PEOPLE_DATA = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_PEOPLE_DATA;
-            } catch (e) {
-              PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-            }
-          } else {
-            PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-          }
+          PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
           callback(false);
         }
       };
@@ -609,23 +891,27 @@
         xhr.send();
       } catch (e) {
         var raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          try {
-            var parsed = JSON.parse(raw);
-            PEOPLE_DATA = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_PEOPLE_DATA;
-          } catch (e) {
-            PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-          }
-        } else {
-          PEOPLE_DATA = DEFAULT_PEOPLE_DATA;
-        }
+        PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
         callback(false);
       }
     }
   }
 
   function getData() {
-    return PEOPLE_DATA || [];
+    // 兼容新旧两套字段名（旧: role/description/avatar, 新: desc/bio/image）
+    // 兼容 team 字段（无 team 则默认归到 1:LSPD）
+    return (PEOPLE_DATA || []).map(function(p) {
+      return Object.assign({}, p, {
+        image: p.image !== undefined ? p.image : (p.avatar || ''),
+        desc: p.desc || p.role || '',
+        bio: p.bio || p.description || '',
+        team: p.team || (p.team_id) || 1
+      });
+    });
+  }
+  function getTeamById(id) {
+    var t = TEAMS.find(function(x){ return String(x.id) === String(id); });
+    return t || { name: '未分配', icon: '❓', color: '#888', en: '' };
   }
   function saveData(arr) {
     PEOPLE_DATA = arr;
@@ -663,13 +949,28 @@
       try { URL.revokeObjectURL(url); } catch (e) {}
     }, 1000);
     showToast('已导出 data.json，请用它替换网站上的同名文件', 'success');
+    // 同时导出各团队招募状态（部署后所有访客都能看到最新招募状态）
+    try {
+      var recStr = JSON.stringify(getRecruitMap(), null, 2);
+      var recBlob = new Blob([recStr], { type: 'application/json;charset=utf-8' });
+      var recUrl = URL.createObjectURL(recBlob);
+      var recA = document.createElement('a');
+      recA.href = recUrl;
+      recA.download = 'team_recruit.json';
+      document.body.appendChild(recA);
+      recA.click();
+      setTimeout(function() {
+        document.body.removeChild(recA);
+        try { URL.revokeObjectURL(recUrl); } catch (e) {}
+      }, 1000);
+    } catch (e) {}
   }
 
   function resetLocalToServer() {
     if (!confirm('确定要放弃本地所有修改，重新加载服务器上的 data.json 吗？')) return;
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     loadDataFromJson(function() {
-      renderGrid();
+      renderView();
       showToast('已重新加载服务器数据', 'success');
     });
   }
@@ -701,31 +1002,150 @@
     setTimeout(() => t.className = 'toast ' + type, 2000);
   }
 
-  // 渲染人员列表
-  function renderGrid() {
-    const data = getData();
-    const keyword = document.getElementById('searchBox').value.trim().toLowerCase();
-    const filtered = data.filter(p => p.name.toLowerCase().includes(keyword));
-    const grid = document.getElementById('peopleGrid');
+  // 渲染主视图（团队页 或 人员列表页）
+  function renderView() {
+    const teamsView = document.getElementById('teamsView');
+    const peopleWrapper = document.getElementById('peopleGridWrapper');
+    const backBtn = document.getElementById('backBtn');
+    const titleBar = document.getElementById('teamTitleBar');
 
-    if (filtered.length === 0) {
+    if (CURRENT_TEAM === null) {
+      // 团队选择页
+      teamsView.classList.add('show');
+      peopleWrapper.classList.remove('show');
+      backBtn.classList.remove('show');
+      renderTeams();
+    } else {
+      // 人员列表页
+      teamsView.classList.remove('show');
+      peopleWrapper.classList.add('show');
+      backBtn.classList.add('show');
+      const team = getTeamById(CURRENT_TEAM);
+      const count = getData().filter(x => String(x.team) === String(CURRENT_TEAM)).length;
+      titleBar.innerHTML = `<span class="tt-icon">${team.icon}</span><div><div class="tt-name">${team.name}</div><div class="tt-en">${team.en}</div></div><div class="tt-count">👥 ${count} 人</div>`;
+      titleBar.classList.add('show');
+      renderGrid();
+    }
+    // 管理员按钮只在管理模式下、详情页显示（保持原有逻辑）
+    refreshAdminButtonsOnCards();
+  }
+
+  // 返回团队选择页
+  function goBackToTeams() {
+    CURRENT_TEAM = null;
+    renderView();
+  }
+
+  // 进入某个团队
+  function enterTeam(teamId) {
+    var tm = getTeamById(teamId);
+    var nm = String((tm && tm.name) || '').trim();
+    if (nm === '' || nm === '未启用') {
+      showToast('该团队未启用', 'error');
+      return;
+    }
+    CURRENT_TEAM = Number(teamId);
+    renderView();
+  }
+
+  // 渲染 8 个团队卡片
+
+  // 初始化"所属团队"下拉框，选项来源于 TEAMS（有名字的团队才显示）
+  function initTeamSelectOptions() {
+    var sel = document.getElementById('personTeam');
+    if (!sel) return;
+    // 保留第一个空 option（请选择团队）
+    while (sel.options.length > 1) sel.remove(1);
+    // 追加有名字的团队
+    TEAMS.forEach(function(t) {
+      var n = String(t.name || '').trim(); if (!n || n === '未启用') return;
+      var opt = document.createElement('option');
+      opt.value = String(t.id);
+      opt.textContent = (t.icon || '') + ' ' + t.name;
+      sel.appendChild(opt);
+    });
+  }
+  // 页面加载后立即填充一次（避免打开表单时为空）
+  document.addEventListener('DOMContentLoaded', initTeamSelectOptions);
+  // 部署后自动读取服务器上的 team_recruit.json（所有访客都能看到管理员设置的招募状态）
+  (function loadServerRecruit() {
+    try {
+      if (typeof fetch !== 'function') return;
+      fetch('team_recruit.json?t=' + new Date().getTime(), { cache: 'no-store' })
+        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(obj) {
+          if (!obj || typeof obj !== 'object') return;
+          var local = getRecruitMap();
+          var emptyLocal = Object.keys(local).length === 0;
+          if (!emptyLocal) return; // 管理员本地已经有修改过的设置，不要被旧服务器文件覆盖
+          setRecruitMap(obj);
+          try { renderTeams(); } catch (e) {}
+        })
+        .catch(function() {});
+    } catch (e) {}
+  })();
+
+  function renderTeams() {
+    const grid = document.getElementById('teamsGrid');
+    const allData = getData();
+    grid.innerHTML = TEAMS.filter(function(t){ var n=String((t&&t.name)||'').trim(); return n && n!=='未启用'; }).map(function(t) {
+      const count = allData.filter(function(x){ return String(x.team) === String(t.id); }).length;
+      const isEmpty = !t.name || String(t.name).trim() === '未启用'; // 未命名或标记为未启用 = 禁用卡片
+      if (isEmpty) {
+        // 灰色"待启用"卡片，不可点击
+        return `
+        <div class="team-card" style="border-top-color:#bdbdbd; color:#999; cursor:not-allowed; opacity:0.55; background:#f5f5f5;">
+          <div style="position:absolute; top:0; right:0; width:90px; height:90px; border-radius:0 0 0 100%; background:#9e9e9e; opacity:0.10;"></div>
+          <span class="tc-icon">⬜</span>
+          <div class="tc-name" style="color:#999;">待启用</div>
+          <div class="tc-en">&nbsp;</div>
+          <div class="tc-count" style="background:#eee; color:#999;">— —</div>
+        </div>`;
+      }
+      return `
+      <div class="team-card" style="border-top-color:${t.color}; color:${t.color};" onclick="enterTeam(${t.id})">
+        <div style="position:absolute; top:0; right:0; width:90px; height:90px; border-radius:0 0 0 100%; background:${t.color}; opacity:0.10;"></div>
+        <span class="tc-icon">${t.icon}</span>
+        <div class="tc-name">${t.name}</div>
+        <div class="tc-en">${t.en}</div>
+        <div class="tc-count">👥 ${count} 人</div>
+        <div class="recruit-badge ${getRecruitBadgeClass(t.id)}"
+             onclick="toggleRecruit(${t.id}, event)"
+             title="${getRecruitBadgeTitle()}">
+          ${getRecruitBadgeText(t.id)}
+        </div>
+        ${getRecruitAdminHint()}
+      </div>`;
+    }).join('');
+  }
+
+  // 渲染人员列表（按 CURRENT_TEAM 过滤）
+  function renderGrid() {
+    const all = getData();
+    const data = CURRENT_TEAM === null
+      ? all
+      : all.filter(function(x){ return String(x.team) === String(CURRENT_TEAM); });
+    const grid = document.getElementById('peopleGrid');
+    const adminMode = isAdmin();
+
+    if (data.length === 0) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-        <h3>${data.length === 0 ? '暂无人员数据' : '未找到匹配的人员'}</h3>
-        <p>${isAdmin() ? '点击右上角"添加人员"来创建' : ''}</p>
+        <h3>暂无人员数据</h3>
+        <p>${adminMode ? '点击"添加人员"来创建（会默认加入当前团队）' : ''}</p>
       </div>`;
       return;
     }
 
-    grid.innerHTML = filtered.map(p => {
+    grid.innerHTML = data.map(p => {
       const imgSrc = getImgSrc(p.image);
       return `
       <div class="card">
-        <div class="actions" onclick="event.stopPropagation()">
+        <div class="actions" onclick="event.stopPropagation()" style="${adminMode ? 'display:flex' : 'display:none'}">
           <button class="edit-btn" onclick="openEditModal('${p.id}')" title="编辑">✏️</button>
           <button class="delete-btn" onclick="deletePerson('${p.id}')" title="删除">🗑️</button>
         </div>
         <div class="detail-click" onclick="openDetail('${p.id}')">
-          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22240%22><rect width=%22300%22 height=%22240%22 fill=%22%23f0f0f0%22/><text x=%22150%22 y=%22130%22 font-size=%2218%22 text-anchor=%22middle%22 fill=%22%23999%22>无图片</text></svg>'">
+          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
           <div class="info">
             <div class="name">${escapeHtml(p.name)}</div>
             ${p.desc ? `<div class="desc">${escapeHtml(p.desc)}</div>` : ''}
@@ -733,6 +1153,13 @@
         </div>
       </div>`;
     }).join('');
+  }
+
+  function refreshAdminButtonsOnCards() {
+    const show = isAdmin();
+    document.querySelectorAll('.card .actions').forEach(function(el){
+      el.style.display = show ? 'flex' : 'none';
+    });
   }
 
   function escapeHtml(str) {
@@ -744,7 +1171,7 @@
   // 将存储的图片字段转换为实际可显示的 src
   // 支持格式：qq:12345678（QQ实时头像）、普通路径或URL
   function getImgSrc(src) {
-    if (!src) return '';
+    if (!src) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 80"><rect width="110" height="80" rx="8" fill="%231565c0"/><path d="M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z" fill="%230d47a1" stroke="%23ffd700" stroke-width="2"/><polygon points="55,20 58,28 55,36 52,28" fill="%23ffd700"/><text x="55" y="76" text-anchor="middle" fill="%23ffd700" font-size="9" font-family="Arial" font-weight="bold" letter-spacing="1">LSPD</text></svg>';
     if (src.startsWith('qq:')) {
       const qq = src.substring(3);
       // 加时间戳防止浏览器缓存，确保每次都拿到最新头像
@@ -826,6 +1253,7 @@
       btn.className = 'btn btn-secondary';
       panel.classList.remove('active');
     }
+    renderView();
   }
 
   // 修改密码
@@ -851,8 +1279,12 @@
   // 添加/编辑人员
   function openAddModal() {
     document.getElementById('modalTitle').textContent = '添加人员';
+    initTeamSelectOptions();
     document.getElementById('personId').value = '';
     document.getElementById('personName').value = '';
+    // 默认选中当前所在团队；若在团队选择页，则默认选8（综合队）
+    var defaultTeam = CURRENT_TEAM ? Number(CURRENT_TEAM) : 1;
+    document.getElementById('personTeam').value = String(defaultTeam);
     document.getElementById('personImage').value = '';
     document.getElementById('personQQ').value = '';
     document.getElementById('personDesc').value = '';
@@ -870,11 +1302,13 @@
   }
   function openEditModal(id) {
     const data = getData();
-    const p = data.find(x => x.id === id);
+    initTeamSelectOptions();
+    const p = data.find(x => String(x.id) === String(id));
     if (!p) return;
     document.getElementById('modalTitle').textContent = '编辑人员';
     document.getElementById('personId').value = p.id;
     document.getElementById('personName').value = p.name;
+    document.getElementById('personTeam').value = String(p.team || 8);
     document.getElementById('personDesc').value = p.desc || '';
     document.getElementById('personPhone').value = p.phone || '';
     document.getElementById('personEmail').value = p.email || '';
@@ -903,6 +1337,7 @@
   function savePerson() {
     const id = document.getElementById('personId').value;
     const name = document.getElementById('personName').value.trim();
+    const teamVal = document.getElementById('personTeam').value;
     const desc = document.getElementById('personDesc').value.trim();
     const phone = document.getElementById('personPhone').value.trim();
     const email = document.getElementById('personEmail').value.trim();
@@ -911,6 +1346,10 @@
     const bio = document.getElementById('personBio').value.trim();
     const source = document.querySelector('input[name="imgSource"]:checked').value;
 
+    if (!name) { showToast('请填写姓名', 'error'); return; }
+    if (!teamVal) { showToast('请选择所属团队', 'error'); return; }
+    const team = Number(teamVal);
+
     let image = '';
     if (source === 'qq') {
       const qq = document.getElementById('personQQ').value.trim();
@@ -918,34 +1357,32 @@
       image = 'qq:' + qq;
     } else {
       image = document.getElementById('personImage').value.trim();
-      if (!image) { showToast('请填写图片路径', 'error'); return; }
+      // 不填图片则使用默认 LSPD 徽章（留空即可，getImgSrc 会兜底）
     }
 
-    if (!name) { showToast('请填写姓名', 'error'); return; }
-
-    const payload = { name, image, desc, phone, email, wechat, qqcontact, bio };
+    const payload = { name, team, image, desc, phone, email, wechat, qqcontact, bio };
     const data = getData();
     if (id) {
-      const idx = data.findIndex(x => x.id === id);
+      const idx = data.findIndex(x => String(x.id) === String(id));
       if (idx >= 0) {
-        data[idx] = { ...data[idx], ...payload };
+        data[idx] = Object.assign({}, data[idx], payload);
       }
     } else {
-      data.push({ id: Date.now().toString() + Math.random().toString(36).slice(2,6), ...payload });
+      data.push(Object.assign({ id: Date.now().toString() + Math.random().toString(36).slice(2,6) }, payload));
     }
     saveData(data);
     closeModal();
-    renderGrid();
+    renderView();
     // 如果详情窗打开着，刷新它
     if (currentDetailId) openDetail(currentDetailId);
     showToast('保存成功', 'success');
   }
   function deletePerson(id) {
     if (!confirm('确定要删除这个人员吗？')) return;
-    const data = getData().filter(x => x.id !== id);
+    const data = getData().filter(x => String(x.id) !== String(id));
     saveData(data);
     if (currentDetailId === id) { closeDetail(); }
-    renderGrid();
+    renderView();
     showToast('已删除', 'success');
   }
 
@@ -953,14 +1390,14 @@
   let currentDetailId = null;
 
   function openDetail(id) {
-    const p = getData().find(x => x.id === id);
+    const p = getData().find(x => String(x.id) === String(id));
     if (!p) return;
     currentDetailId = id;
 
     const imgSrc = getImgSrc(p.image);
     document.getElementById('detailImg').src = imgSrc;
     document.getElementById('detailImg').onerror = function() {
-      this.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect width=%22200%22 height=%22200%22 fill=%22%23f0f0f0%22/><text x=%22100%22 y=%22110%22 font-size=%2224%22 text-anchor=%22middle%22 fill=%22%23999%22>无图</text></svg>';
+      this.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>';
     };
     document.getElementById('detailName').textContent = p.name || '';
     document.getElementById('detailDesc').textContent = p.desc || '';
@@ -1056,15 +1493,51 @@
     }
   });
 
+  // ===== 屏保：瓦格纳（5秒无操作自动显示，点击任意位置恢复）=====
+  var IDLE_TIMEOUT = 5000; // 5 秒无操作触发
+  var idleTimer = null;
+  function showScreensaver() {
+    var ss = document.getElementById('screensaver');
+    if (ss) ss.classList.add('show');
+  }
+  function hideScreensaver() {
+    var ss = document.getElementById('screensaver');
+    if (ss) ss.classList.remove('show');
+    CURRENT_TEAM = null; // 恢复后回到5个团队按钮首页
+    renderView();
+    resetIdleTimer();
+  }
+  function resetIdleTimer() {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(showScreensaver, IDLE_TIMEOUT);
+  }
+  // 只有点击/按键/触摸才重置计时（移动鼠标不算操作）
+  ['mousedown', 'keydown', 'touchstart'].forEach(function(evt) {
+    window.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
+
   // 初始化：加载数据后再渲染
   updateAdminUI();
   loadDataFromJson(function(ok) {
-    renderGrid();
-    if (!ok && getData().length === 0 && DEFAULT_PEOPLE_DATA.length === 0) {
+    renderView();
+    resetIdleTimer(); // 启动屏保倒计时
+    if (!ok && getData().length === 0) {
       // 既不能 fetch data.json，本地也空 → 提示用户（file:// 双击打开时常见）
       showToast('提示：请通过启动服务器或部署到网站访问，直接双击可能无法读取数据', '');
     }
   });
 </script>
+<!-- 屏保：瓦格纳 -->
+<div id="screensaver" onclick="hideScreensaver()">
+  <div class="ss-title">瓦格纳</div>
+  <img class="ss-logo" src="QQ_1786555091509.png" alt="Wagner Logo" onerror="this.style.display='none'">
+  <div class="ss-en">WAGNER GROUP</div>
+  <div class="ss-alt-badge">ALT</div>
+  <div class="ss-text-line">对准电视</div>
+  <div class="ss-text-line">打开电视</div>
+  <div class="ss-text-line">屏幕互动查看人员</div>
+  <div class="ss-hint">— 点击任意位置继续 —</div>
+</div>
+
 </body>
 </html>

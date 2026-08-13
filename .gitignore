@@ -1,0 +1,12 @@
+# Logs and env files
+*.log
+*.env
+.DS_Store
+Thumbs.db
+# Temporary python / debug scripts
+_*.py
+_*.cjs
+_*.txt
+# Hidden git / IDE
+.vscode/
+.git/
