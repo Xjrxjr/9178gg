@@ -342,6 +342,8 @@ function enterAdmin(pat){
   document.getElementById('adminView').classList.remove('hidden');
   document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
   document.getElementById('reloadBtn').onclick = loadAll;
+  // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
+  try { renderTeamOptions(); } catch(e) {}
   loadAll();
 }
 

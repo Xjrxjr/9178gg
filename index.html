@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -306,21 +306,6 @@
   .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
 
-  .admin-panel {
-    background: rgba(255,255,255,0.95);
-    padding: 15px 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    display: none;
-    border-left: 4px solid #27ae60;
-  }
-  .admin-panel.active { display: block; }
-  .admin-panel .panel-title {
-    color: #27ae60;
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
-
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -356,26 +341,6 @@
     font-size: 10px;
     color: #777;
   }
-  .card .actions {
-    display: none;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    gap: 6px;
-  }
-  .card .actions button {
-    background: rgba(255,255,255,0.9);
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  }
-  .card .actions .edit-btn { color: #f39c12; }
-  .card .actions .delete-btn { color: #e74c3c; }
-  body.admin-mode .card .actions { display: flex; }
 
   .empty-state {
     text-align: center;
@@ -553,15 +518,6 @@
     line-height: 1.7;
     white-space: pre-wrap;
   }
-  .detail-body .admin-detail-actions {
-    display: none;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-    gap: 10px;
-    justify-content: flex-end;
-  }
-  body.admin-mode .detail-body .admin-detail-actions { display: flex; }
   .card .detail-click {
     cursor: pointer;
   }
@@ -591,23 +547,7 @@
       <button class="back-btn" id="backBtn" onclick="goBackToTeams()">← 返回</button>
       <h1><svg width="36" height="36" viewBox="0 0 110 80" style="vertical-align:middle;margin-right:8px;"><path d="M55 4 L78 14 L78 34 Q78 54 55 72 Q32 54 32 34 L32 14 Z" fill="#0d47a1" stroke="#ffd700" stroke-width="2"/><polygon points="55,16 58,26 55,36 52,26" fill="#ffd700"/><text x="55" y="74" text-anchor="middle" fill="#ffd700" font-size="10" font-family="Arial" font-weight="bold">LSPD</text></svg> 人员展示</h1>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" id="adminToggleBtn" onclick="toggleAdmin()">管理员登录</button>
-    </div>
   </header>
-
-  <div class="admin-panel" id="adminPanel">
-    <div class="panel-title">⚙️ 管理模式已开启</div>
-    <div style="margin-bottom:10px; padding:8px 12px; background:#fff3cd; border-left:4px solid #ffc107; border-radius:6px; font-size:13px; color:#856404; line-height:1.6;">
-      提示：增删改后需要点"导出 data.json"，将下载的文件替换网站目录中的同名文件并重新部署，其他人才会看到更新。
-    </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <button class="btn btn-success" onclick="openAddModal()">➕ 添加人员</button>
-      <button class="btn btn-warning" onclick="exportDataJson()">📥 导出 data.json</button>
-      <button class="btn btn-secondary" onclick="resetLocalToServer()">🔄 刷新服务器数据</button>
-      <button class="btn btn-secondary" onclick="logoutAdmin()">退出管理员</button>
-    </div>
-  </div>
 
   <!-- 团队选择页 -->
   <div class="teams-view" id="teamsView">
@@ -619,118 +559,6 @@
   <div id="peopleGridWrapper">
     <div class="team-title-bar" id="teamTitleBar"></div>
     <div class="grid" id="peopleGrid"></div>
-  </div>
-</div>
-
-<!-- 添加/编辑模态框 -->
-<div class="modal-overlay" id="personModal">
-  <div class="modal">
-    <h2 id="modalTitle">添加人员</h2>
-    <input type="hidden" id="personId">
-    <div class="form-group">
-      <label>姓名 *</label>
-      <input type="text" id="personName" placeholder="请输入姓名">
-    </div>
-    <div class="form-group">
-      <label>所属团队 *</label>
-      <select id="personTeam" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;background:white;">
-        <option value="">-- 请选择团队 --</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>图片来源 *</label>
-      <div style="display:flex; gap:20px; margin-bottom:10px; flex-wrap:wrap;">
-        <label style="display:flex; align-items:center; gap:6px; font-weight:normal; cursor:pointer;">
-          <input type="radio" name="imgSource" value="path" checked onchange="switchImgSource()"> 本地/网络图片
-        </label>
-        <label style="display:flex; align-items:center; gap:6px; font-weight:normal; cursor:pointer;">
-          <input type="radio" name="imgSource" value="qq" onchange="switchImgSource()"> QQ头像（实时）
-        </label>
-      </div>
-      <div id="imgPathBox">
-        <input type="text" id="personImage" placeholder="例如：images/zhangsan.jpg">
-        <div class="hint">把图片放到项目文件夹中，然后填写路径。也支持完整URL（http://...）</div>
-      </div>
-      <div id="imgQQBox" style="display:none;">
-        <input type="text" id="personQQ" placeholder="请输入QQ号" oninput="previewQQ()">
-        <div class="hint">填写QQ号后将自动获取该QQ的实时头像（QQ头像更换后自动同步）</div>
-        <div style="margin-top:10px; display:flex; align-items:center; gap:12px;">
-          <img id="qqPreview" style="display:none; width:80px; height:80px; border-radius:8px; object-fit:cover; border:2px solid #ddd;" alt="预览">
-          <span id="qqTip" style="display:none; color:#27ae60; font-size:13px;">✓ 已获取头像</span>
-        </div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>职位（卡片上显示的副标题）</label>
-      <input type="text" id="personDesc" placeholder="例如：产品经理 / 技术部">
-    </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-      <div class="form-group">
-        <label>📞 电话</label>
-        <input type="text" id="personPhone" placeholder="选填">
-      </div>
-      <div class="form-group">
-        <label>📧 邮箱</label>
-        <input type="email" id="personEmail" placeholder="选填">
-      </div>
-    </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-      <div class="form-group">
-        <label>💬 微信</label>
-        <input type="text" id="personWechat" placeholder="选填">
-      </div>
-      <div class="form-group">
-        <label>🐧 QQ号</label>
-        <input type="text" id="personQQContact" placeholder="选填，用于联系方式，与头像QQ无关">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>📝 详细介绍</label>
-      <textarea id="personBio" rows="4" placeholder="选填，个人简介、备注等"></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-      <button class="btn btn-success" onclick="savePerson()">保存</button>
-    </div>
-  </div>
-</div>
-
-<!-- 管理员登录模态框 -->
-<div class="modal-overlay" id="loginModal">
-  <div class="modal">
-    <h2>管理员登录</h2>
-    <div class="form-group">
-      <label>密码</label>
-      <input type="password" id="adminPassword" placeholder="请输入管理员密码" onkeypress="if(event.key==='Enter') doLogin()">
-      <div class="hint">默认密码：admin123（请登录后修改）</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeLoginModal()">取消</button>
-      <button class="btn btn-success" onclick="doLogin()">登录</button>
-    </div>
-  </div>
-</div>
-
-<!-- 修改密码模态框 -->
-<div class="modal-overlay" id="passwordModal">
-  <div class="modal">
-    <h2>修改管理员密码</h2>
-    <div class="form-group">
-      <label>原密码</label>
-      <input type="password" id="oldPwd" placeholder="请输入原密码">
-    </div>
-    <div class="form-group">
-      <label>新密码</label>
-      <input type="password" id="newPwd" placeholder="请输入新密码">
-    </div>
-    <div class="form-group">
-      <label>确认新密码</label>
-      <input type="password" id="confirmPwd" placeholder="请再次输入新密码">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closePasswordModal()">取消</button>
-      <button class="btn btn-warning" onclick="changePassword()">确认修改</button>
-    </div>
   </div>
 </div>
 
@@ -753,10 +581,6 @@
       <div class="detail-section" id="detailBioSection" style="display:none;">
         <div class="detail-section-title">个人简介</div>
         <div class="detail-bio" id="detailBio"></div>
-      </div>
-      <div class="admin-detail-actions" id="detailAdminActions">
-        <button class="btn btn-warning" onclick="editFromDetail()">✏️ 编辑</button>
-        <button class="btn btn-danger" onclick="deleteFromDetail()">🗑️ 删除</button>
       </div>
     </div>
   </div>
@@ -783,21 +607,6 @@
     var v = m[String(teamId)];
     return v === true || v === false ? v : null;
   }
-  function toggleRecruit(teamId, e) {
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-    if (!isAdmin()) { showToast('请先登录管理员再切换招募状态', 'error'); return; }
-    var cur = getRecruit(teamId);
-    var map = getRecruitMap();
-    var next;
-    if (cur === null) next = true;
-    else if (cur === true) next = false;
-    else next = true;
-    map[String(teamId)] = next;
-    setRecruitMap(map);
-    var msg = next ? '招募中' : '暂停招募';
-    showToast('已设置为：' + msg, 'success');
-    renderTeams();
-  }
   function getRecruitBadgeClass(teamId) {
     var r = getRecruit(teamId);
     if (r === true) return 'recruit-on';
@@ -810,14 +619,7 @@
     if (r === false) return '⚪ 暂停招募';
     return '⭕ 是否招募未定';
   }
-  function getRecruitBadgeTitle() {
-    return isAdmin() ? '管理模式：点击切换招募状态' : '招募状态';
-  }
-  function getRecruitAdminHint() {
-    return isAdmin() ? '<div class="recruit-hint">管理员：点击徽章切换</div>' : '';
-  }
-  var PWD_KEY = 'admin_pwd_v2';
-   var DEFAULT_PWD = 'xX20130810';
+  function getRecruitBadgeTitle() { return '招募状态'; }
 
   var PEOPLE_DATA = []; // 全局内存中的数据（来自 data.json 或 localStorage）
 
@@ -936,81 +738,6 @@
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch (e) {}
   }
 
-  // 导出 data.json 文件供重新部署
-  function exportDataJson() {
-    var dataStr = JSON.stringify(getData(), null, 2);
-    var blob;
-    try {
-      blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
-    } catch (e) {
-      // 兼容老浏览器：用 BlobBuilder
-      var BB = window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder;
-      var builder = new BB();
-      builder.append(dataStr);
-      blob = builder.getBlob('application/json;charset=utf-8');
-    }
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'data.json';
-    document.body.appendChild(a);
-    if (a.click) {
-      a.click();
-    } else {
-      var evt = document.createEvent('MouseEvents');
-      evt.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-      a.dispatchEvent(evt);
-    }
-    setTimeout(function() {
-      document.body.removeChild(a);
-      try { URL.revokeObjectURL(url); } catch (e) {}
-    }, 1000);
-    showToast('已导出 data.json，请用它替换网站上的同名文件', 'success');
-    // 同时导出各团队招募状态（部署后所有访客都能看到最新招募状态）
-    try {
-      var recStr = JSON.stringify(getRecruitMap(), null, 2);
-      var recBlob = new Blob([recStr], { type: 'application/json;charset=utf-8' });
-      var recUrl = URL.createObjectURL(recBlob);
-      var recA = document.createElement('a');
-      recA.href = recUrl;
-      recA.download = 'team_recruit.json';
-      document.body.appendChild(recA);
-      recA.click();
-      setTimeout(function() {
-        document.body.removeChild(recA);
-        try { URL.revokeObjectURL(recUrl); } catch (e) {}
-      }, 1000);
-    } catch (e) {}
-  }
-
-  function resetLocalToServer() {
-    if (!confirm('确定要放弃本地所有修改，重新加载服务器上的 data.json 吗？')) return;
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    loadDataFromJson(function() {
-      renderView();
-      showToast('已重新加载服务器数据', 'success');
-    });
-  }
-
-  function getPwd() {
-    try { return localStorage.getItem(PWD_KEY) || DEFAULT_PWD; }
-    catch (e) { return DEFAULT_PWD; }
-  }
-  function setPwd(p) {
-    try { localStorage.setItem(PWD_KEY, p); } catch (e) {}
-  }
-
-  function isAdmin() {
-    try { return sessionStorage.getItem('is_admin') === '1'; }
-    catch (e) { return false; }
-  }
-  function setAdmin(v) {
-    try {
-      if (v) sessionStorage.setItem('is_admin', '1');
-      else sessionStorage.removeItem('is_admin');
-    } catch (e) {}
-  }
-
   // Toast 提示
   function showToast(msg, type='') {
     const t = document.getElementById('toast');
@@ -1043,8 +770,6 @@
       titleBar.classList.add('show');
       renderGrid();
     }
-    // 管理员按钮只在管理模式下、详情页显示（保持原有逻辑）
-    refreshAdminButtonsOnCards();
   }
 
   // 返回团队选择页
@@ -1067,23 +792,6 @@
 
   // 渲染 8 个团队卡片
 
-  // 初始化"所属团队"下拉框，选项来源于 TEAMS（有名字的团队才显示）
-  function initTeamSelectOptions() {
-    var sel = document.getElementById('personTeam');
-    if (!sel) return;
-    // 保留第一个空 option（请选择团队）
-    while (sel.options.length > 1) sel.remove(1);
-    // 追加有名字的团队
-    TEAMS.forEach(function(t) {
-      var n = String(t.name || '').trim(); if (!n || n === '未启用') return;
-      var opt = document.createElement('option');
-      opt.value = String(t.id);
-      opt.textContent = (t.icon || '') + ' ' + t.name;
-      sel.appendChild(opt);
-    });
-  }
-  // 页面加载后立即填充一次（避免打开表单时为空）
-  document.addEventListener('DOMContentLoaded', initTeamSelectOptions);
   // 部署后自动读取服务器上的 team_recruit.json（所有访客都能看到管理员设置的招募状态）
   (function loadServerRecruit() {
     try {
@@ -1127,11 +835,9 @@
         <div class="tc-en">${t.en}</div>
         <div class="tc-count">👥 ${count} 人</div>
         <div class="recruit-badge ${getRecruitBadgeClass(t.id)}"
-             onclick="toggleRecruit(${t.id}, event)"
-             title="${getRecruitBadgeTitle()}">
+             title="招募状态">
           ${getRecruitBadgeText(t.id)}
         </div>
-        ${getRecruitAdminHint()}
       </div>`;
     }).join('');
   }
@@ -1143,12 +849,10 @@
       ? all
       : all.filter(function(x){ return String(x.team) === String(CURRENT_TEAM); });
     const grid = document.getElementById('peopleGrid');
-    const adminMode = isAdmin();
 
     if (data.length === 0) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
         <h3>暂无人员数据</h3>
-        <p>${adminMode ? '点击"添加人员"来创建（会默认加入当前团队）' : ''}</p>
       </div>`;
       return;
     }
@@ -1157,10 +861,6 @@
       const imgSrc = getImgSrc(p.image);
       return `
       <div class="card">
-        <div class="actions" onclick="event.stopPropagation()" style="${adminMode ? 'display:flex' : 'display:none'}">
-          <button class="edit-btn" onclick="openEditModal('${p.id}')" title="编辑">✏️</button>
-          <button class="delete-btn" onclick="deletePerson('${p.id}')" title="删除">🗑️</button>
-        </div>
         <div class="detail-click" onclick="openDetail('${p.id}')">
           <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
           <div class="info">
@@ -1170,13 +870,6 @@
         </div>
       </div>`;
     }).join('');
-  }
-
-  function refreshAdminButtonsOnCards() {
-    const show = isAdmin();
-    document.querySelectorAll('.card .actions').forEach(function(el){
-      el.style.display = show ? 'flex' : 'none';
-    });
   }
 
   function escapeHtml(str) {
@@ -1195,212 +888,6 @@
       return `https://q1.qlogo.cn/g?b=qq&nk=${encodeURIComponent(qq)}&s=640&t=${Date.now()}`;
     }
     return src;
-  }
-
-  // 切换图片来源（本地/网络 vs QQ头像）
-  function switchImgSource() {
-    const val = document.querySelector('input[name="imgSource"]:checked').value;
-    document.getElementById('imgPathBox').style.display = val === 'path' ? 'block' : 'none';
-    document.getElementById('imgQQBox').style.display = val === 'qq' ? 'block' : 'none';
-  }
-
-  // 实时预览QQ头像
-  function previewQQ() {
-    const qq = document.getElementById('personQQ').value.trim();
-    const img = document.getElementById('qqPreview');
-    const tip = document.getElementById('qqTip');
-    if (/^\d{4,12}$/.test(qq)) {
-      img.src = `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=640`;
-      img.style.display = 'block';
-      tip.style.display = 'inline';
-      img.onerror = () => {
-        img.style.display = 'none';
-        tip.style.display = 'none';
-      };
-    } else {
-      img.style.display = 'none';
-      tip.style.display = 'none';
-    }
-  }
-
-  // 管理员登录/退出
-  function toggleAdmin() {
-    if (isAdmin()) {
-      // 已登录 → 打开修改密码
-      openPasswordModal();
-    } else {
-      openLoginModal();
-    }
-  }
-  function openLoginModal() {
-    document.getElementById('loginModal').classList.add('active');
-    document.getElementById('adminPassword').value = '';
-    setTimeout(() => document.getElementById('adminPassword').focus(), 100);
-  }
-  function closeLoginModal() {
-    document.getElementById('loginModal').classList.remove('active');
-  }
-  function doLogin() {
-    const pwd = document.getElementById('adminPassword').value;
-    if (pwd === getPwd()) {
-      setAdmin(true);
-      closeLoginModal();
-      updateAdminUI();
-      showToast('登录成功', 'success');
-    } else {
-      showToast('密码错误', 'error');
-    }
-  }
-  function logoutAdmin() {
-    setAdmin(false);
-    updateAdminUI();
-    showToast('已退出管理员', 'success');
-  }
-  function updateAdminUI() {
-    const btn = document.getElementById('adminToggleBtn');
-    const panel = document.getElementById('adminPanel');
-    if (isAdmin()) {
-      document.body.classList.add('admin-mode');
-      btn.textContent = '修改密码';
-      btn.className = 'btn btn-warning';
-      panel.classList.add('active');
-    } else {
-      document.body.classList.remove('admin-mode');
-      btn.textContent = '管理员登录';
-      btn.className = 'btn btn-secondary';
-      panel.classList.remove('active');
-    }
-    renderView();
-  }
-
-  // 修改密码
-  function openPasswordModal() {
-    document.getElementById('passwordModal').classList.add('active');
-    ['oldPwd','newPwd','confirmPwd'].forEach(id => document.getElementById(id).value = '');
-  }
-  function closePasswordModal() {
-    document.getElementById('passwordModal').classList.remove('active');
-  }
-  function changePassword() {
-    const oldP = document.getElementById('oldPwd').value;
-    const newP = document.getElementById('newPwd').value;
-    const conP = document.getElementById('confirmPwd').value;
-    if (oldP !== getPwd()) { showToast('原密码错误', 'error'); return; }
-    if (newP.length < 6) { showToast('新密码至少6位', 'error'); return; }
-    if (newP !== conP) { showToast('两次密码不一致', 'error'); return; }
-    setPwd(newP);
-    closePasswordModal();
-    showToast('密码修改成功', 'success');
-  }
-
-  // 添加/编辑人员
-  function openAddModal() {
-    document.getElementById('modalTitle').textContent = '添加人员';
-    initTeamSelectOptions();
-    document.getElementById('personId').value = '';
-    document.getElementById('personName').value = '';
-    // 默认选中当前所在团队；若在团队选择页，则默认选8（综合队）
-    var defaultTeam = CURRENT_TEAM ? Number(CURRENT_TEAM) : 1;
-    document.getElementById('personTeam').value = String(defaultTeam);
-    document.getElementById('personImage').value = '';
-    document.getElementById('personQQ').value = '';
-    document.getElementById('personDesc').value = '';
-    document.getElementById('personPhone').value = '';
-    document.getElementById('personEmail').value = '';
-    document.getElementById('personWechat').value = '';
-    document.getElementById('personQQContact').value = '';
-    document.getElementById('personBio').value = '';
-    document.querySelector('input[name="imgSource"][value="path"]').checked = true;
-    switchImgSource();
-    document.getElementById('qqPreview').style.display = 'none';
-    document.getElementById('qqTip').style.display = 'none';
-    document.getElementById('personModal').classList.add('active');
-    setTimeout(() => document.getElementById('personName').focus(), 100);
-  }
-  function openEditModal(id) {
-    const data = getData();
-    initTeamSelectOptions();
-    const p = data.find(x => String(x.id) === String(id));
-    if (!p) return;
-    document.getElementById('modalTitle').textContent = '编辑人员';
-    document.getElementById('personId').value = p.id;
-    document.getElementById('personName').value = p.name;
-    document.getElementById('personTeam').value = String(p.team || 8);
-    document.getElementById('personDesc').value = p.desc || '';
-    document.getElementById('personPhone').value = p.phone || '';
-    document.getElementById('personEmail').value = p.email || '';
-    document.getElementById('personWechat').value = p.wechat || '';
-    document.getElementById('personQQContact').value = p.qqcontact || '';
-    document.getElementById('personBio').value = p.bio || '';
-
-    if (p.image && p.image.startsWith('qq:')) {
-      document.querySelector('input[name="imgSource"][value="qq"]').checked = true;
-      document.getElementById('personImage').value = '';
-      document.getElementById('personQQ').value = p.image.substring(3);
-      previewQQ();
-    } else {
-      document.querySelector('input[name="imgSource"][value="path"]').checked = true;
-      document.getElementById('personImage').value = p.image || '';
-      document.getElementById('personQQ').value = '';
-      document.getElementById('qqPreview').style.display = 'none';
-      document.getElementById('qqTip').style.display = 'none';
-    }
-    switchImgSource();
-    document.getElementById('personModal').classList.add('active');
-  }
-  function closeModal() {
-    document.getElementById('personModal').classList.remove('active');
-  }
-  function savePerson() {
-    const id = document.getElementById('personId').value;
-    const name = document.getElementById('personName').value.trim();
-    const teamVal = document.getElementById('personTeam').value;
-    const desc = document.getElementById('personDesc').value.trim();
-    const phone = document.getElementById('personPhone').value.trim();
-    const email = document.getElementById('personEmail').value.trim();
-    const wechat = document.getElementById('personWechat').value.trim();
-    const qqcontact = document.getElementById('personQQContact').value.trim();
-    const bio = document.getElementById('personBio').value.trim();
-    const source = document.querySelector('input[name="imgSource"]:checked').value;
-
-    if (!name) { showToast('请填写姓名', 'error'); return; }
-    if (!teamVal) { showToast('请选择所属团队', 'error'); return; }
-    const team = Number(teamVal);
-
-    let image = '';
-    if (source === 'qq') {
-      const qq = document.getElementById('personQQ').value.trim();
-      if (!/^\d{4,12}$/.test(qq)) { showToast('请输入正确的QQ号（4-12位数字）', 'error'); return; }
-      image = 'qq:' + qq;
-    } else {
-      image = document.getElementById('personImage').value.trim();
-      // 不填图片则使用默认 LSPD 徽章（留空即可，getImgSrc 会兜底）
-    }
-
-    const payload = { name, team, image, desc, phone, email, wechat, qqcontact, bio };
-    const data = getData();
-    if (id) {
-      const idx = data.findIndex(x => String(x.id) === String(id));
-      if (idx >= 0) {
-        data[idx] = Object.assign({}, data[idx], payload);
-      }
-    } else {
-      data.push(Object.assign({ id: Date.now().toString() + Math.random().toString(36).slice(2,6) }, payload));
-    }
-    saveData(data);
-    closeModal();
-    renderView();
-    // 如果详情窗打开着，刷新它
-    if (currentDetailId) openDetail(currentDetailId);
-    showToast('保存成功', 'success');
-  }
-  function deletePerson(id) {
-    if (!confirm('确定要删除这个人员吗？')) return;
-    const data = getData().filter(x => String(x.id) !== String(id));
-    saveData(data);
-    if (currentDetailId === id) { closeDetail(); }
-    renderView();
-    showToast('已删除', 'success');
   }
 
   // ===== 详情弹窗 =====
@@ -1463,17 +950,6 @@
     currentDetailId = null;
   }
 
-  function editFromDetail() {
-    if (!currentDetailId) return;
-    closeDetail();
-    setTimeout(() => openEditModal(currentDetailId), 200);
-  }
-
-  function deleteFromDetail() {
-    if (!currentDetailId) return;
-    deletePerson(currentDetailId);
-  }
-
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
@@ -1534,7 +1010,6 @@
   });
 
   // 初始化：加载数据后再渲染
-  updateAdminUI();
   loadDataFromJson(function(ok) {
     renderView();
     resetIdleTimer(); // 启动屏保倒计时
