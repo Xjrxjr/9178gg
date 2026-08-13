@@ -126,10 +126,16 @@
         2. Note（备注）随便填：比如 "9178gg 后台"<br>
         3. Expiration（过期时间）选 <b>No expiration</b>（永不过期）<br>
         4. <b>勾选 repo 这一大项</b>（第一个复选框）<br>
+        <span style="color:#c62828;">⚠️ 如果用的是「细粒度令牌」(Fine-grained token)：<br>
+        &nbsp;&nbsp;→ Repository access 必须包含 Xjrxjr/9178gg<br>
+        &nbsp;&nbsp;→ Permissions → Repository permissions → Contents 必须选 <b>Read and write</b></span><br>
         5. 滚到最下面点绿色 <b>Generate token</b><br>
         6. 复制那串 <code>ghp_xxxxxxxxxxxx</code> 粘贴到上面框里
       </div>
-      <button id="patToggle" class="btn-secondary" style="align-self: flex-start;">📖 查看 / 隐藏 PAT 生成方法</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button id="patToggle" class="btn-secondary">📖 查看 / 隐藏 PAT 生成方法</button>
+        <button id="clearPatBtn" class="btn-warning" style="padding:6px 12px; font-size:12px;">🧹 清除已保存的 PAT</button>
+      </div>
       <button id="loginBtn" class="btn-primary">登录</button>
       <div id="loginStatus" class="status"></div>
     </div>
@@ -143,7 +149,7 @@
         <button class="btn-secondary" id="reloadBtn">🔄 刷新数据</button>
       </div>
       <div style="color:white; font-size:13px;">
-        仓库：<b>Xjrxjr/9178gg</b>（main 分支）
+        仓库：<b>Xjrxjr/9178gg</b>（分支：<span id="branchLabel">检测中...</span>）
       </div>
     </div>
 
@@ -218,7 +224,7 @@
 // ========== 全局配置（与主网站 index.html 保持一致）==========
 var OWNER = 'Xjrxjr';
 var REPO  = '9178gg';
-var BRANCH = 'main';
+var BRANCH = 'main';   // 登录后会自动检测仓库默认分支，必要时覆盖此值
 var PWD_KEY = 'admin_pwd_v2';
 var PAT_KEY = 'gh_pat_9178gg_v1';
 var DEFAULT_PWD = 'xX20130810';
@@ -252,9 +258,22 @@ function showStatus(elId, msg, type){
 document.getElementById('patToggle').onclick = function(){
   document.getElementById('patHelp').classList.toggle('hidden');
 };
+document.getElementById('clearPatBtn').onclick = function(){
+  try { localStorage.removeItem(PAT_KEY); } catch(e) {}
+  document.getElementById('pat').value = '';
+  showStatus('loginStatus', '🧹 已清除本机保存的 PAT，请重新输入新的 PAT 后登录。', 'info');
+};
 document.getElementById('loginBtn').onclick = doLogin;
 document.getElementById('pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 document.getElementById('pat').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+
+// 页面加载时：如果 localStorage 有 PAT，就提示用户已保存不用再填
+window.addEventListener('DOMContentLoaded', function(){
+  var saved = localStorage.getItem(PAT_KEY);
+  if (saved) {
+    showStatus('loginStatus', '💡 本机已保存 PAT（共'+saved.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填。', 'info');
+  }
+});
 
 function doLogin(){
   var pwd = document.getElementById('pwd').value.trim();
@@ -305,17 +324,43 @@ function ghHeaders(extra){
   if (extra) for (var k in extra) h[k] = extra[k];
   return h;
 }
+// 把 GitHub 返回的 401/403/404 转成更易懂的中文错误
+function explainGhError(status, fallbackMsg){
+  if (status === 401) {
+    return 'PAT 无效（401）：Token 过期或输错了字符。建议点「清除已保存PAT」→ 重新生成一次。';
+  }
+  if (status === 403) {
+    return 'PAT 没有权限（403）：常见原因\n' +
+      '① 经典Token：没勾选 repo 权限（重新生成时 repo 必须打勾）\n' +
+      '② 细粒度Token：Repository access 没包含 '+OWNER+'/'+REPO+' 或 Contents 不是 Read and write\n' +
+      '③ Token 属于别的账号，对该仓库没写权限';
+  }
+  if (status === 404) {
+    return '仓库/路径不存在（404）：\n' +
+      '① Token 对私有仓库没权限时 GitHub 也会故意返回 404 隐藏存在，请核对权限；\n' +
+      '② 仓库 OWNER/REPO 拼写或分支名错了（当前目标：'+OWNER+'/'+REPO+' @ '+BRANCH+'）';
+  }
+  return 'GitHub API 错误: '+status + ' ' + (fallbackMsg||'');
+}
 function ghGet(path){
   return fetch('https://api.github.com' + path, { headers: ghHeaders() })
-  .then(function(r){ if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限，请重新生成并勾选 repo'); } if(r.status===404){ return null; } if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); } return r.json(); });
+  .then(function(r){
+    if(r.status===401 || r.status===403 || r.status===404){ throw new Error(explainGhError(r.status)); }
+    if(r.status===304) return null;
+    if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); }
+    if (r.status === 204) return null;
+    return r.json();
+  });
 }
 function ghPut(path, body){
   return fetch('https://api.github.com' + path, {
     method: 'PUT', headers: ghHeaders({'Content-Type':'application/json'}),
     body: JSON.stringify(body)
   }).then(function(r){
-    if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限'); }
-    if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err)); }); }
+    if(r.status===401 || r.status===403 || r.status===404){
+      return r.text().then(function(t){ throw new Error(explainGhError(r.status) + '\n详细信息：' + (t||'').slice(0,300)); });
+    }
+    if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err).slice(0,400)); }); }
     return r.json();
   });
 }
@@ -336,15 +381,72 @@ function writeFile(path, contentBase64, sha, message){
 }
 
 // ========== 进入后台 ==========
-function enterAdmin(pat){
+async function enterAdmin(pat){
   PAT = pat;
-  document.getElementById('loginView').classList.add('hidden');
-  document.getElementById('adminView').classList.remove('hidden');
-  document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
-  document.getElementById('reloadBtn').onclick = loadAll;
-  // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
-  try { renderTeamOptions(); } catch(e) {}
-  loadAll();
+  var loginBtn = document.getElementById('loginBtn');
+  loginBtn.disabled = true;
+  try {
+    showStatus('loginStatus', '🔐 正在验证 PAT 身份与仓库权限（自动检测默认分支）...', 'info');
+
+    // 步骤 A：验证 PAT 身份（GET /user）
+    var user = null;
+    try {
+      user = await ghGet('/user');
+    } catch (e) {
+      throw new Error('PAT 身份验证失败：'+e.message);
+    }
+    if (!user || !user.login) {
+      throw new Error('PAT 身份验证失败：无法读取当前 GitHub 账号信息，请重新生成 PAT。');
+    }
+
+    // 步骤 B：读取仓库信息 → 1. 验证对仓库是否有读写权限；2. 自动拿 default_branch
+    var repoInfo = null;
+    try {
+      repoInfo = await ghGet('/repos/'+OWNER+'/'+REPO);
+    } catch (e) {
+      throw new Error('仓库 '+OWNER+'/'+REPO+' 访问失败：'+e.message);
+    }
+    if (!repoInfo || !repoInfo.default_branch) {
+      throw new Error('无法读取仓库 '+OWNER+'/'+REPO+' 的默认分支，请检查仓库存在与否。');
+    }
+    // 自动覆盖 BRANCH 为仓库实际默认分支（不用写死 main）
+    BRANCH = repoInfo.default_branch;
+
+    // 步骤 C：权限检查 — 对私有仓库需要 push 权限（permissions.push===true）
+    var canPush = true;
+    if (repoInfo.private) {
+      canPush = !!(repoInfo.permissions && (repoInfo.permissions.push === true || repoInfo.permissions.admin === true));
+      if (!canPush) {
+        throw new Error(
+          '该 PAT 对私有仓库 '+OWNER+'/'+REPO+' 没有写权限（403）。\n' +
+          '请重新生成 PAT：\n' +
+          '· 经典 Token：必须勾选 repo 大项；\n' +
+          '· 细粒度 Token：对该仓库 Repository permissions → Contents 必须选「Read and write」。'
+        );
+      }
+    }
+
+    // 登录通过：显示主界面 + 更新顶部栏分支信息
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('adminView').classList.remove('hidden');
+    document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
+    document.getElementById('reloadBtn').onclick = loadAll;
+    var bl = document.getElementById('branchLabel');
+    if (bl) {
+      var pushTip = repoInfo.private ? (canPush?' ✓有写权限':' ✗无写权限') : '';
+      bl.textContent = BRANCH + pushTip + '（账号：@' + user.login + '）';
+    }
+
+    // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
+    try { renderTeamOptions(); } catch(e) {}
+    loadAll();
+  } catch (err) {
+    // 登录失败：把详细错误显示在登录状态条，让用户看到具体原因
+    showStatus('loginStatus', '❌ 登录失败：\n' + (err.message || String(err)), 'err');
+    // 失败时 PAT 一般是错的，让用户可以直接重填
+  } finally {
+    loginBtn.disabled = false;
+  }
 }
 
 function loadAll(){
