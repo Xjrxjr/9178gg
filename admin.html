@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后台管理 - 人员展示系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #222;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { color: white; text-align: center; margin-bottom: 10px; }
+  .subtitle { text-align: center; color: rgba(255,255,255,0.9); margin-bottom: 24px; font-size: 14px; }
+  .card {
+    background: white; border-radius: 14px; padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col { flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 13px; font-weight: bold; color: #444; }
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid #d0d7de;
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #1976d2; }
+  textarea { min-height: 80px; resize: vertical; }
+  button {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+    transition: all .2s; font-family: inherit;
+  }
+  .btn-primary { background: #1976d2; color: white; }
+  .btn-primary:hover { background: #1565c0; transform: translateY(-1px); }
+  .btn-primary:disabled { background: #9e9e9e; cursor: not-allowed; transform: none; }
+  .btn-success { background: #2e7d32; color: white; }
+  .btn-success:hover { background: #1b5e20; }
+  .btn-danger { background: #c62828; color: white; }
+  .btn-danger:hover { background: #b71c1c; }
+  .btn-warning { background: #f57c00; color: white; }
+  .btn-warning:hover { background: #ef6c00; }
+  .btn-secondary { background: #eceff1; color: #222; }
+  .btn-secondary:hover { background: #cfd8dc; }
+  .login-wrap { max-width: 480px; margin: 80px auto 0; }
+  .status {
+    padding: 10px 14px; border-radius: 8px; margin: 10px 0; font-size: 13px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.ok { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .status.err { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .status.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+  h2 { color: #1976d2; margin-bottom: 14px; font-size: 20px; }
+  h3 { color: #333; margin: 16px 0 10px; font-size: 16px; }
+  .people-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 12px; margin-top: 10px; }
+  .p-item {
+    border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 12px;
+    background: #fafafa; display: flex; gap: 12px; align-items: center;
+  }
+  .p-item img {
+    width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+    background: #eee; flex-shrink: 0;
+  }
+  .p-item .p-info { flex: 1; min-width: 0; }
+  .p-item .p-name { font-weight: bold; color: #222; margin-bottom: 2px; font-size: 14px; }
+  .p-item .p-meta { font-size: 12px; color: #757575; }
+  .p-item .p-actions { display: flex; flex-direction: column; gap: 6px; }
+  .p-item .p-actions button { padding: 6px 10px; font-size: 12px; }
+  .teams-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .team-chip {
+    padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: bold;
+    cursor: pointer; border: 2px solid transparent; background: #eceff1; color: #444;
+    user-select: none;
+  }
+  .team-chip.active { border-color: #1976d2; background: #e3f2fd; color: #0d47a1; }
+  .team-chip .c-count { margin-left: 6px; color: #757575; font-size: 12px; font-weight: normal; }
+  .recruit-toggle {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 999px; font-size: 12px; font-weight: bold; cursor: pointer;
+    margin-left: auto; user-select: none;
+  }
+  .r-on { background: rgba(46,125,50,.15); color: #2e7d32; }
+  .r-off { background: rgba(211,47,47,.12); color: #c62828; }
+  .r-null { background: rgba(158,158,158,.12); color: #757575; }
+  .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (max-width: 700px) { .form-row { grid-template-columns: 1fr; } }
+  .pat-help { background: #fff3e0; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.7; border-left: 4px solid #f57c00; margin-top: 10px; }
+  .pat-help a { color: #1565c0; font-weight: bold; }
+  .avatar-preview {
+    width: 120px; height: 120px; border-radius: 12px; object-fit: cover;
+    background: #eee; border: 2px dashed #bdbdbd;
+  }
+  .avatar-box { display: flex; align-items: center; gap: 16px; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .top-bar .user-info { color: white; font-size: 13px; }
+  .hidden { display: none !important; }
+  .divider { height: 1px; background: #e0e0e0; margin: 16px 0; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+  .badge-team { background: #e3f2fd; color: #1565c0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔧 后台管理系统</h1>
+  <p class="subtitle">在线增删人员、上传头像、切换招募状态，保存后自动同步到主网站</p>
+
+  <!-- 登录页 -->
+  <div id="loginView" class="card login-wrap">
+    <h2>🔐 管理员登录</h2>
+    <div class="col" style="gap: 10px;">
+      <label for="pwd">管理员密码</label>
+      <input type="password" id="pwd" placeholder="输入管理员密码，默认 admin123">
+      <label for="pat">
+        GitHub 访问令牌 (PAT)
+        <span style="color:#757575; font-weight: normal;">（第一次使用填写，以后会自动保存在本机）</span>
+      </label>
+      <input type="password" id="pat" placeholder="以 ghp_ 开头的 40 位字符串">
+      <div id="patHelp" class="pat-help hidden">
+        <b>📝 PAT 生成步骤（只需做一次）：</b><br>
+        1. 打开 <a href="https://github.com/settings/tokens/new" target="_blank">https://github.com/settings/tokens/new</a><br>
+        2. Note（备注）随便填：比如 "9178gg 后台"<br>
+        3. Expiration（过期时间）选 <b>No expiration</b>（永不过期）<br>
+        4. <b>勾选 repo 这一大项</b>（第一个复选框）<br>
+        5. 滚到最下面点绿色 <b>Generate token</b><br>
+        6. 复制那串 <code>ghp_xxxxxxxxxxxx</code> 粘贴到上面框里
+      </div>
+      <button id="patToggle" class="btn-secondary" style="align-self: flex-start;">📖 查看 / 隐藏 PAT 生成方法</button>
+      <button id="loginBtn" class="btn-primary">登录</button>
+      <div id="loginStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- 主管理页 -->
+  <div id="adminView" class="hidden">
+    <div class="top-bar">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn-secondary" id="goSiteBtn">🌐 打开主网站</button>
+        <button class="btn-secondary" id="reloadBtn">🔄 刷新数据</button>
+      </div>
+      <div style="color:white; font-size:13px;">
+        仓库：<b>Xjrxjr/9178gg</b>（main 分支）
+      </div>
+    </div>
+
+    <!-- 招募状态面板 -->
+    <div class="card">
+      <h2>🟢 团队招募状态</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:10px;">点击团队名称旁的「招募徽章」可切换状态：🔵招募中 → ⚪暂停招募 → ⭕未定</p>
+      <div id="recruitPanel" class="teams-bar"></div>
+    </div>
+
+    <!-- 人员操作面板 -->
+    <div class="card">
+      <h2>👥 人员管理</h2>
+      <div id="teamFilterBar" class="teams-bar"></div>
+
+      <div id="addPersonBox" style="border: 1.5px dashed #1976d2; border-radius: 10px; padding: 16px; background: #f5f9ff;">
+        <h3 id="formTitle">➕ 添加新人员</h3>
+        <div class="avatar-box" style="margin-bottom: 12px;">
+          <img id="avatarPreview" class="avatar-preview" src="" alt="头像预览">
+          <div class="col" style="gap:6px;">
+            <label>头像图片（本地上传，上传后自动同步到仓库）</label>
+            <input type="file" id="avatarFile" accept="image/*">
+            <input type="text" id="avatarName" placeholder="或直接填写已有图片文件名（如 abc.jpg）">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col"><label>姓名 *</label><input type="text" id="p_name" placeholder="例：张三"></div>
+          <div class="col"><label>所属团队 *</label>
+            <select id="p_team"></select>
+          </div>
+          <div class="col"><label>手机号</label><input type="text" id="p_phone" placeholder="手机号"></div>
+          <div class="col"><label>邮箱</label><input type="text" id="p_email" placeholder="邮箱"></div>
+          <div class="col"><label>微信号</label><input type="text" id="p_wechat" placeholder="微信号"></div>
+          <div class="col"><label>QQ号</label><input type="text" id="p_qq" placeholder="QQ号"></div>
+        </div>
+        <div class="row" style="margin-top: 10px;">
+          <div class="col"><label>身份 / 警号</label><input type="text" id="p_desc" placeholder="例：警员-警号2010"></div>
+        </div>
+        <div class="row" style="margin-top: 10px;">
+          <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
+        </div>
+        <div class="row" style="margin-top: 14px; gap: 10px;">
+          <button class="btn-primary" id="savePersonBtn">💾 保存这个人</button>
+          <button class="btn-secondary" id="resetPersonBtn">🗑️ 清空表单</button>
+        </div>
+        <input type="hidden" id="p_editid" value="">
+      </div>
+
+      <div style="height: 20px;"></div>
+      <h3>📋 现有人员列表 <span id="totalCount" class="badge badge-team"></span></h3>
+      <div id="peopleGrid" class="people-list"></div>
+    </div>
+
+    <!-- 保存到仓库 -->
+    <div class="card">
+      <h2>☁️ 保存到网站（提交到 GitHub）</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:12px;">
+        做好所有修改后，点下面按钮。后台会：①上传新头像 ②更新 data.json ③更新 team_recruit.json → 等 1 分钟刷新主网站即生效。
+      </p>
+      <div class="row">
+        <button class="btn-success" id="saveAllBtn" style="font-size:16px; padding: 14px 26px;">
+          🚀 保存所有改动并部署到网站
+        </button>
+        <button class="btn-warning" id="logoutBtn">🚪 退出登录</button>
+      </div>
+      <div id="saveStatus" class="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 全局配置（与主网站 index.html 保持一致）==========
+var OWNER = 'Xjrxjr';
+var REPO  = '9178gg';
+var BRANCH = 'main';
+var PWD_KEY = 'admin_pwd_v1';
+var PAT_KEY = 'gh_pat_9178gg_v1';
+var DEFAULT_PWD = 'admin123';
+var TEAMS = [
+  { id: 1, name: 'LSPD',                icon: '🚓', color: '#1976d2', en: '' },
+  { id: 2, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
+  { id: 3, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
+  { id: 4, name: '三合会',              icon: '🏔️', color: '#2e7d32', en: '' },
+  { id: 5, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
+  { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: '' },
+  { id: 7, name: '',                    icon: '⬜', color: '#9e9e9e', en: '' },
+  { id: 8, name: '',                    icon: '⬜', color: '#9e9e9e', en: '' }
+];
+function activeTeams(){ return TEAMS.filter(function(t){ return t.name && t.name !== '未启用'; }); }
+function teamName(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.name : '未知团队'; }
+function teamColor(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.color : '#9e9e9e'; }
+function teamIcon(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.icon : '❓'; }
+
+// ========== 密码 ==========
+function getStoredPwd(){ return localStorage.getItem(PWD_KEY) || DEFAULT_PWD; }
+function verifyPwd(p){ return p === getStoredPwd(); }
+
+// ========== 状态提示 ==========
+function showStatus(elId, msg, type){
+  var el = document.getElementById(elId);
+  el.className = 'status show ' + (type || 'info');
+  el.textContent = msg;
+}
+
+// ========== 登录逻辑 ==========
+document.getElementById('patToggle').onclick = function(){
+  document.getElementById('patHelp').classList.toggle('hidden');
+};
+document.getElementById('loginBtn').onclick = doLogin;
+document.getElementById('pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+document.getElementById('pat').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+
+function doLogin(){
+  var pwd = document.getElementById('pwd').value.trim();
+  var pat = document.getElementById('pat').value.trim();
+  if (!verifyPwd(pwd)) {
+    showStatus('loginStatus', '密码错误！默认密码是 admin123（如果你改过，用新密码）', 'err');
+    return;
+  }
+  if (!pat) {
+    var saved = localStorage.getItem(PAT_KEY);
+    if (!saved) {
+      showStatus('loginStatus', '缺少 PAT（访问令牌），第一次使用必须填写。点上面「📖 查看 PAT 生成方法」按步骤获取。', 'err');
+      return;
+    }
+    pat = saved;
+  } else {
+    localStorage.setItem(PAT_KEY, pat);
+  }
+  showStatus('loginStatus', '登录成功，正在加载当前仓库数据...', 'ok');
+  setTimeout(function(){ enterAdmin(pat); }, 400);
+}
+
+document.getElementById('logoutBtn').onclick = function(){
+  if (confirm('确定退出？PAT 会保留在本机，下次只输入密码即可。')) {
+    document.getElementById('adminView').classList.add('hidden');
+    document.getElementById('loginView').classList.remove('hidden');
+    document.getElementById('pwd').value = '';
+  }
+};
+
+// ========== 全局内存数据 ==========
+var PAT = '';
+var PEOPLE = [];          // 最新人员数组
+var DIRTY_PEOPLE = false; // data.json 是否改过
+var RECRUIT = {};         // 招募状态：teamId -> true/false/null
+var DIRTY_RECRUIT = false;
+var PENDING_IMAGES = [];  // 待上传的图片 [{name, base64}]
+var filterTeamId = 'all';
+var editingId = null;
+
+// ========== GitHub API ==========
+function ghHeaders(extra){
+  var h = {
+    'Accept': 'application/vnd.github+json',
+    'Authorization': 'Bearer ' + PAT,
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+  if (extra) for (var k in extra) h[k] = extra[k];
+  return h;
+}
+function ghGet(path){
+  return fetch('https://api.github.com' + path, { headers: ghHeaders() })
+  .then(function(r){ if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限，请重新生成并勾选 repo'); } if(r.status===404){ return null; } if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); } return r.json(); });
+}
+function ghPut(path, body){
+  return fetch('https://api.github.com' + path, {
+    method: 'PUT', headers: ghHeaders({'Content-Type':'application/json'}),
+    body: JSON.stringify(body)
+  }).then(function(r){
+    if(r.status===401){ throw new Error('PAT 无效或没有 repo 权限'); }
+    if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err)); }); }
+    return r.json();
+  });
+}
+function getContent(path){
+  // 返回 {sha, content(base64 decoded string)} 或 null
+  return ghGet('/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(path)+'?ref='+BRANCH)
+  .then(function(data){
+    if(!data) return null;
+    if(Array.isArray(data)) return null;
+    var content = data.content ? atob(data.content.replace(/\s/g,'')) : '';
+    return { sha: data.sha, content: content };
+  });
+}
+function writeFile(path, contentBase64, sha, message){
+  var body = { message: message || ('后台更新: '+path), content: contentBase64, branch: BRANCH };
+  if (sha) body.sha = sha;
+  return ghPut('/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(path), body);
+}
+
+// ========== 进入后台 ==========
+function enterAdmin(pat){
+  PAT = pat;
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('adminView').classList.remove('hidden');
+  document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
+  document.getElementById('reloadBtn').onclick = loadAll;
+  loadAll();
+}
+
+function loadAll(){
+  showStatus('saveStatus','正在从仓库加载 data.json 和 team_recruit.json...','info');
+  Promise.all([getContent('data.json'), getContent('team_recruit.json')])
+  .then(function(results){
+    var d = results[0], r = results[1];
+    try { PEOPLE = d ? JSON.parse(d.content) : []; }
+    catch(e){ PEOPLE = []; alert('data.json 格式损坏: '+e.message); }
+    PEOPLE._sha = d? d.sha : null;
+    try { RECRUIT = r ? JSON.parse(r.content) : {}; }
+    catch(e){ RECRUIT = {}; }
+    RECRUIT._sha = r? r.sha : null;
+    DIRTY_PEOPLE = false; DIRTY_RECRUIT = false; PENDING_IMAGES = [];
+    showStatus('saveStatus','加载成功：'+PEOPLE.length+' 名人员。可开始修改。','ok');
+    renderRecruitPanel();
+    renderTeamFilter();
+    renderTeamOptions();
+    resetPersonForm();
+    renderPeople();
+    updateTotalCount();
+  })
+  .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
+}
+
+// ========== 招募状态面板 ==========
+function renderRecruitPanel(){
+  var box = document.getElementById('recruitPanel');
+  box.innerHTML = '';
+  activeTeams().forEach(function(t){
+    var chip = document.createElement('div');
+    chip.className = 'team-chip';
+    chip.style.borderColor = t.color;
+    chip.innerHTML =
+      '<span style="font-size:18px;">'+t.icon+'</span> ' +
+      '<b style="color:'+t.color+'">'+t.name+'</b>' +
+      '<span class="c-count">👥 '+countInTeam(t.id)+' 人</span>';
+    var badge = document.createElement('span');
+    var r = RECRUIT[t.id];
+    badge.className = 'recruit-toggle ' + (r===true?'r-on':r===false?'r-off':'r-null');
+    badge.innerHTML = (r===true?'🔵 招募中':r===false?'⚪ 暂停招募':'⭕ 未定');
+    badge.title = '点击切换招募状态';
+    badge.onclick = function(){
+      // 轮换: null -> true -> false -> null
+      if (RECRUIT[t.id] === null || RECRUIT[t.id] === undefined) RECRUIT[t.id] = true;
+      else if (RECRUIT[t.id] === true) RECRUIT[t.id] = false;
+      else RECRUIT[t.id] = null;
+      DIRTY_RECRUIT = true;
+      showStatus('saveStatus','「'+t.name+'」招募状态已修改，记得最后点「保存所有改动」上传。','info');
+      renderRecruitPanel();
+    };
+    chip.appendChild(badge);
+    box.appendChild(chip);
+  });
+}
+
+// ========== 团队筛选 ==========
+function renderTeamFilter(){
+  var bar = document.getElementById('teamFilterBar');
+  bar.innerHTML = '';
+  var all = document.createElement('div');
+  all.className = 'team-chip' + (filterTeamId==='all'?' active':'');
+  all.innerHTML = '👁️ 全部<span class="c-count">'+PEOPLE.length+'</span>';
+  all.onclick = function(){ filterTeamId='all'; renderTeamFilter(); renderPeople(); };
+  bar.appendChild(all);
+  activeTeams().forEach(function(t){
+    var c = document.createElement('div');
+    c.className = 'team-chip' + (filterTeamId===t.id?' active':'');
+    c.innerHTML = t.icon+' '+t.name+'<span class="c-count">'+countInTeam(t.id)+'</span>';
+    c.onclick = function(){ filterTeamId=t.id; renderTeamFilter(); renderPeople(); };
+    bar.appendChild(c);
+  });
+}
+function countInTeam(tid){ return PEOPLE.filter(function(p){return +p.team===+tid;}).length; }
+function updateTotalCount(){ document.getElementById('totalCount').textContent = '共 '+PEOPLE.length+' 人'; }
+
+// ========== 团队下拉选 ==========
+function renderTeamOptions(){
+  var sel = document.getElementById('p_team');
+  sel.innerHTML = '';
+  activeTeams().forEach(function(t){
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.icon + ' ' + t.name;
+    sel.appendChild(opt);
+  });
+}
+
+// ========== 人员列表渲染 ==========
+function renderPeople(){
+  var grid = document.getElementById('peopleGrid');
+  grid.innerHTML = '';
+  var list = PEOPLE.slice();
+  if (filterTeamId !== 'all') list = list.filter(function(p){ return +p.team === +filterTeamId; });
+  list.sort(function(a,b){ return (+a.team - +b.team) || (String(a.name||'').localeCompare(String(b.name||''), 'zh')); });
+  list.forEach(function(p){
+    var item = document.createElement('div');
+    item.className = 'p-item';
+    var imgSrc = resolveAvatar(p.image);
+    item.innerHTML =
+      '<img src="'+imgSrc+'" alt="头像" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect width=%2280%22 height=%2280%22 fill=%22%23e0e0e0%22/><text x=%2240%22 y=%2245%22 font-size=%2230%22 text-anchor=%22middle%22 fill=%22%23aaa%22>👤</text></svg>\'">' +
+      '<div class="p-info">' +
+        '<div class="p-name">'+(p.name||'(无姓名)')+'</div>' +
+        '<div class="p-meta">' +
+          '<span class="badge badge-team">'+teamIcon(+p.team)+' '+teamName(+p.team)+'</span> ' +
+          (p.desc ? ' · '+p.desc : '') + '<br>' +
+          (p.phone ? '📱 '+p.phone : '') +
+          (p.wechat ? ' · 💬 '+p.wechat : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="p-actions">' +
+        '<button class="btn-secondary" data-act="edit">✏️ 编辑</button>' +
+        '<button class="btn-danger" data-act="del">🗑️ 删除</button>' +
+      '</div>';
+    item.querySelector('[data-act=edit]').onclick = function(){ editPerson(p); };
+    item.querySelector('[data-act=del]').onclick = function(){
+      if (confirm('确定删除「'+(p.name||'')+'」吗？这个操作只影响本地草稿，点了「保存所有改动」才会真正同步到网站。')){
+        PEOPLE = PEOPLE.filter(function(x){ return String(x.id) !== String(p.id); });
+        DIRTY_PEOPLE = true;
+        renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
+        showStatus('saveStatus','已删除，待提交。','info');
+      }
+    };
+    grid.appendChild(item);
+  });
+  if (!list.length) grid.innerHTML = '<div style="grid-column:1/-1;padding:30px;text-align:center;color:#888;">这个团队暂无人员</div>';
+}
+function resolveAvatar(name){
+  if (!name) return '';
+  // 支持已上传队列中的临时预览（新上传未提交的图片，用 base64）
+  for (var i=0;i<PENDING_IMAGES.length;i++) if (PENDING_IMAGES[i].name === name) {
+    return 'data:image;base64,'+PENDING_IMAGES[i].base64;
+  }
+  return name; // 已在仓库里的图片，相对路径直接用
+}
+
+// ========== 添加/编辑人员表单 ==========
+document.getElementById('avatarFile').onchange = function(e){
+  var f = e.target.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var dataUrl = reader.result; // data:image/xxx;base64,xxxxx
+    var b64 = dataUrl.split(',')[1];
+    // 生成文件名：时间戳+扩展名（避免重名）
+    var ext = (f.name.match(/\.(\w+)$/)||[])[1] || 'png';
+    // 取时间戳 + 简短随机
+    var fname = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,6) + '.' + ext.toLowerCase();
+    // 加入待上传队列
+    PENDING_IMAGES.push({ name: fname, base64: b64 });
+    document.getElementById('avatarName').value = fname;
+    document.getElementById('avatarPreview').src = 'data:image;base64,'+b64;
+  };
+  reader.readAsDataURL(f);
+};
+document.getElementById('avatarName').addEventListener('input', function(){
+  var v = this.value.trim();
+  document.getElementById('avatarPreview').src = v ? resolveAvatar(v) : '';
+});
+document.getElementById('resetPersonBtn').onclick = resetPersonForm;
+document.getElementById('savePersonBtn').onclick = savePersonForm;
+
+function resetPersonForm(){
+  editingId = null;
+  document.getElementById('p_editid').value = '';
+  document.getElementById('formTitle').textContent = '➕ 添加新人员';
+  ['p_name','p_phone','p_email','p_wechat','p_qq','p_desc','p_bio','avatarName'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
+  document.getElementById('avatarFile').value = '';
+  document.getElementById('avatarPreview').src = '';
+}
+function editPerson(p){
+  editingId = String(p.id);
+  document.getElementById('p_editid').value = editingId;
+  document.getElementById('formTitle').textContent = '✏️ 编辑：'+(p.name||'');
+  document.getElementById('p_name').value   = p.name || '';
+  document.getElementById('p_team').value   = p.team || '';
+  document.getElementById('p_phone').value  = p.phone || '';
+  document.getElementById('p_email').value  = p.email || '';
+  document.getElementById('p_wechat').value = p.wechat || '';
+  document.getElementById('p_qq').value     = p.qqcontact || '';
+  document.getElementById('p_desc').value   = p.desc || '';
+  document.getElementById('p_bio').value    = p.bio || '';
+  document.getElementById('avatarName').value = p.image || '';
+  document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
+  window.scrollTo({top: document.getElementById('addPersonBox').offsetTop - 20, behavior:'smooth'});
+}
+function savePersonForm(){
+  var name = document.getElementById('p_name').value.trim();
+  var team = +document.getElementById('p_team').value;
+  if (!name) { alert('请填写姓名'); return; }
+  if (!team) { alert('请选择所属团队'); return; }
+  var img  = document.getElementById('avatarName').value.trim();
+  var obj = {
+    name: name,
+    team: team,
+    image: img,
+    desc: document.getElementById('p_desc').value.trim(),
+    phone: document.getElementById('p_phone').value.trim(),
+    email: document.getElementById('p_email').value.trim(),
+    bio: document.getElementById('p_bio').value.trim(),
+    wechat: document.getElementById('p_wechat').value.trim(),
+    qqcontact: document.getElementById('p_qq').value.trim()
+  };
+  if (editingId) {
+    var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
+    if (idx >= 0) {
+      obj.id = PEOPLE[idx].id;
+      PEOPLE[idx] = obj;
+    }
+  } else {
+    obj.id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    PEOPLE.push(obj);
+  }
+  DIRTY_PEOPLE = true;
+  showStatus('saveStatus','人员已保存到草稿。修改完后点右下角「🚀 保存所有改动」上传到网站。','ok');
+  renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
+  resetPersonForm();
+}
+
+// ========== 提交：上传图片 + 写 JSON ==========
+document.getElementById('saveAllBtn').onclick = saveAllToRepo;
+async function saveAllToRepo(){
+  var btn = document.getElementById('saveAllBtn');
+  btn.disabled = true;
+  var status = [];
+  try {
+    // Step 1: 上传所有待上传图片
+    if (PENDING_IMAGES.length) {
+      showStatus('saveStatus','步骤1/3：正在上传 '+PENDING_IMAGES.length+' 张头像图片...','info');
+      for (var i=0;i<PENDING_IMAGES.length;i++){
+        var im = PENDING_IMAGES[i];
+        await writeFile(im.name, im.base64, null, '后台上传头像: '+im.name);
+        status.push('✅ 上传: '+im.name);
+        showStatus('saveStatus','步骤1/3：已上传 '+(i+1)+'/'+PENDING_IMAGES.length+' 张头像...','info');
+      }
+      PENDING_IMAGES = [];
+    }
+    // Step 2: 写 data.json
+    showStatus('saveStatus','步骤2/3：正在更新 data.json...','info');
+    var dsha = PEOPLE._sha || null;
+    if (!dsha) { try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha;} catch(e){} }
+    var dataStr = JSON.stringify(PEOPLE, null, 2);
+    var dataB64 = btoa(unescape(encodeURIComponent(dataStr)));
+    await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
+    PEOPLE._sha = null; // 下次刷新重新拉
+    status.push('✅ 更新 data.json（共 '+PEOPLE.length+' 人）');
+    DIRTY_PEOPLE = false;
+
+    // Step 3: 写 team_recruit.json（只要改过或不存在就写）
+    showStatus('saveStatus','步骤3/3：正在更新 team_recruit.json...','info');
+    var rsha = RECRUIT._sha || null;
+    if (!rsha) { try { var rc = await getContent('team_recruit.json'); if(rc) rsha = rc.sha;} catch(e){} }
+    // _sha 属性不能存进文件里
+    var recruitCopy = {};
+    for (var k in RECRUIT) if (k !== '_sha') recruitCopy[k] = RECRUIT[k];
+    var rStr = JSON.stringify(recruitCopy, null, 2);
+    var rB64 = btoa(rStr);
+    await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
+    RECRUIT._sha = null;
+    status.push('✅ 更新 team_recruit.json');
+    DIRTY_RECRUIT = false;
+
+    showStatus('saveStatus','🎉 全部保存成功！\n'+status.join('\n')+'\n\n⏳ 等 1 分钟后刷新主网站（Ctrl+F5 强刷）就能看到最新效果。', 'ok');
+  } catch (err) {
+    showStatus('saveStatus','❌ 保存失败：'+err.message+'\n\n常见原因：\n①PAT 过期或未勾选 repo 权限（重新生成一次）\n②网络问题，稍后重试','err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
