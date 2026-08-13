@@ -267,11 +267,56 @@ document.getElementById('loginBtn').onclick = doLogin;
 document.getElementById('pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 document.getElementById('pat').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 
-// 页面加载时：如果 localStorage 有 PAT，就提示用户已保存不用再填
+// 页面加载时：自动读取 PAT（三重来源：① localStorage ② pat.js 本地文件自动注入）
 window.addEventListener('DOMContentLoaded', function(){
-  var saved = localStorage.getItem(PAT_KEY);
-  if (saved) {
-    showStatus('loginStatus', '💡 本机已保存 PAT（共'+saved.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填。', 'info');
+  var patInput = document.getElementById('pat');
+  var savedLs = localStorage.getItem(PAT_KEY);
+
+  // --- 步骤 1：先加载 pat.js（和 admin.html 同目录），只要存在就自动填入 PAT 输入框
+  try {
+    var loader = document.createElement('script');
+    loader.src = 'pat.js?t=' + Date.now(); // 加随机数防浏览器缓存旧的 PAT
+    loader.onload = function() {
+      // pat.js 加载完成后，从 window._GH_PAT 取 PAT
+      if (window._GH_PAT && typeof window._GH_PAT === 'string' && window._GH_PAT.trim().length > 0) {
+        var patFromFile = window._GH_PAT.trim();
+        // 自动填到输入框
+        try {
+          if (patInput) {
+            patInput.type = 'password';
+            patInput.value = patFromFile;
+          }
+        } catch (e) {}
+        // 如果 localStorage 里还没保存 PAT，就把文件里的 PAT 也存到 localStorage（双保险）
+        if (!savedLs) {
+          try { localStorage.setItem(PAT_KEY, patFromFile); savedLs = patFromFile; } catch (e) {}
+        }
+        var status = document.getElementById('loginStatus');
+        if (status) {
+          status.className = 'status show info';
+          status.textContent = '✅ 已从本地 pat.js 自动读取 PAT（共'+patFromFile.length+'位），直接输入密码登录即可。';
+        }
+      }
+    };
+    loader.onerror = function() {
+      // pat.js 文件不存在（正常：第一次使用还没写入），忽略即可
+    };
+    document.head.appendChild(loader);
+  } catch (e) {}
+
+  // --- 步骤 2：给用户提示 localStorage 的状态
+  if (savedLs) {
+    var s = document.getElementById('loginStatus');
+    if (s && s.textContent === '') {
+      s.className = 'status show info';
+      s.textContent = '💡 本机已保存 PAT（共'+savedLs.length+'位），只输入密码即可登录。若 PAT 过期请点「清除已保存的PAT」重填，或双击「1-写入PAT到本地.bat」写新PAT。';
+    }
+  } else {
+    var s2 = document.getElementById('loginStatus');
+    if (s2 && s2.textContent === '') {
+      s2.className = 'status show info';
+      s2.textContent = '💡 提示：双击项目目录里的「1-写入PAT到本地.bat」，粘贴一次 PAT，以后打开后台就自动读取，不用每次手动粘贴。';
+    }
   }
 });
 
@@ -279,7 +324,7 @@ function doLogin(){
   var pwd = document.getElementById('pwd').value.trim();
   var pat = document.getElementById('pat').value.trim();
   if (!verifyPwd(pwd)) {
-    showStatus('loginStatus', '密码错误！默认密码是 admin123（如果你改过，用新密码）', 'err');
+    showStatus('loginStatus', '密码错误！默认密码是 xX20130810（如果你改过，用新密码）', 'err');
     return;
   }
   if (!pat) {

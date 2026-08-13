@@ -10,3 +10,8 @@ _*.txt
 # Hidden git / IDE
 .vscode/
 .git/
+# GitHub PAT local config (NEVER commit real token to repo!)
+pat.js
+pat.local.json
+*.pat.secure
+
