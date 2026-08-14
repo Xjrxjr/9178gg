@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1077,8 +1077,8 @@
     }
   });
 
-  // ===== 屏保：瓦格纳（5秒无操作自动显示，点击任意位置恢复）=====
-  var IDLE_TIMEOUT = 5000; // 5 秒无操作触发
+  // ===== 屏保：瓦格纳（30秒无操作自动显示，点击任意位置恢复）=====
+  var IDLE_TIMEOUT = 30000; // 30 秒无操作触发（原5秒太短，其他设备打开容易误以为黑屏）
   var idleTimer = null;
   function showScreensaver() {
     var ss = document.getElementById('screensaver');
@@ -1095,8 +1095,8 @@
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(showScreensaver, IDLE_TIMEOUT);
   }
-  // 只有点击/按键/触摸才重置计时（移动鼠标不算操作）
-  ['mousedown', 'keydown', 'touchstart'].forEach(function(evt) {
+  // 点击/按键/触摸/鼠标移动 都重置计时（原版本移动鼠标不算，导致看着页面也会黑屏）
+  ['mousedown', 'keydown', 'touchstart', 'mousemove', 'wheel'].forEach(function(evt) {
     window.addEventListener(evt, resetIdleTimer, { passive: true });
   });
 
