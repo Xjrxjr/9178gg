@@ -643,18 +643,21 @@
 
   var PEOPLE_DATA = []; // 全局内存中的数据（来自 data.json 或 localStorage）
 
-  // 8 个团队定义（LSPD 风格）
-  var TEAMS = [
-    { id: 1, name: 'LSPD',   icon: '🚓', color: '#1976d2', en: '' },
-    { id: 2, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
-    { id: 3, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
-    { id: 4, name: '三合会', icon: '🏔️', color: '#2e7d32', en: '' },
-    { id: 5, name: '未启用', icon: '⬜', color: '#9e9e9e', en: '' },
-    { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: ''                  },
-    { id: 7, name: '',       icon: '⬜', color: '#9e9e9e', en: ''                  },
-    { id: 8, name: '',       icon: '⬜', color: '#9e9e9e', en: ''                  }
+  // 8 个团队定义（内置默认，实际会从 teams.json 覆盖）
+  var DEFAULT_TEAMS = [
+    { id: 1, name: 'LSPD',                icon: '🚓', color: '#1976d2', en: '', enabled: true  },
+    { id: 2, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+    { id: 3, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+    { id: 4, name: '三合会',              icon: '🏔️', color: '#2e7d32', en: '', enabled: true  },
+    { id: 5, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+    { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: '', enabled: true  },
+    { id: 7, name: '',                    icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+    { id: 8, name: '',                    icon: '⬜', color: '#9e9e9e', en: '', enabled: false }
   ];
+  var TEAMS = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+  function activeTeams(){ return TEAMS.filter(function(t){ return t && t.enabled === true && t.name && String(t.name).trim() !== ''; }); }
   var CURRENT_TEAM = null; // null = 团队选择页
+  var TEAMS_STORAGE_KEY = '9178gg_teams_v1';
 
   // 内嵌默认数据（双击打开index.html时fetch会被浏览器拦截，用这个兜底）
   var EMBEDDED_DATA = [
@@ -737,73 +740,142 @@
       btn.classList.add('spinning');
     }
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    loadDataFromJson(function(ok) {
+    try { localStorage.removeItem(TEAMS_STORAGE_KEY); } catch (e) {}
+    loadAllData(function(ok, teamsOk){
       renderView();
-      showToast(ok ? '已刷新到最新数据' : '刷新失败，请稍后重试', ok ? 'success' : 'error');
+      showToast((ok ? '已刷新到最新人员数据' : '刷新人员数据失败，请稍后重试') +
+                (teamsOk ? '' : '（团队配置使用本地默认）'),
+                (ok && teamsOk) ? 'success' : (ok ? 'error' : 'error'));
     });
   }
 
-  // 初始化：加载 data.json
-  function loadDataFromJson(callback) {
-    // 加时间戳避免缓存
-    var url = 'data.json?t=' + new Date().getTime();
-    if (typeof fetch === 'function') {
-      fetch(url, { cache: 'no-store' })
-        .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
-        .then(function(text) {
-          var arr = _jsonParseWithFix(text);
-          PEOPLE_DATA = Array.isArray(arr) ? arr : [];
-          // 如果 localStorage 有更新版本（管理员改过），优先用本地修改版
-          var localRaw = localStorage.getItem(STORAGE_KEY);
-          if (localRaw) {
-            try {
-              var localArr = _jsonParseWithFix(localRaw);
-              if (Array.isArray(localArr) && localArr.length > 0) {
-                PEOPLE_DATA = localArr;
+  // 通用：从 url 拉取文本，成功走 resolve(text)，失败走 reject()
+  function fetchText(url){
+    return new Promise(function(resolve, reject){
+      if (typeof fetch === 'function') {
+        fetch(url, { cache: 'no-store' })
+          .then(function(r){ if (!r.ok) throw new Error(); return r.text(); })
+          .then(resolve)
+          .catch(function(){
+            // 降级 XHR
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function(){
+              if (xhr.readyState === 4) {
+                if (xhr.status === 0 || xhr.status === 200) resolve(xhr.responseText || '');
+                else reject();
               }
-            } catch (e) {}
+            };
+            try { xhr.open('GET', url, true); xhr.send(); } catch (e) { reject(); }
+          });
+      } else {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState === 4) {
+            if (xhr.status === 0 || xhr.status === 200) resolve(xhr.responseText || '');
+            else reject();
           }
-          callback(true);
-        })
-        .catch(function() {
-          // fetch 失败（file:// 协议下可能被浏览器拦截），降级用 localStorage
-          var raw = localStorage.getItem(STORAGE_KEY);
-          PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
-          callback(false);
-        });
-    } else {
-      // 老浏览器无 fetch，用 XMLHttpRequest
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 0 || xhr.status === 200) {
-            try {
-              PEOPLE_DATA = _jsonParseWithFix(xhr.responseText) || [];
-              var localRaw = localStorage.getItem(STORAGE_KEY);
-              if (localRaw) {
-                try {
-                  var localArr = _jsonParseWithFix(localRaw);
-                  if (Array.isArray(localArr) && localArr.length > 0) PEOPLE_DATA = localArr;
-                } catch (e) {}
-              }
-              callback(true);
-              return;
-            } catch (e) {}
-          }
-          var raw = localStorage.getItem(STORAGE_KEY);
-          PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
-          callback(false);
-        }
-      };
-      try {
-        xhr.open('GET', url, true);
-        xhr.send();
-      } catch (e) {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
-        callback(false);
+        };
+        try { xhr.open('GET', url, true); xhr.send(); } catch (e) { reject(); }
       }
+    });
+  }
+
+  function applyTeamsFromText(text){
+    if (!text) return false;
+    try {
+      var arr = _jsonParseWithFix(text);
+      if (Array.isArray(arr) && arr.length) {
+        TEAMS = arr.map(function(t){
+          return {
+            id: +(t && t.id) || 0,
+            name: (t && t.name) || '',
+            icon: (t && t.icon) || '⬜',
+            color: (t && t.color) || '#9e9e9e',
+            en: (t && t.en) || '',
+            enabled: (t && t.enabled === true) ? true : false
+          };
+        }).filter(function(t){ return t.id > 0; });
+        try { localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(TEAMS)); } catch(e){}
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  function applyPeopleFromText(text){
+    if (!text) return null;
+    try {
+      var arr = _jsonParseWithFix(text);
+      if (Array.isArray(arr)) return arr;
+    } catch (e) {}
+    return null;
+  }
+
+  // 初始化：并行加载 data.json 和 teams.json
+  function loadAllData(callback){
+    var ts = new Date().getTime();
+    var peopleUrl = 'data.json?t=' + ts;
+    var teamsUrl  = 'teams.json?t=' + ts;
+    var peopleDone = false;
+    var teamsDone  = false;
+    var peopleArr = null;
+    var teamsOk = false;
+
+    function finalize(){
+      if (!(peopleDone && teamsDone)) return;
+
+      // 人员数据：服务器 -> localStorage -> EMBEDDED_DATA 兜底
+      if (peopleArr && peopleArr.length) {
+        PEOPLE_DATA = peopleArr;
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(peopleArr)); } catch(e){}
+      } else {
+        var raw = null;
+        try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){}
+        PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
+      }
+
+      // 团队数据：服务器已处理过，失败则尝试 localStorage 兜底
+      if (!teamsOk) {
+        var tsRaw = null;
+        try { tsRaw = localStorage.getItem(TEAMS_STORAGE_KEY); } catch(e){}
+        if (tsRaw) teamsOk = !!applyTeamsFromText(tsRaw);
+      }
+      // 如果 teams.json 还没被后台生成过（首次），保持内置 DEFAULT_TEAMS
+      // （TEAMS 开头就已经复制好了 DEFAULT_TEAMS，不用再管）
+
+      // 如果 CURRENT_TEAM 被设成了一个已停用的团队，自动回到选择页
+      if (CURRENT_TEAM !== null) {
+        var found = TEAMS.find(function(t){ return +t.id === +CURRENT_TEAM; });
+        if (!found || !(found && found.enabled === true) || !found.name) {
+          CURRENT_TEAM = null;
+        }
+      }
+      callback(
+        (peopleArr && peopleArr.length) ? true : false,
+        teamsOk
+      );
     }
+
+    fetchText(peopleUrl)
+      .then(function(text){
+        peopleArr = applyPeopleFromText(text);
+        peopleDone = true;
+        finalize();
+      })
+      .catch(function(){
+        peopleDone = true;
+        finalize();
+      });
+
+    fetchText(teamsUrl)
+      .then(function(text){
+        teamsOk = applyTeamsFromText(text);
+        teamsDone = true;
+        finalize();
+      })
+      .catch(function(){
+        teamsDone = true;
+        finalize();
+      });
   }
 
   function getData() {
@@ -819,8 +891,12 @@
     });
   }
   function getTeamById(id) {
-    var t = TEAMS.find(function(x){ return String(x.id) === String(id); });
-    return t || { name: '未分配', icon: '❓', color: '#888', en: '' };
+    var t = TEAMS.find(function(x){ return +x.id === +id; });
+    return t || { name: '未分配', icon: '❓', color: '#888', en: '', enabled: false };
+  }
+  function isTeamEnabled(id){
+    var t = getTeamById(id);
+    return !!(t && t.enabled === true && t.name && String(t.name).trim() !== '');
   }
   function saveData(arr) {
     PEOPLE_DATA = arr;
@@ -870,9 +946,7 @@
 
   // 进入某个团队
   function enterTeam(teamId) {
-    var tm = getTeamById(teamId);
-    var nm = String((tm && tm.name) || '').trim();
-    if (nm === '' || nm === '未启用') {
+    if (!isTeamEnabled(teamId)) {
       showToast('该团队未启用', 'error');
       return;
     }
@@ -904,19 +978,13 @@
   function renderTeams() {
     const grid = document.getElementById('teamsGrid');
     const allData = getData();
-    grid.innerHTML = TEAMS.filter(function(t){ var n=String((t&&t.name)||'').trim(); return n && n!=='未启用'; }).map(function(t) {
+    grid.innerHTML = TEAMS.map(function(t) {
       const count = allData.filter(function(x){ return String(x.team) === String(t.id); }).length;
-      const isEmpty = !t.name || String(t.name).trim() === '未启用'; // 未命名或标记为未启用 = 禁用卡片
-      if (isEmpty) {
-        // 灰色"待启用"卡片，不可点击
-        return `
-        <div class="team-card" style="border-top-color:#bdbdbd; color:#999; cursor:not-allowed; opacity:0.55; background:#f5f5f5;">
-          <div style="position:absolute; top:0; right:0; width:90px; height:90px; border-radius:0 0 0 100%; background:#9e9e9e; opacity:0.10;"></div>
-          <span class="tc-icon">⬜</span>
-          <div class="tc-name" style="color:#999;">待启用</div>
-          <div class="tc-en">&nbsp;</div>
-          <div class="tc-count" style="background:#eee; color:#999;">— —</div>
-        </div>`;
+      // 启用状态完全看 enabled 字段 + 名字非空，不再用名字里的"未启用"模糊判断
+      const enabled = !!(t && t.enabled === true && t.name && String(t.name).trim() !== '');
+      if (!enabled) {
+        // 停用的团队，主站完全不渲染（也不渲染灰色占位卡片，避免访客知道存在隐藏团队）
+        return '';
       }
       return `
       <div class="team-card" style="border-top-color:${t.color}; color:${t.color};" onclick="enterTeam(${t.id})">
@@ -1099,11 +1167,11 @@
     window.addEventListener(evt, resetIdleTimer, { passive: true });
   });
 
-  // 初始化：加载数据后再渲染
-  loadDataFromJson(function(ok) {
+  // 初始化：并行加载 data.json + teams.json，再渲染
+  loadAllData(function(okPeople, okTeams) {
     renderView();
     resetIdleTimer(); // 启动屏保倒计时
-    if (!ok && getData().length === 0) {
+    if (!okPeople && getData().length === 0) {
       // 既不能 fetch data.json，本地也空 → 提示用户（file:// 双击打开时常见）
       showToast('提示：请通过启动服务器或部署到网站访问，直接双击可能无法读取数据', '');
     }

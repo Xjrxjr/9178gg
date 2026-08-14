@@ -102,6 +102,41 @@
   .divider { height: 1px; background: #e0e0e0; margin: 16px 0; }
   .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
   .badge-team { background: #e3f2fd; color: #1565c0; }
+  /* ===== 团队管理面板 ===== */
+  .t-mgr-list { display: flex; flex-direction: column; gap: 8px; }
+  .t-mgr-row {
+    display: grid; grid-template-columns: 36px 46px 1.2fr 1fr 1fr 90px 1fr; gap: 8px;
+    align-items: center;
+    padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+    background: #fafafa;
+  }
+  .t-mgr-row.disabled-row { opacity: 0.55; background: #f3f3f3; }
+  .t-mgr-row input[type=text], .t-mgr-row input[type=color] { padding: 6px 8px; font-size: 13px; }
+  .t-mgr-row input[type=color] { height: 36px; padding: 2px; border-radius: 6px; cursor: pointer; }
+  .t-mgr-row .t-mgr-icon-input { font-size: 22px; text-align: center; padding: 2px; }
+  .t-mgr-actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .t-mgr-actions button { padding: 4px 8px; font-size: 12px; min-width: 30px; }
+  .t-mgr-header {
+    display: grid; grid-template-columns: 36px 46px 1.2fr 1fr 1fr 90px 1fr; gap: 8px;
+    padding: 0 12px; font-size: 12px; color: #666; font-weight: bold; margin-bottom: 6px;
+  }
+  .t-mgr-toggle {
+    position: relative; width: 54px; height: 28px; border-radius: 999px;
+    background: #bdbdbd; cursor: pointer; transition: background .2s; user-select: none;
+  }
+  .t-mgr-toggle.on { background: #2e7d32; }
+  .t-mgr-toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 22px; height: 22px; border-radius: 50%; background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .2s;
+  }
+  .t-mgr-toggle.on::after { left: 29px; }
+  .t-mgr-toolbar { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+  .t-mgr-tip { font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.7; }
+  @media (max-width: 900px) {
+    .t-mgr-header, .t-mgr-row { grid-template-columns: 30px 42px 1fr 1fr; grid-auto-rows: auto; }
+    .t-mgr-header .hide-sm, .t-mgr-row .hide-sm { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -150,6 +185,30 @@
       </div>
       <div style="color:white; font-size:13px;">
         仓库：<b>Xjrxjr/9178gg</b>（分支：<span id="branchLabel">检测中...</span>）
+      </div>
+    </div>
+
+    <!-- 团队管理面板（新增功能：团队开关+自定义名字/emoji/颜色） -->
+    <div class="card">
+      <h2>🏗️ 团队管理（开关 + 自定义名字/图标/颜色）</h2>
+      <div class="t-mgr-tip">
+        · 每个团队可自定义：<b>开关（绿色=对外显示 / 灰色=隐藏）</b>、Emoji 图标、<b>中文名</b>、英文名（可选）、主题颜色<br>
+        · 「↑ ↓」可调整团队在主站显示的顺序；「➕ 新增团队」会在列表末尾追加一个；「🗑️」会删除一行（若该团队下面还有成员，会提示你先处理成员归属）<br>
+        · 修改完后点右下角「☁️ 保存所有改动」同步到仓库，主站 Ctrl+F5 强刷即可看到效果
+      </div>
+      <div class="t-mgr-header">
+        <span>#</span>
+        <span>图标</span>
+        <span>中文名</span>
+        <span class="hide-sm">英文名（可选）</span>
+        <span class="hide-sm">主题颜色</span>
+        <span>主站开关</span>
+        <span>操作</span>
+      </div>
+      <div id="teamManagerList" class="t-mgr-list"></div>
+      <div class="t-mgr-toolbar">
+        <button class="btn-secondary" id="addTeamBtn" type="button">➕ 新增团队</button>
+        <button class="btn-secondary" id="resetTeamsBtn" type="button">♻️ 恢复默认（8个团队）</button>
       </div>
     </div>
 
@@ -299,19 +358,42 @@ var PWD_KEY = 'admin_pwd_v2';
 var PAT_KEY = 'gh_pat_9178gg_v1';
 var DEFAULT_PWD = 'xX20130810';
 var TEAMS = [
-  { id: 1, name: 'LSPD',                icon: '🚓', color: '#1976d2', en: '' },
-  { id: 2, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
-  { id: 3, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
-  { id: 4, name: '三合会',              icon: '🏔️', color: '#2e7d32', en: '' },
-  { id: 5, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '' },
-  { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: '' },
-  { id: 7, name: '',                    icon: '⬜', color: '#9e9e9e', en: '' },
-  { id: 8, name: '',                    icon: '⬜', color: '#9e9e9e', en: '' }
+  { id: 1, name: 'LSPD',                icon: '🚓', color: '#1976d2', en: '', enabled: true  },
+  { id: 2, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+  { id: 3, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+  { id: 4, name: '三合会',              icon: '🏔️', color: '#2e7d32', en: '', enabled: true  },
+  { id: 5, name: '未启用',              icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+  { id: 6, name: '制作与管理人员',       icon: '🌍', color: '#9e9e9e', en: '', enabled: true  },
+  { id: 7, name: '',                    icon: '⬜', color: '#9e9e9e', en: '', enabled: false },
+  { id: 8, name: '',                    icon: '⬜', color: '#9e9e9e', en: '', enabled: false }
 ];
-function activeTeams(){ return TEAMS.filter(function(t){ return t.name && t.name !== '未启用'; }); }
-function teamName(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.name : '未知团队'; }
-function teamColor(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.color : '#9e9e9e'; }
-function teamIcon(id){ var t = TEAMS.find(function(x){return x.id===id;}); return t? t.icon : '❓'; }
+var TEAMS_SHA = null;
+var DIRTY_TEAMS = false;
+function activeTeams(){ return TEAMS.filter(function(t){ return t && t.enabled === true && t.name && String(t.name).trim() !== ''; }); }
+function allTeams(){ return TEAMS.filter(function(t){ return !!t; }); }
+function teamName(id){ var t = TEAMS.find(function(x){return +x.id===+id;}); return t? (t.name||'(未命名)') : '未知团队'; }
+function teamColor(id){ var t = TEAMS.find(function(x){return +x.id===+id;}); return t? (t.color||'#9e9e9e') : '#9e9e9e'; }
+function teamIcon(id){ var t = TEAMS.find(function(x){return +x.id===+id;}); return t? (t.icon||'❓') : '❓'; }
+function nextTeamId(){
+  var m = 0; TEAMS.forEach(function(t){ if (t && +t.id > m) m = +t.id; });
+  return m + 1;
+}
+function teamsDeepClone(arr){
+  return (arr||[]).map(function(t){
+    return {
+      id: +(t && t.id) || nextTeamId(),
+      name: (t && t.name) || '',
+      icon: (t && t.icon) || '⬜',
+      color: (t && t.color) || '#9e9e9e',
+      en: (t && t.en) || '',
+      enabled: (t && t.enabled === true) ? true : false
+    };
+  });
+}
+function markTeamsDirty(msg){
+  DIRTY_TEAMS = true;
+  if (msg) showStatus('saveStatus', msg, 'info');
+}
 
 // ========== 密码 ==========
 function getStoredPwd(){ return localStorage.getItem(PWD_KEY) || DEFAULT_PWD; }
@@ -510,6 +592,27 @@ async function enterAdmin(pat){
     document.getElementById('adminView').classList.remove('hidden');
     document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
     document.getElementById('reloadBtn').onclick = loadAll;
+    // 团队管理面板按钮
+    try {
+      var ab = document.getElementById('addTeamBtn');
+      if (ab) ab.onclick = addNewTeam;
+      var rb = document.getElementById('resetTeamsBtn');
+      if (rb) rb.onclick = function(){
+        if (!confirm('确定把团队列表恢复为初始的 8 个默认团队吗？当前自定义改动（还没保存到仓库的）会全部丢失。')) return;
+        TEAMS = teamsDeepClone([
+          { id:1, name:'LSPD', icon:'🚓', color:'#1976d2', en:'', enabled:true  },
+          { id:2, name:'未启用', icon:'⬜', color:'#9e9e9e', en:'', enabled:false },
+          { id:3, name:'未启用', icon:'⬜', color:'#9e9e9e', en:'', enabled:false },
+          { id:4, name:'三合会', icon:'🏔️', color:'#2e7d32', en:'', enabled:true  },
+          { id:5, name:'未启用', icon:'⬜', color:'#9e9e9e', en:'', enabled:false },
+          { id:6, name:'制作与管理人员', icon:'🌍', color:'#9e9e9e', en:'', enabled:true  },
+          { id:7, name:'', icon:'⬜', color:'#9e9e9e', en:'', enabled:false },
+          { id:8, name:'', icon:'⬜', color:'#9e9e9e', en:'', enabled:false }
+        ]);
+        markTeamsDirty('✅ 已恢复默认 8 个团队（还没保存到仓库，记得点保存按钮）');
+        renderAllTeamViews();
+      };
+    } catch(e){}
     var bl = document.getElementById('branchLabel');
     if (bl) {
       var pushTip = repoInfo.private ? (canPush?' ✓有写权限':' ✗无写权限') : '';
@@ -529,18 +632,29 @@ async function enterAdmin(pat){
 }
 
 function loadAll(){
-  showStatus('saveStatus','正在从仓库加载 data.json 和 team_recruit.json...','info');
-  Promise.all([getContent('data.json'), getContent('team_recruit.json')])
+  showStatus('saveStatus','正在从仓库加载 data.json / team_recruit.json / teams.json...','info');
+  Promise.all([getContent('data.json'), getContent('team_recruit.json'), getContent('teams.json')])
   .then(function(results){
-    var d = results[0], r = results[1];
+    var d = results[0], r = results[1], tm = results[2];
     try { PEOPLE = d ? _jsonParseWithFix(d.content) : []; }
     catch(e){ PEOPLE = []; alert('data.json 格式损坏: '+e.message); }
     PEOPLE._sha = d? d.sha : null;
     try { RECRUIT = r ? _jsonParseWithFix(r.content) : {}; }
     catch(e){ RECRUIT = {}; }
     RECRUIT._sha = r? r.sha : null;
-    DIRTY_PEOPLE = false; DIRTY_RECRUIT = false; PENDING_IMAGES = [];
-    showStatus('saveStatus','加载成功：'+PEOPLE.length+' 名人员。可开始修改。','ok');
+    // 团队配置：如果仓库有 teams.json，覆盖内置 TEAMS（保持向后兼容）
+    TEAMS_SHA = tm ? tm.sha : null;
+    if (tm) {
+      try {
+        var parsed = _jsonParseWithFix(tm.content);
+        if (Array.isArray(parsed) && parsed.length) {
+          TEAMS = teamsDeepClone(parsed);
+        }
+      } catch(e){ alert('teams.json 格式损坏，使用默认团队配置: '+e.message); }
+    }
+    DIRTY_PEOPLE = false; DIRTY_RECRUIT = false; DIRTY_TEAMS = false; PENDING_IMAGES = [];
+    showStatus('saveStatus','加载成功：'+PEOPLE.length+' 名人员 / '+activeTeams().length+' 个启用团队。可开始修改。','ok');
+    renderTeamManager();
     renderRecruitPanel();
     renderTeamFilter();
     renderTeamOptions();
@@ -549,6 +663,192 @@ function loadAll(){
     updateTotalCount();
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
+}
+
+// ========== 团队管理面板：渲染 + 事件绑定 ==========
+function renderAllTeamViews(){
+  try { renderTeamManager(); } catch(e){}
+  try { renderRecruitPanel(); } catch(e){}
+  try { renderTeamFilter(); } catch(e){}
+  try { renderTeamOptions(); } catch(e){}
+  try { renderPeople(); } catch(e){}
+}
+
+function renderTeamManager(){
+  var wrap = document.getElementById('teamManagerList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  var teams = allTeams();
+  for (var idx=0; idx<teams.length; idx++){
+    (function(){
+      var i = idx;
+      var t = teams[i];
+      var row = document.createElement('div');
+      row.className = 't-mgr-row' + (t.enabled ? '' : ' disabled-row');
+
+      // 序号
+      var idxCell = document.createElement('div');
+      idxCell.textContent = (i+1);
+      idxCell.style.fontWeight = 'bold';
+      idxCell.style.color = '#757575';
+      idxCell.style.textAlign = 'center';
+      row.appendChild(idxCell);
+
+      // 图标（emoji 输入框，1个字即可）
+      var iconInput = document.createElement('input');
+      iconInput.type = 'text';
+      iconInput.className = 't-mgr-icon-input';
+      iconInput.value = t.icon || '⬜';
+      iconInput.title = 'Emoji 图标（一个字符即可）';
+      iconInput.maxLength = 8;
+      iconInput.oninput = function(){
+        TEAMS[i].icon = iconInput.value || '⬜';
+        markTeamsDirty();
+        renderRecruitPanel();
+        renderTeamFilter();
+        renderTeamOptions();
+      };
+      row.appendChild(iconInput);
+
+      // 中文名
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = t.name || '';
+      nameInput.placeholder = '团队中文名（如：LSPD、医护、三合会…）';
+      nameInput.oninput = function(){
+        TEAMS[i].name = nameInput.value;
+        markTeamsDirty();
+        renderRecruitPanel();
+        renderTeamFilter();
+        renderTeamOptions();
+        renderPeople();
+      };
+      row.appendChild(nameInput);
+
+      // 英文名（可选）
+      var enInput = document.createElement('input');
+      enInput.type = 'text';
+      enInput.value = t.en || '';
+      enInput.className = 'hide-sm';
+      enInput.placeholder = '英文/缩写（可选）';
+      enInput.oninput = function(){
+        TEAMS[i].en = enInput.value;
+        markTeamsDirty();
+        renderRecruitPanel();
+      };
+      row.appendChild(enInput);
+
+      // 主题颜色
+      var colorWrap = document.createElement('div');
+      colorWrap.className = 'hide-sm';
+      colorWrap.style.display = 'flex';
+      colorWrap.style.alignItems = 'center';
+      colorWrap.style.gap = '6px';
+      var colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = t.color || '#9e9e9e';
+      colorInput.oninput = function(){
+        TEAMS[i].color = colorInput.value;
+        markTeamsDirty();
+        renderRecruitPanel();
+        renderTeamFilter();
+        renderTeamOptions();
+        renderPeople();
+      };
+      colorWrap.appendChild(colorInput);
+      var colorText = document.createElement('input');
+      colorText.type = 'text';
+      colorText.value = t.color || '#9e9e9e';
+      colorText.style.maxWidth = '90px';
+      colorText.onchange = function(){
+        var v = colorText.value.trim();
+        if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v)) {
+          alert('颜色格式不对，请用 #RRGGBB 格式，例如 #1976d2');
+          colorText.value = TEAMS[i].color;
+          return;
+        }
+        TEAMS[i].color = v;
+        colorInput.value = v;
+        markTeamsDirty();
+        renderRecruitPanel();
+        renderTeamFilter();
+        renderTeamOptions();
+        renderPeople();
+      };
+      colorWrap.appendChild(colorText);
+      row.appendChild(colorWrap);
+
+      // 开关（启用/停用）
+      var tog = document.createElement('div');
+      tog.className = 't-mgr-toggle' + (t.enabled ? ' on' : '');
+      tog.title = t.enabled ? '点击：停用（主站不显示）' : '点击：启用（对外显示）';
+      tog.onclick = function(){
+        TEAMS[i].enabled = !TEAMS[i].enabled;
+        markTeamsDirty('✅ 团队「'+(TEAMS[i].name||'未命名')+'」已'+(TEAMS[i].enabled?'启用（主站会显示）':'停用（主站不再显示）')+'，记得点保存按钮同步到仓库。');
+        renderTeamManager();
+        renderRecruitPanel();
+        renderTeamFilter();
+        renderTeamOptions();
+      };
+      row.appendChild(tog);
+
+      // 操作：上移 / 下移 / 删除
+      var act = document.createElement('div');
+      act.className = 't-mgr-actions';
+      function makeBtn(label, title, fn){
+        var b = document.createElement('button');
+        b.className = 'btn-secondary';
+        b.type = 'button';
+        b.textContent = label;
+        b.title = title;
+        b.onclick = fn;
+        return b;
+      }
+      act.appendChild(makeBtn('↑', '上移', function(){
+        if (i === 0) return;
+        var tmp = TEAMS[i-1]; TEAMS[i-1] = TEAMS[i]; TEAMS[i] = tmp;
+        markTeamsDirty();
+        renderAllTeamViews();
+      }));
+      act.appendChild(makeBtn('↓', '下移', function(){
+        if (i === TEAMS.length - 1) return;
+        var tmp = TEAMS[i+1]; TEAMS[i+1] = TEAMS[i]; TEAMS[i] = tmp;
+        markTeamsDirty();
+        renderAllTeamViews();
+      }));
+      act.appendChild(makeBtn('🗑️', '删除该团队', function(){
+        var cnt = countInTeam(t.id);
+        var teamLabel = (t.icon||'') + ' ' + (t.name||'(未命名)');
+        if (cnt > 0) {
+          if (!confirm('团队「'+teamLabel+'」下还有 '+cnt+' 个成员。删除该团队后，这些成员的「所属团队」会变成「未分配」。确定要继续吗？')) return;
+          for (var k=0;k<PEOPLE.length;k++){
+            if (+PEOPLE[k].team === +t.id) PEOPLE[k].team = 0;
+          }
+          DIRTY_PEOPLE = true;
+        } else {
+          if (!confirm('确定删除团队「'+teamLabel+'」吗？')) return;
+        }
+        // 清掉招募状态里对应的 key
+        if (RECRUIT.hasOwnProperty(t.id)) {
+          delete RECRUIT[t.id];
+          DIRTY_RECRUIT = true;
+        }
+        TEAMS.splice(i, 1);
+        markTeamsDirty('✅ 已删除团队，记得点保存按钮同步到仓库。');
+        renderAllTeamViews();
+      }));
+      row.appendChild(act);
+
+      wrap.appendChild(row);
+    })();
+  }
+}
+
+function addNewTeam(){
+  var id = nextTeamId();
+  TEAMS.push({ id: id, name: '新团队'+id, icon: '🆕', color: '#1565c0', en: '', enabled: false });
+  markTeamsDirty('✅ 已新增团队 #'+id+'，默认停用，改好名字颜色后打开开关，然后点保存按钮。');
+  renderAllTeamViews();
 }
 
 // ========== 招募状态面板 ==========
@@ -776,28 +1076,29 @@ async function saveAllToRepo(){
   try {
     // Step 1: 上传所有待上传图片
     if (PENDING_IMAGES.length) {
-      showStatus('saveStatus','步骤1/3：正在上传 '+PENDING_IMAGES.length+' 张头像图片...','info');
+      showStatus('saveStatus','步骤1/4：正在上传 '+PENDING_IMAGES.length+' 张头像图片...','info');
       for (var i=0;i<PENDING_IMAGES.length;i++){
         var im = PENDING_IMAGES[i];
         await writeFile(im.name, im.base64, null, '后台上传头像: '+im.name);
         status.push('✅ 上传: '+im.name);
-        showStatus('saveStatus','步骤1/3：已上传 '+(i+1)+'/'+PENDING_IMAGES.length+' 张头像...','info');
+        showStatus('saveStatus','步骤1/4：已上传 '+(i+1)+'/'+PENDING_IMAGES.length+' 张头像...','info');
       }
       PENDING_IMAGES = [];
     }
     // Step 2: 写 data.json
-    showStatus('saveStatus','步骤2/3：正在更新 data.json...','info');
+    showStatus('saveStatus','步骤2/4：正在更新 data.json...','info');
     var dsha = PEOPLE._sha || null;
     if (!dsha) { try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha;} catch(e){} }
     var dataStr = JSON.stringify(PEOPLE, null, 2);
     var dataB64 = utf8ToBase64(dataStr);
-    await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
-    PEOPLE._sha = null; // 下次刷新重新拉
+    var dRes = await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
+    if (dRes && dRes.content && dRes.content.sha) PEOPLE._sha = dRes.content.sha;
+    else PEOPLE._sha = null;
     status.push('✅ 更新 data.json（共 '+PEOPLE.length+' 人）');
     DIRTY_PEOPLE = false;
 
     // Step 3: 写 team_recruit.json（只要改过或不存在就写）
-    showStatus('saveStatus','步骤3/3：正在更新 team_recruit.json...','info');
+    showStatus('saveStatus','步骤3/4：正在更新 team_recruit.json...','info');
     var rsha = RECRUIT._sha || null;
     if (!rsha) { try { var rc = await getContent('team_recruit.json'); if(rc) rsha = rc.sha;} catch(e){} }
     // _sha 属性不能存进文件里
@@ -805,12 +1106,25 @@ async function saveAllToRepo(){
     for (var k in RECRUIT) if (k !== '_sha') recruitCopy[k] = RECRUIT[k];
     var rStr = JSON.stringify(recruitCopy, null, 2);
     var rB64 = utf8ToBase64(rStr);
-    await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
-    RECRUIT._sha = null;
+    var rRes = await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
+    if (rRes && rRes.content && rRes.content.sha) RECRUIT._sha = rRes.content.sha;
+    else RECRUIT._sha = null;
     status.push('✅ 更新 team_recruit.json');
     DIRTY_RECRUIT = false;
 
-    showStatus('saveStatus','🎉 全部保存成功！\n'+status.join('\n')+'\n\n⏳ 等 1 分钟后刷新主网站（Ctrl+F5 强刷）就能看到最新效果。', 'ok');
+    // Step 4: 写 teams.json（只要改过或不存在就写）
+    showStatus('saveStatus','步骤4/4：正在更新 teams.json（团队自定义配置）...','info');
+    var tsha = TEAMS_SHA || null;
+    if (!tsha) { try { var tc = await getContent('teams.json'); if(tc) tsha = tc.sha;} catch(e){} }
+    var tStr = JSON.stringify(teamsDeepClone(TEAMS), null, 2);
+    var tB64 = utf8ToBase64(tStr);
+    var tRes = await writeFile('teams.json', tB64, tsha, '后台更新 teams.json（团队名/开关/颜色）');
+    if (tRes && tRes.content && tRes.content.sha) TEAMS_SHA = tRes.content.sha;
+    else TEAMS_SHA = null;
+    status.push('✅ 更新 teams.json（共 '+allTeams().length+' 个团队，启用 '+activeTeams().length+' 个）');
+    DIRTY_TEAMS = false;
+
+    showStatus('saveStatus','🎉 全部保存成功！\n'+status.join('\n')+'\n\n⏳ 等 1~2 分钟后刷新主网站（Ctrl+F5 强刷）就能看到最新效果。', 'ok');
   } catch (err) {
     showStatus('saveStatus','❌ 保存失败：'+err.message+'\n\n常见原因：\n①PAT 过期或未勾选 repo 权限（重新生成一次）\n②网络问题，稍后重试','err');
   } finally {
