@@ -800,7 +800,7 @@
         xhr.send();
       } catch (e) {
         var raw = localStorage.getItem(STORAGE_KEY);
-        PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
+        PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
         callback(false);
       }
     }
