@@ -1276,10 +1276,11 @@
 
     var done = false;
     var timer = null;
-    var LINE_INTERVAL_MIN = 1;   // 行之间间隔 ms
-    var CHAR_INTERVAL_MAX = 2;   // 单字间隔 ms 上限（字符越大块越快，最大2ms一个字）
-    var BLOCK_CHARS = 26;        // 每个 tick 一次性打多少个字（保证文件大也能播完）
+    var LINE_INTERVAL_MIN = 0;   // 行之间额外间隔 ms（已足够快，不再加）
+    var CHAR_INTERVAL_MAX = 0;   // 每个 tick 间隔 ms（全速跑，整体只显示 ~2-3 秒）
+    var BLOCK_CHARS = 420;       // 每个 tick 一次性打 420 个字（原26太慢），约 2.5 秒内打完
     var FADE_OUT_MS = 720;
+    var HARD_LIMIT_MS = 2500;    // 强制上限 2.5 秒，不管还剩多少直接结束
 
     function finish(){
       if (done) return;
@@ -1484,7 +1485,22 @@
           }
         }
         // 启动
-        timer = setTimeout(tick, 200);
+        timer = setTimeout(tick, 120);
+        // 强制上限：不管还剩多少没打完，2.5 秒直接淡出进入主站（满足你"就显示两三秒"）
+        try {
+          setTimeout(function(){
+            if (!done) {
+              try {
+                // 把进度条拉满，让用户觉得是正常播完的
+                if (progBar) progBar.style.width = '100%';
+                if (counterEl) counterEl.textContent =
+                  '已显示 ' + (totalLines ? Math.min(lineIdx+1, totalLines) : 0) + ' / ' + totalLines + ' 行 — 达到设定上限，进入主站';
+                if (tipEl) tipEl.innerHTML = '✅ 达到显示上限（2.5 秒），正在进入主站…';
+              } catch(e){}
+              finish();
+            }
+          }, HARD_LIMIT_MS);
+        } catch(e){}
       } catch(bigErr){
         finish();
       }
