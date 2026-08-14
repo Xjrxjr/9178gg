@@ -12,16 +12,16 @@
     "qqcontact": ""
   },
   {
-    "id": 2,
-    "name": "罗",
+    "name": "罗伯特",
     "team": 1,
     "image": "ldt26473.jpg",
     "desc": "警督-警号2002",
     "phone": "",
     "email": "",
-    "bio": "4000一小时",
+    "bio": "",
     "wechat": "",
-    "qqcontact": ""
+    "qqcontact": "",
+    "id": 2
   },
   {
     "id": 3,
@@ -370,17 +370,5 @@
     "wechat": "",
     "qqcontact": "",
     "bio": ""
-  },
-  {
-    "name": "111",
-    "team": 1,
-    "image": "",
-    "desc": "",
-    "phone": "111",
-    "email": "",
-    "bio": "111",
-    "wechat": "",
-    "qqcontact": "",
-    "id": "p_mssgp9dc0sf2"
   }
 ]
