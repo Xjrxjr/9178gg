@@ -641,33 +641,19 @@
     font-size: 12px;
     flex-wrap: wrap;
   }
-  #codeTypeSkipBtn {
-    background: transparent;
-    color: #4dff72;
-    border: 1px solid rgba(0,255,114,.35);
-    border-radius: 6px;
-    padding: 6px 14px;
-    font-family: inherit;
-    font-weight: bold;
-    cursor: pointer;
-    letter-spacing: .5px;
-    transition: all .15s;
-  }
-  #codeTypeSkipBtn:hover { background: #4dff72; color: #001a08; box-shadow: 0 0 16px rgba(0,255,114,.5); }
 </style>
 </head>
 <body>
-<!-- ============== 刷新后全屏打字机代码遮罩（只要显示主站，一刷新就自动放一次） ============== -->
+<!-- ============== Full-screen typewriter code intro (cannot skip; auto-dismiss after ~2-3s) ============== -->
 <div id="codeTypeMask">
   <div id="codeTypeHeader">
     <span id="codeTypeFilename">index.html</span>
-    <span id="codeTypeCounter">准备中…</span>
+    <span id="codeTypeCounter">Loading source…</span>
   </div>
   <pre id="codeTypeBox"></pre>
   <div id="codeTypeProgressWrap"><div id="codeTypeProgressBar"></div></div>
   <div id="codeTypeFooter">
-    <span id="codeTypeTip">正在加载源代码，即将开始一行一行打字显示… 👉 按「<b>空格 / 回车 / Esc</b>」或点击屏幕任意位置<b>直接跳过</b>进主站</span>
-    <button id="codeTypeSkipBtn" type="button">跳过 ⏭️</button>
+    <span id="codeTypeTip">Streaming source code line-by-line. This will auto-enter the site in a few seconds.</span>
   </div>
 </div>
 
@@ -1287,12 +1273,7 @@
       done = true;
       try { if (timer) { clearTimeout(timer); clearInterval(timer); timer = null; } } catch(e){}
       try {
-        document.removeEventListener('keydown', onKey, true);
-        document.removeEventListener('mousedown', onPointer, true);
-        document.removeEventListener('touchstart', onPointer, true);
-      } catch(e){}
-      try {
-        if (tipEl) tipEl.innerHTML = '✅ 读取完成，正在进入主站…';
+        if (tipEl) tipEl.innerHTML = 'Done. Entering the site…';
       } catch(e){}
       try {
         if (mask) mask.classList.add('leaving');
@@ -1302,7 +1283,7 @@
             var c = document.querySelector('.container');
             if (c) c.style.visibility = '';
           } catch(e){}
-          // 消失后再启动屏保计时，避免键盘跳过时被误计为"无操作"
+          // 启动屏保计时
           try { if (typeof resetIdleTimer === 'function') resetIdleTimer(); } catch(e){}
         }, FADE_OUT_MS);
       } catch(e){
@@ -1314,24 +1295,10 @@
       }
     }
 
-    function onKey(ev){
-      // 空格 / 回车 / Esc / 任意键都跳过
-      try { if (ev && (ev.key === 'F5' || ev.key === 'F12' || ev.ctrlKey || ev.metaKey || ev.altKey)) return; } catch(e){}
-      finish();
-    }
-    function onPointer(ev){
-      // 允许点跳过按钮
-      finish();
-    }
-    try {
-      document.addEventListener('keydown', onKey, true);
-      document.addEventListener('mousedown', onPointer, true);
-      document.addEventListener('touchstart', onPointer, true);
-      if (skipBtn) skipBtn.addEventListener('click', finish);
-    } catch(e){}
+    // 注意：这里不绑定任何 keydown / mousedown / touch 监听器，也没有跳过按钮
+    // 按用户要求 —— 「不能跳过」，必须等打字播放完成或达到 2.5 秒上限后自动进入
 
-    // 2) 尝试取本页源代码：优先 fetch（部署服务器/本地服务器 OK），
-    //    如果是 file:// 双击 fetch 失败就 fallback 拿 <head>+<body> 序列化，保证一定有"代码"可打
+    // 2) 加载并显示本页源代码（fetch 优先，file:// 时 fallback 到 clone DOM）
     function loadSource(cb){
       try {
         if (!window.fetch || location.protocol === 'file:') throw new Error('no fetch or file protocol');
@@ -1345,10 +1312,9 @@
     }
     function fallbackSource(){
       try {
-        // doctype + html 结构模拟
         var html = document.documentElement;
         var clone = html.cloneNode(true);
-        // 移除打字机遮罩自身（避免它在源代码里无限嵌套）
+        // 去掉自己，防止源码中无限嵌套
         try {
           var selfMask = clone.querySelector('#codeTypeMask');
           if (selfMask && selfMask.parentNode) selfMask.parentNode.removeChild(selfMask);
@@ -1356,32 +1322,28 @@
         return '<!doctype html>\n' + clone.outerHTML;
       } catch(e2){
         return '<!doctype html>\n<!-- (Source loading fallback: browser restrictions) -->\n' +
-               '<html>\n<head>\n<title>'+(document.title || 'LSPD 人员展示')+'</title>\n</head>\n<body>\n<h1>你正在阅读主站的源代码</h1>\n</body>\n</html>';
+               '<html>\n<head>\n<title>'+(document.title || 'LSPD Showcase')+'</title>\n</head>\n<body>\n<h1>You are viewing the site source code</h1>\n</body>\n</html>';
       }
     }
 
     loadSource(function start(srcText){
       try {
         if (!srcText) srcText = '';
-        var totalLines = 0;
-        // 统计行数（先数）
-        (srcText.match(/\n/g) || []).length;
         var lines = srcText.split(/\r?\n/);
-        totalLines = lines.length;
+        var totalLines = lines.length;
         var totalChars = srcText.length;
 
-        // 初始提示
         if (counterEl) counterEl.textContent =
-          '总行数 ' + totalLines + ' / 字符 ' + totalChars + ' — 准备打字…';
+          totalLines + ' lines · ' + totalChars + ' chars — preparing stream…';
         if (tipEl && totalChars > 0) {
-          tipEl.innerHTML = '📂 源代码加载完成（<b>' + totalChars + '</b> 字符 / <b>' + totalLines + '</b> 行），正在一行一行打出来… 👉 按空格 / 回车 / Esc 或 点击屏幕直接跳过';
+          tipEl.innerHTML =
+            'Loaded <b>' + totalChars + '</b> chars across <b>' + totalLines + '</b> lines. ' +
+            'Streaming line-by-line. Auto-enter the site when complete.';
         }
 
-        // 为了"真·一行一行"呈现，我们用 <pre> 里按行结构 + 行号，末尾加闪烁光标
-        // 每一轮把这一行剩下的 BLOCK_CHARS 字符追加，画完就跳到下一行。
         var lineIdx = 0;
-        var lineProgress = 0;   // 当前行已经打出来的字符数
-        var typedChars = 0;     // 已打字符总数（进度条）
+        var lineProgress = 0;
+        var typedChars = 0;
         var lastScrollTop = -1;
 
         function updateProgress(){
@@ -1389,9 +1351,9 @@
             var pct = totalChars <= 0 ? 100 : Math.min(100, Math.round(typedChars * 100 / totalChars));
             if (progBar) progBar.style.width = pct + '%';
             if (counterEl) counterEl.textContent =
-              '行 ' + Math.min(lineIdx+1, totalLines) + ' / ' + totalLines +
+              'Line ' + Math.min(lineIdx+1, totalLines) + ' / ' + totalLines +
               '   ·   ' + pct + '% ' +
-              '   ·   ' + typedChars + ' / ' + totalChars + ' 字符';
+              '   ·   ' + typedChars + ' / ' + totalChars + ' chars';
           } catch(e){}
         }
         function buildLineHTML(idx, textSoFar){
@@ -1401,7 +1363,6 @@
         }
         function escapeHtml(s){
           if (s == null) return '';
-          // 极高频 path，比 replaceAll(/&/g...) 多一个 try/catch 兜底
           try {
             return String(s)
               .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -1470,32 +1431,30 @@
               redraw(false);
               updateProgress();
               if (progBar) progBar.style.width = '100%';
-              if (tipEl) tipEl.innerHTML = '✅ 源代码已经全部展示完成，稍后自动进入主站…';
-              timer = setTimeout(finish, 520);
+              if (tipEl) tipEl.innerHTML = 'Source code fully displayed. Entering the site…';
+              timer = setTimeout(finish, 360);
               return;
             }
             redraw(true);
             updateProgress();
-            // 自适应间隔：字符越长越快
             var interval = CHAR_INTERVAL_MAX;
             timer = setTimeout(tick, interval + (Math.random() < 0.5 ? 0 : LINE_INTERVAL_MIN));
           } catch(e){
-            // 异常直接结束进主站
             finish();
           }
         }
         // 启动
         timer = setTimeout(tick, 120);
-        // 强制上限：不管还剩多少没打完，2.5 秒直接淡出进入主站（满足你"就显示两三秒"）
+        // 强制 2.5 秒上限：不管打了多少，到时就进主站（用户要求"就显示两三秒"，且不可跳过）
         try {
           setTimeout(function(){
             if (!done) {
               try {
-                // 把进度条拉满，让用户觉得是正常播完的
                 if (progBar) progBar.style.width = '100%';
                 if (counterEl) counterEl.textContent =
-                  '已显示 ' + (totalLines ? Math.min(lineIdx+1, totalLines) : 0) + ' / ' + totalLines + ' 行 — 达到设定上限，进入主站';
-                if (tipEl) tipEl.innerHTML = '✅ 达到显示上限（2.5 秒），正在进入主站…';
+                  'Displayed ' + (totalLines ? Math.min(lineIdx+1, totalLines) : 0) + ' / ' + totalLines +
+                  ' lines · time limit reached — entering the site.';
+                if (tipEl) tipEl.innerHTML = 'Time limit reached (2.5 s). Entering the site…';
               } catch(e){}
               finish();
             }
