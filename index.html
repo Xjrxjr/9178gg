@@ -663,7 +663,7 @@
       <button class="back-btn" id="backBtn" onclick="goBackToTeams()">← 返回</button>
       <h1><svg width="36" height="36" viewBox="0 0 110 80" style="vertical-align:middle;margin-right:8px;"><path d="M55 4 L78 14 L78 34 Q78 54 55 72 Q32 54 32 34 L32 14 Z" fill="#0d47a1" stroke="#ffd700" stroke-width="2"/><polygon points="55,16 58,26 55,36 52,26" fill="#ffd700"/><text x="55" y="74" text-anchor="middle" fill="#ffd700" font-size="10" font-family="Arial" font-weight="bold">LSPD</text></svg> 人员展示</h1>
     </div>
-    <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()" title="刷新人员数据">🔄</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()" title="Refresh page (replay the intro)">🔄</button>
   </header>
 
   <!-- 团队选择页 -->
@@ -828,7 +828,7 @@
     return obj;
   }
 
-  // 刷新：清掉本地缓冲，强制从服务器重新拉取最新 data.json
+  // 点击右上角 🔄 按钮时，像浏览器 F5 一样**真正刷新整个页面**（这样就会重新播放全屏代码打字机）
   function doRefresh() {
     var btn = document.getElementById('refreshBtn');
     if (btn) {
@@ -836,14 +836,19 @@
       void btn.offsetWidth; // 触发重绘，重启动画
       btn.classList.add('spinning');
     }
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    try { localStorage.removeItem(TEAMS_STORAGE_KEY); } catch (e) {}
-    loadAllData(function(ok, teamsOk){
-      renderView();
-      showToast((ok ? '已刷新到最新人员数据' : '刷新人员数据失败，请稍后重试') +
-                (teamsOk ? '' : '（团队配置使用本地默认）'),
-                (ok && teamsOk) ? 'success' : (ok ? 'error' : 'error'));
-    });
+    try {
+      // 先清掉本地缓存的 data.json / teams.json，保证 reload 后读到最新数据
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      try { localStorage.removeItem(TEAMS_STORAGE_KEY); } catch (e) {}
+    } catch(e){}
+    try {
+      // true = 强制绕过浏览器缓存（相当于 Ctrl+F5），效果和真正按 F5 一模一样
+      window.location.reload(true);
+      return;
+    } catch(e){}
+    // 极个别浏览器不支持 reload 带参时的兜底
+    window.location.href = window.location.href.split('#')[0] + '#r=' + Date.now();
+    window.location.reload();
   }
 
   // 通用：从 url 拉取文本，成功走 resolve(text)，失败走 reject()
