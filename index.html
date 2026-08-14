@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -654,20 +654,75 @@
     {"id":"1786513366673092l","name":"雷克夫","team":1,"image":"qq:3751211611","desc":"一级警员-警号2005","phone":"","email":"","wechat":"","qqcontact":"","bio":""}
   ];
 
+  // ===== 双重 UTF-8 乱码修复 =====
+  // 原因：data.json/team_recruit.json 如果在保存时把 UTF-8 字节流错误地当作 Latin-1 (ISO-8859-1) 再编码一次，
+  // 浏览器按 UTF-8 正常解码读到的就是损坏文本（例如「警号：2001」变成「è­¦å·ï¼ 2001」）。
+  // 修复方法：遍历字符串，把每个字符的码点 < 256 的部分按 Latin-1 规则取出原始字节，再按 UTF-8 重新解码。
+  function _isGarbledString(s) {
+    if (typeof s !== 'string' || !s) return false;
+    // 双重 UTF-8 典型坏字符区：U+0080..U+00FF（对应 Latin-1 扩展区，正常中文文本里不会有这些）
+    return /[\u0080-\u00ff]/.test(s);
+  }
+  function _tryFixGarbledString(s) {
+    if (typeof s !== 'string' || !s) return s;
+    if (!_isGarbledString(s)) return s;
+    try {
+      var bytes = new Uint8Array(s.length);
+      var bad = false;
+      for (var i = 0; i < s.length; i++) {
+        var cp = s.charCodeAt(i);
+        if (cp > 255) { bad = true; break; }
+        bytes[i] = cp;
+      }
+      if (bad) return s;
+      var decoder = (typeof TextDecoder === 'function') ? new TextDecoder('utf-8', { fatal: true }) : null;
+      if (decoder) {
+        try {
+          var fixed = decoder.decode(bytes);
+          // 修完后不能还出现 Latin-1 扩展区字符，否则视为无效修复直接回退
+          if (!/[\u0080-\u00ff]/.test(fixed)) return fixed;
+          return s;
+        } catch (e) { return s; }
+      } else {
+        // 老浏览器降级（罕见）：跳过修复
+        return s;
+      }
+    } catch (e) { return s; }
+  }
+  function fixGarbledInObject(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length; i++) obj[i] = fixGarbledInObject(obj[i]);
+      return obj;
+    }
+    if (typeof obj === 'string') return _tryFixGarbledString(obj);
+    if (typeof obj === 'object') {
+      for (var k in obj) if (Object.prototype.hasOwnProperty.call(obj, k)) obj[k] = fixGarbledInObject(obj[k]);
+      return obj;
+    }
+    return obj;
+  }
+  function _jsonParseWithFix(text) {
+    var obj = JSON.parse(text);
+    try { obj = fixGarbledInObject(obj); } catch (e) {}
+    return obj;
+  }
+
   // 初始化：加载 data.json
   function loadDataFromJson(callback) {
     // 加时间戳避免缓存
     var url = 'data.json?t=' + new Date().getTime();
     if (typeof fetch === 'function') {
       fetch(url, { cache: 'no-store' })
-        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
-        .then(function(arr) {
-          PEOPLE_DATA = arr || [];
+        .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+        .then(function(text) {
+          var arr = _jsonParseWithFix(text);
+          PEOPLE_DATA = Array.isArray(arr) ? arr : [];
           // 如果 localStorage 有更新版本（管理员改过），优先用本地修改版
           var localRaw = localStorage.getItem(STORAGE_KEY);
           if (localRaw) {
             try {
-              var localArr = JSON.parse(localRaw);
+              var localArr = _jsonParseWithFix(localRaw);
               if (Array.isArray(localArr) && localArr.length > 0) {
                 PEOPLE_DATA = localArr;
               }
@@ -678,7 +733,7 @@
         .catch(function() {
           // fetch 失败（file:// 协议下可能被浏览器拦截），降级用 localStorage
           var raw = localStorage.getItem(STORAGE_KEY);
-          PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
+          PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
           callback(false);
         });
     } else {
@@ -688,11 +743,11 @@
         if (xhr.readyState === 4) {
           if (xhr.status === 0 || xhr.status === 200) {
             try {
-              PEOPLE_DATA = JSON.parse(xhr.responseText) || [];
+              PEOPLE_DATA = _jsonParseWithFix(xhr.responseText) || [];
               var localRaw = localStorage.getItem(STORAGE_KEY);
               if (localRaw) {
                 try {
-                  var localArr = JSON.parse(localRaw);
+                  var localArr = _jsonParseWithFix(localRaw);
                   if (Array.isArray(localArr) && localArr.length > 0) PEOPLE_DATA = localArr;
                 } catch (e) {}
               }
@@ -701,7 +756,7 @@
             } catch (e) {}
           }
           var raw = localStorage.getItem(STORAGE_KEY);
-          PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
+          PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
           callback(false);
         }
       };
@@ -797,8 +852,9 @@
     try {
       if (typeof fetch !== 'function') return;
       fetch('team_recruit.json?t=' + new Date().getTime(), { cache: 'no-store' })
-        .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
-        .then(function(obj) {
+        .then(function(r) { if (!r.ok) throw new Error(); return r.text(); })
+        .then(function(text) {
+          var obj = _jsonParseWithFix(text);
           if (!obj || typeof obj !== 'object') return;
           var local = getRecruitMap();
           var emptyLocal = Object.keys(local).length === 0;
