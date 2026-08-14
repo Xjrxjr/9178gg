@@ -71,22 +71,61 @@
   .p-item .p-meta { font-size: 12px; color: #757575; }
   .p-item .p-actions { display: flex; flex-direction: column; gap: 6px; }
   .p-item .p-actions button { padding: 6px 10px; font-size: 12px; }
-  .teams-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  /* ===== 可折叠卡片 ===== */
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; cursor: pointer; user-select: none;
+    padding-bottom: 10px; border-bottom: 1px dashed #e0e0e0;
+  }
+  .card-header h2 { margin-bottom: 0; }
+  .card-toggle {
+    padding: 6px 12px; border-radius: 8px; background: #eceff1; color: #444;
+    font-weight: bold; font-size: 13px; transition: all .15s;
+  }
+  .card-toggle:hover { background: #cfd8dc; transform: translateY(-1px); }
+  .card-body.collapsed { display: none; }
+
+  /* ===== 团队条 / 招募芯片 ===== */
+  .teams-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
   .team-chip {
-    padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: bold;
-    cursor: pointer; border: 2px solid transparent; background: #eceff1; color: #444;
-    user-select: none;
+    padding: 12px 20px; border-radius: 16px; font-size: 15px; font-weight: bold;
+    cursor: pointer; border: 2px solid transparent;
+    background: linear-gradient(135deg, #eceff1 0%, #e3f2fd 100%);
+    color: #444; user-select: none;
+    display: inline-flex; align-items: center; gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+    transition: all .15s;
+    min-height: 48px;
   }
-  .team-chip.active { border-color: #1976d2; background: #e3f2fd; color: #0d47a1; }
-  .team-chip .c-count { margin-left: 6px; color: #757575; font-size: 12px; font-weight: normal; }
+  .team-chip:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,.12);
+    transform: translateY(-1px);
+  }
+  .team-chip .chip-icon { font-size: 22px; line-height: 1; }
+  .team-chip .chip-name { font-size: 16px; }
+  .team-chip.active {
+    border-color: #1976d2;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    color: #0d47a1;
+    box-shadow: 0 4px 14px rgba(25,118,210,.22);
+  }
+  .team-chip .c-count {
+    color: #455a64; font-size: 13px; font-weight: normal;
+    background: rgba(255,255,255,.7);
+    padding: 3px 10px; border-radius: 999px;
+    margin-left: 4px;
+  }
   .recruit-toggle {
-    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-    border-radius: 999px; font-size: 12px; font-weight: bold; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer;
     margin-left: auto; user-select: none;
+    border: 1.5px solid transparent;
+    transition: all .15s;
   }
-  .r-on { background: rgba(46,125,50,.15); color: #2e7d32; }
-  .r-off { background: rgba(211,47,47,.12); color: #c62828; }
-  .r-null { background: rgba(158,158,158,.12); color: #757575; }
+  .recruit-toggle:hover { transform: scale(1.04); }
+  .r-on { background: rgba(46,125,50,.18); color: #1b5e20; border-color: rgba(46,125,50,.35); }
+  .r-off { background: rgba(211,47,47,.15); color: #c62828; border-color: rgba(211,47,47,.3); }
+  .r-null { background: rgba(120,120,120,.15); color: #455a64; border-color: rgba(120,120,120,.25); }
   .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   @media (max-width: 700px) { .form-row { grid-template-columns: 1fr; } }
   .pat-help { background: #fff3e0; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.7; border-left: 4px solid #f57c00; margin-top: 10px; }
@@ -223,40 +262,54 @@
     </div>
 
     <!-- 团队管理面板（新增功能：团队开关+自定义名字/emoji/颜色） -->
-    <div class="card">
-      <h2>🏗️ 团队管理（开关 + 自定义名字/图标/颜色）</h2>
-      <div class="t-mgr-tip">
-        · 每个团队可自定义：<b>开关（绿色=对外显示 / 灰色=隐藏）</b>、Emoji 图标、<b>中文名</b>、英文名（可选）、主题颜色<br>
-        · 「↑ ↓」可调整团队在主站显示的顺序；「➕ 新增团队」会在列表末尾追加一个；「🗑️」会删除一行（若该团队下面还有成员，会提示你先处理成员归属）<br>
-        · 修改完后点右下角「☁️ 保存所有改动」同步到仓库，主站 Ctrl+F5 强刷即可看到效果
+    <div class="card" data-card="teams" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('teams')">
+        <h2>🏗️ 团队管理（开关 + 自定义名字/图标/颜色 + 排序）</h2>
+        <span class="card-toggle" id="card-toggle-teams">▼ 折叠</span>
       </div>
-      <div class="t-mgr-header">
-        <span>#</span>
-        <span>图标</span>
-        <span>中文名</span>
-        <span class="hide-sm">英文名（可选）</span>
-        <span class="hide-sm">主题颜色</span>
-        <span>主站开关</span>
-        <span>操作</span>
-      </div>
-      <div id="teamManagerList" class="t-mgr-list"></div>
-      <div class="t-mgr-toolbar">
-        <button class="btn-secondary" id="addTeamBtn" type="button">➕ 新增团队</button>
-        <button class="btn-secondary" id="resetTeamsBtn" type="button">♻️ 恢复默认（8个团队）</button>
+      <div class="card-body" id="card-body-teams">
+        <div class="t-mgr-tip">
+          · 每个团队可自定义：<b>开关（绿色 ON=对外显示 / 灰色 OFF=隐藏）</b>、Emoji 图标、<b>中文名</b>、英文名（可选）、主题颜色<br>
+          · 「<b>⬆️ 顶</b>」「<b>↑</b>」「<b>↓</b>」「<b>⬇️ 底</b>」可调整团队在主站显示的顺序；「<b>➕ 新增团队</b>」会在列表末尾追加一个；「<b>🗑️</b>」会删除一行（若该团队下面还有成员，会自动把成员变成「未分配」，不会丢数据）<br>
+          · 修改完后点右下角「<b>☁️ 保存所有改动</b>」同步到仓库，主站 Ctrl+F5 强刷即可看到效果
+        </div>
+        <div class="t-mgr-header">
+          <span>#</span>
+          <span>图标</span>
+          <span>中文名</span>
+          <span class="hide-sm">英文名（可选）</span>
+          <span class="hide-sm">主题颜色</span>
+          <span>主站开关</span>
+          <span>操作（顶 / 上 / 下 / 底 / 删）</span>
+        </div>
+        <div id="teamManagerList" class="t-mgr-list"></div>
+        <div class="t-mgr-toolbar">
+          <button class="btn-secondary" id="addTeamBtn" type="button">➕ 新增团队</button>
+          <button class="btn-secondary" id="resetTeamsBtn" type="button">♻️ 恢复默认（8个团队）</button>
+        </div>
       </div>
     </div>
 
     <!-- 招募状态面板 -->
-    <div class="card">
-      <h2>🟢 团队招募状态</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:10px;">点击团队名称旁的「招募徽章」可切换状态：🔵招募中 → ⚪暂停招募 → ⭕未定</p>
-      <div id="recruitPanel" class="teams-bar"></div>
+    <div class="card" data-card="recruit" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('recruit')">
+        <h2>🟢 团队招募状态</h2>
+        <span class="card-toggle" id="card-toggle-recruit">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-recruit">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;">点击团队徽章右边的「招募按钮」可切换状态：🟢 招募中 → 🔴 暂停招募 → ⚪ 未定</p>
+        <div id="recruitPanel" class="teams-bar"></div>
+      </div>
     </div>
 
     <!-- 人员操作面板 -->
-    <div class="card">
-      <h2>👥 人员管理</h2>
-      <div id="teamFilterBar" class="teams-bar"></div>
+    <div class="card" data-card="people" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('people')">
+        <h2>👥 人员管理</h2>
+        <span class="card-toggle" id="card-toggle-people">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-people">
+        <div id="teamFilterBar" class="teams-bar"></div>
 
       <div id="addPersonBox" style="border: 1.5px dashed #1976d2; border-radius: 10px; padding: 16px; background: #f5f9ff;">
         <h3 id="formTitle">➕ 添加新人员</h3>
@@ -300,21 +353,27 @@
       <div style="height: 20px;"></div>
       <h3>📋 现有人员列表 <span id="totalCount" class="badge badge-team"></span></h3>
       <div id="peopleGrid" class="people-list"></div>
+      </div><!-- end card-body-people -->
     </div>
 
     <!-- 保存到仓库 -->
-    <div class="card">
-      <h2>☁️ 保存到网站（提交到 GitHub）</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:12px;">
-        做好所有修改后，点下面按钮。后台会：①上传新头像 ②更新 data.json ③更新 team_recruit.json → 等 1 分钟刷新主网站即生效。
-      </p>
-      <div class="row">
-        <button class="btn-success" id="saveAllBtn" style="font-size:16px; padding: 14px 26px;">
-          🚀 保存所有改动并部署到网站
-        </button>
-        <button class="btn-warning" id="logoutBtn">🚪 退出登录</button>
+    <div class="card" data-card="save" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('save')">
+        <h2>☁️ 保存到网站（提交到 GitHub）</h2>
+        <span class="card-toggle" id="card-toggle-save">▼ 折叠</span>
       </div>
-      <div id="saveStatus" class="status"></div>
+      <div class="card-body" id="card-body-save">
+        <p style="font-size:13px;color:#555;margin-bottom:12px;">
+          做好所有修改后，点下面绿色大按钮。后台会：①上传新头像 ②更新 data.json ③更新 team_recruit.json ④更新 teams.json → 等 1 分钟主网站自动刷新即生效。
+        </p>
+        <div class="row">
+          <button class="btn-success" id="saveAllBtn" style="font-size:16px; padding: 14px 26px;">
+            🚀 保存所有改动并部署到网站
+          </button>
+          <button class="btn-warning" id="logoutBtn">🚪 退出登录</button>
+        </div>
+        <div id="saveStatus" class="status"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -432,6 +491,31 @@ function markTeamsDirty(msg){
 // ========== 密码 ==========
 function getStoredPwd(){ return localStorage.getItem(PWD_KEY) || DEFAULT_PWD; }
 function verifyPwd(p){ return p === getStoredPwd(); }
+
+// ========== 面板折叠/展开 ==========
+function toggleCard(key){
+  try {
+    var root = document.querySelector('.card[data-card="'+key+'"]');
+    if (!root) return;
+    var body = document.getElementById('card-body-' + key);
+    var togg = document.getElementById('card-toggle-' + key);
+    if (!body || !togg) return;
+    var now = (root.getAttribute('data-collapsed') === 'true');
+    var next = !now;
+    root.setAttribute('data-collapsed', next ? 'true' : 'false');
+    body.classList.toggle('collapsed', next);
+    togg.textContent = next ? '▶ 展开' : '▼ 折叠';
+    try { localStorage.setItem('admin_card_' + key, next ? '1' : '0'); } catch(e){}
+  } catch(e){}
+}
+function applyAllCardsFromStorage(){
+  ['teams','recruit','people','save'].forEach(function(k){
+    try {
+      var v = localStorage.getItem('admin_card_' + k);
+      if (v === '1') toggleCard(k); // 已折叠
+    } catch(e){}
+  });
+}
 
 // ========== 状态提示 ==========
 function showStatus(elId, msg, type){
@@ -655,6 +739,8 @@ async function enterAdmin(pat){
 
     // 登录后立即先填团队下拉框（只依赖本地 TEAMS，不等服务器加载，避免"所属团队为空"）
     try { renderTeamOptions(); } catch(e) {}
+    // 先加载面板折叠状态（每个面板的展开/折叠用户记忆），再加载数据
+    try { applyAllCardsFromStorage(); } catch(e) {}
     loadAll();
   } catch (err) {
     // 登录失败：把详细错误显示在登录状态条，让用户看到具体原因
@@ -826,7 +912,7 @@ function renderTeamManager(){
       };
       row.appendChild(tog);
 
-      // 操作：上移 / 下移 / 删除
+      // 操作：传顶 / 上移 / 下移 / 传底 / 删除
       var act = document.createElement('div');
       act.className = 't-mgr-actions';
       function makeBtn(label, title, fn){
@@ -838,16 +924,30 @@ function renderTeamManager(){
         b.onclick = fn;
         return b;
       }
-      act.appendChild(makeBtn('↑', '上移', function(){
+      act.appendChild(makeBtn('⬆️', '传到第 1 个（最上面）', function(){
+        if (i === 0) return;
+        var cur = TEAMS.splice(i, 1)[0];
+        TEAMS.unshift(cur);
+        markTeamsDirty('✅ 已传到最顶，记得点保存按钮同步到仓库。');
+        renderAllTeamViews();
+      }));
+      act.appendChild(makeBtn('↑', '往上一格', function(){
         if (i === 0) return;
         var tmp = TEAMS[i-1]; TEAMS[i-1] = TEAMS[i]; TEAMS[i] = tmp;
         markTeamsDirty();
         renderAllTeamViews();
       }));
-      act.appendChild(makeBtn('↓', '下移', function(){
+      act.appendChild(makeBtn('↓', '往下一格（传下去）', function(){
         if (i === TEAMS.length - 1) return;
         var tmp = TEAMS[i+1]; TEAMS[i+1] = TEAMS[i]; TEAMS[i] = tmp;
         markTeamsDirty();
+        renderAllTeamViews();
+      }));
+      act.appendChild(makeBtn('⬇️', '传到最后 1 个（最下面）', function(){
+        if (i === TEAMS.length - 1) return;
+        var cur = TEAMS.splice(i, 1)[0];
+        TEAMS.push(cur);
+        markTeamsDirty('✅ 已传到最底，记得点保存按钮同步到仓库。');
         renderAllTeamViews();
       }));
       act.appendChild(makeBtn('🗑️', '删除该团队', function(){
@@ -893,15 +993,16 @@ function renderRecruitPanel(){
     var chip = document.createElement('div');
     chip.className = 'team-chip';
     chip.style.borderColor = t.color;
+    chip.style.background = 'linear-gradient(135deg, '+t.color+'22 0%, #ffffff 100%)';
     chip.innerHTML =
-      '<span style="font-size:18px;">'+t.icon+'</span> ' +
-      '<b style="color:'+t.color+'">'+t.name+'</b>' +
+      '<span class="chip-icon">'+t.icon+'</span>' +
+      '<span class="chip-name" style="color:'+t.color+'">'+t.name+'</span>' +
       '<span class="c-count">👥 '+countInTeam(t.id)+' 人</span>';
     var badge = document.createElement('span');
     var r = RECRUIT[t.id];
     badge.className = 'recruit-toggle ' + (r===true?'r-on':r===false?'r-off':'r-null');
-    badge.innerHTML = (r===true?'🔵 招募中':r===false?'⚪ 暂停招募':'⭕ 未定');
-    badge.title = '点击切换招募状态';
+    badge.innerHTML = (r===true?'🟢 招募中':r===false?'🔴 暂停招募':'⚪ 未定');
+    badge.title = '点击切换招募状态（招募中 → 暂停 → 未定 → 招募中…）';
     badge.onclick = function(){
       // 轮换: null -> true -> false -> null
       if (RECRUIT[t.id] === null || RECRUIT[t.id] === undefined) RECRUIT[t.id] = true;
@@ -922,13 +1023,20 @@ function renderTeamFilter(){
   bar.innerHTML = '';
   var all = document.createElement('div');
   all.className = 'team-chip' + (filterTeamId==='all'?' active':'');
-  all.innerHTML = '👁️ 全部<span class="c-count">'+PEOPLE.length+'</span>';
+  all.innerHTML = '<span class="chip-icon">👁️</span><span class="chip-name">全部</span><span class="c-count">'+PEOPLE.length+' 人</span>';
   all.onclick = function(){ filterTeamId='all'; renderTeamFilter(); renderPeople(); };
   bar.appendChild(all);
   activeTeams().forEach(function(t){
     var c = document.createElement('div');
     c.className = 'team-chip' + (filterTeamId===t.id?' active':'');
-    c.innerHTML = t.icon+' '+t.name+'<span class="c-count">'+countInTeam(t.id)+'</span>';
+    if (filterTeamId !== t.id) {
+      c.style.borderColor = t.color;
+      c.style.background = 'linear-gradient(135deg, '+t.color+'18 0%, #ffffff 100%)';
+    }
+    c.innerHTML =
+      '<span class="chip-icon">'+t.icon+'</span>' +
+      '<span class="chip-name" style="'+(filterTeamId===t.id?'':'color:'+t.color)+'">'+t.name+'</span>' +
+      '<span class="c-count">'+countInTeam(t.id)+' 人</span>';
     c.onclick = function(){ filterTeamId=t.id; renderTeamFilter(); renderPeople(); };
     bar.appendChild(c);
   });
