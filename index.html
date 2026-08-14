@@ -557,9 +557,120 @@
   .toast.show { opacity: 1; }
   .toast.success { background: #27ae60; }
   .toast.error { background: #e74c3c; }
+
+  /* ===== 全屏打字机代码遮罩（刷新必播一次） ===== */
+  #codeTypeMask {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(0,40,0,.55) 0%, rgba(0,0,0,.97) 70%, #000 100%),
+      repeating-linear-gradient(0deg, rgba(0,255,80,.04) 0px, rgba(0,255,80,.04) 1px, transparent 1px, transparent 3px);
+    z-index: 999999;
+    color: #4dff72;
+    font-family: 'Consolas','Monaco','Courier New',monospace;
+    display: flex; flex-direction: column;
+    padding: 16px 22px 12px;
+    box-sizing: border-box;
+    animation: typeMaskFadeIn .6s ease both;
+  }
+  @keyframes typeMaskFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  #codeTypeMask.leaving { animation: typeMaskFadeOut .7s ease forwards; }
+  @keyframes typeMaskFadeOut {
+    0% { opacity: 1; transform: scale(1); filter: blur(0); }
+    60% { opacity: .2; filter: blur(6px); transform: scale(1.06); }
+    100% { opacity: 0; transform: scale(1.15); filter: blur(18px); visibility: hidden; }
+  }
+  #codeTypeHeader {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px 10px; border-bottom: 1px dashed #0a3b14;
+    font-weight: bold; letter-spacing: .5px;
+  }
+  #codeTypeFilename {
+    background: rgba(0, 255, 114, .12);
+    border: 1px solid rgba(0, 255, 114, .3);
+    color: #4dff72;
+    padding: 5px 10px; border-radius: 6px;
+    font-size: 13px;
+  }
+  #codeTypeCounter { font-size: 12px; color: #7dff9a; opacity: .85; }
+  #codeTypeBox {
+    flex: 1 1 auto;
+    margin: 10px 4px 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #4dff72;
+    font-family: inherit;
+    font-size: 12.5px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow-y: auto;
+    overflow-x: auto;
+    text-shadow: 0 0 6px rgba(0,255,114,.45);
+  }
+  #codeTypeBox .cursor {
+    display: inline-block; width: 9px; height: 16px;
+    vertical-align: -2px;
+    background: #4dff72;
+    box-shadow: 0 0 8px #4dff72;
+    margin-left: 1px;
+    animation: typeCursorBlink 1s steps(1) infinite;
+  }
+  @keyframes typeCursorBlink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  #codeTypeBox .l-num {
+    color: #2d7a3d; user-select: none; padding-right: 10px;
+    border-right: 1px dotted rgba(0,255,114,.18);
+    margin-right: 10px; display: inline-block; text-align: right; min-width: 36px;
+    font-weight: normal;
+  }
+  #codeTypeBox .l-done { color: #4dff72; }
+  #codeTypeProgressWrap {
+    height: 6px; background: rgba(0,255,114,.12); border-radius: 4px; overflow: hidden;
+    margin: 6px 4px 10px;
+  }
+  #codeTypeProgressBar {
+    width: 0%; height: 100%;
+    background: linear-gradient(90deg, #20bf3e 0%, #4dff72 50%, #8cff9f 100%);
+    box-shadow: 0 0 10px #4dff72;
+    transition: width .08s linear;
+  }
+  #codeTypeFooter {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 8px 4px 2px;
+    border-top: 1px dashed #0a3b14;
+    color: #7dff9a;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  #codeTypeSkipBtn {
+    background: transparent;
+    color: #4dff72;
+    border: 1px solid rgba(0,255,114,.35);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: .5px;
+    transition: all .15s;
+  }
+  #codeTypeSkipBtn:hover { background: #4dff72; color: #001a08; box-shadow: 0 0 16px rgba(0,255,114,.5); }
 </style>
 </head>
 <body>
+<!-- ============== 刷新后全屏打字机代码遮罩（只要显示主站，一刷新就自动放一次） ============== -->
+<div id="codeTypeMask">
+  <div id="codeTypeHeader">
+    <span id="codeTypeFilename">index.html</span>
+    <span id="codeTypeCounter">准备中…</span>
+  </div>
+  <pre id="codeTypeBox"></pre>
+  <div id="codeTypeProgressWrap"><div id="codeTypeProgressBar"></div></div>
+  <div id="codeTypeFooter">
+    <span id="codeTypeTip">正在加载源代码，即将开始一行一行打字显示… 👉 按「<b>空格 / 回车 / Esc</b>」或点击屏幕任意位置<b>直接跳过</b>进主站</span>
+    <button id="codeTypeSkipBtn" type="button">跳过 ⏭️</button>
+  </div>
+</div>
+
 <div class="container">
   <header>
     <div class="header-left">
@@ -1144,18 +1255,258 @@
     }
   });
 
-  // ===== 屏保：瓦格纳（30秒无操作自动显示，点击任意位置恢复）=====
-  var IDLE_TIMEOUT = 30000; // 30 秒无操作触发（原5秒太短，其他设备打开容易误以为黑屏）
+  // ========== 全屏打字机代码遮罩（每次刷新必播一次；跳过后自动进主站） ==========
+  (function runCodeTypeIntro(){
+    try {
+      var mask = document.getElementById('codeTypeMask');
+      if (!mask) return;
+      var box = document.getElementById('codeTypeBox');
+      var counterEl = document.getElementById('codeTypeCounter');
+      var progBar = document.getElementById('codeTypeProgressBar');
+      var skipBtn = document.getElementById('codeTypeSkipBtn');
+      var tipEl = document.getElementById('codeTypeTip');
+      if (!box) return;
+    } catch(e){ /* old browsers */ }
+
+    // 1) 先把主内容隐藏一下，避免打字的同时后面还在滚动/渲染干扰视觉
+    try {
+      var cont = document.querySelector('.container');
+      if (cont) cont.style.visibility = 'hidden';
+    } catch(e){}
+
+    var done = false;
+    var timer = null;
+    var LINE_INTERVAL_MIN = 1;   // 行之间间隔 ms
+    var CHAR_INTERVAL_MAX = 2;   // 单字间隔 ms 上限（字符越大块越快，最大2ms一个字）
+    var BLOCK_CHARS = 26;        // 每个 tick 一次性打多少个字（保证文件大也能播完）
+    var FADE_OUT_MS = 720;
+
+    function finish(){
+      if (done) return;
+      done = true;
+      try { if (timer) { clearTimeout(timer); clearInterval(timer); timer = null; } } catch(e){}
+      try {
+        document.removeEventListener('keydown', onKey, true);
+        document.removeEventListener('mousedown', onPointer, true);
+        document.removeEventListener('touchstart', onPointer, true);
+      } catch(e){}
+      try {
+        if (tipEl) tipEl.innerHTML = '✅ 读取完成，正在进入主站…';
+      } catch(e){}
+      try {
+        if (mask) mask.classList.add('leaving');
+        setTimeout(function(){
+          try { mask.parentNode.removeChild(mask); } catch(e){}
+          try {
+            var c = document.querySelector('.container');
+            if (c) c.style.visibility = '';
+          } catch(e){}
+          // 消失后再启动屏保计时，避免键盘跳过时被误计为"无操作"
+          try { if (typeof resetIdleTimer === 'function') resetIdleTimer(); } catch(e){}
+        }, FADE_OUT_MS);
+      } catch(e){
+        try { mask.parentNode.removeChild(mask); } catch(e2){}
+        try {
+          var c = document.querySelector('.container');
+          if (c) c.style.visibility = '';
+        } catch(e2){}
+      }
+    }
+
+    function onKey(ev){
+      // 空格 / 回车 / Esc / 任意键都跳过
+      try { if (ev && (ev.key === 'F5' || ev.key === 'F12' || ev.ctrlKey || ev.metaKey || ev.altKey)) return; } catch(e){}
+      finish();
+    }
+    function onPointer(ev){
+      // 允许点跳过按钮
+      finish();
+    }
+    try {
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('mousedown', onPointer, true);
+      document.addEventListener('touchstart', onPointer, true);
+      if (skipBtn) skipBtn.addEventListener('click', finish);
+    } catch(e){}
+
+    // 2) 尝试取本页源代码：优先 fetch（部署服务器/本地服务器 OK），
+    //    如果是 file:// 双击 fetch 失败就 fallback 拿 <head>+<body> 序列化，保证一定有"代码"可打
+    function loadSource(cb){
+      try {
+        if (!window.fetch || location.protocol === 'file:') throw new Error('no fetch or file protocol');
+        fetch(location.href, { cache: 'no-store' })
+          .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+          .then(function(t){ cb(t || ''); })
+          .catch(function(){ cb(fallbackSource()); });
+      } catch(e){
+        cb(fallbackSource());
+      }
+    }
+    function fallbackSource(){
+      try {
+        // doctype + html 结构模拟
+        var html = document.documentElement;
+        var clone = html.cloneNode(true);
+        // 移除打字机遮罩自身（避免它在源代码里无限嵌套）
+        try {
+          var selfMask = clone.querySelector('#codeTypeMask');
+          if (selfMask && selfMask.parentNode) selfMask.parentNode.removeChild(selfMask);
+        } catch(e){}
+        return '<!doctype html>\n' + clone.outerHTML;
+      } catch(e2){
+        return '<!doctype html>\n<!-- (Source loading fallback: browser restrictions) -->\n' +
+               '<html>\n<head>\n<title>'+(document.title || 'LSPD 人员展示')+'</title>\n</head>\n<body>\n<h1>你正在阅读主站的源代码</h1>\n</body>\n</html>';
+      }
+    }
+
+    loadSource(function start(srcText){
+      try {
+        if (!srcText) srcText = '';
+        var totalLines = 0;
+        // 统计行数（先数）
+        (srcText.match(/\n/g) || []).length;
+        var lines = srcText.split(/\r?\n/);
+        totalLines = lines.length;
+        var totalChars = srcText.length;
+
+        // 初始提示
+        if (counterEl) counterEl.textContent =
+          '总行数 ' + totalLines + ' / 字符 ' + totalChars + ' — 准备打字…';
+        if (tipEl && totalChars > 0) {
+          tipEl.innerHTML = '📂 源代码加载完成（<b>' + totalChars + '</b> 字符 / <b>' + totalLines + '</b> 行），正在一行一行打出来… 👉 按空格 / 回车 / Esc 或 点击屏幕直接跳过';
+        }
+
+        // 为了"真·一行一行"呈现，我们用 <pre> 里按行结构 + 行号，末尾加闪烁光标
+        // 每一轮把这一行剩下的 BLOCK_CHARS 字符追加，画完就跳到下一行。
+        var lineIdx = 0;
+        var lineProgress = 0;   // 当前行已经打出来的字符数
+        var typedChars = 0;     // 已打字符总数（进度条）
+        var lastScrollTop = -1;
+
+        function updateProgress(){
+          try {
+            var pct = totalChars <= 0 ? 100 : Math.min(100, Math.round(typedChars * 100 / totalChars));
+            if (progBar) progBar.style.width = pct + '%';
+            if (counterEl) counterEl.textContent =
+              '行 ' + Math.min(lineIdx+1, totalLines) + ' / ' + totalLines +
+              '   ·   ' + pct + '% ' +
+              '   ·   ' + typedChars + ' / ' + totalChars + ' 字符';
+          } catch(e){}
+        }
+        function buildLineHTML(idx, textSoFar){
+          var n = String(idx+1);
+          return '<span class="l-num">' + n + '</span>' +
+                 '<span class="l-done">' + escapeHtml(textSoFar) + '</span>';
+        }
+        function escapeHtml(s){
+          if (s == null) return '';
+          // 极高频 path，比 replaceAll(/&/g...) 多一个 try/catch 兜底
+          try {
+            return String(s)
+              .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+              .replace(/\t/g,'  ');
+          } catch(e){ return String(s); }
+        }
+        function redraw(hasCursor){
+          try {
+            var html = '';
+            for (var i = 0; i < lineIdx; i++) {
+              html += buildLineHTML(i, lines[i]) + '\n';
+            }
+            // 当前正在打的一行
+            if (lineIdx < totalLines) {
+              var curText = lines[lineIdx].slice(0, lineProgress);
+              html += buildLineHTML(lineIdx, curText);
+              if (hasCursor) html += '<span class="cursor">&nbsp;</span>';
+            }
+            box.innerHTML = html;
+            // 自动滚到底（只在滚动位置有变化时才 set，避免回流）
+            var newTop = box.scrollHeight;
+            if (newTop !== lastScrollTop) {
+              lastScrollTop = newTop;
+              box.scrollTop = Math.max(0, box.scrollHeight - box.clientHeight - 4);
+            }
+          } catch(e){}
+        }
+
+        // 初始：显示第 0 行空行
+        redraw(true);
+        updateProgress();
+
+        function tick(){
+          if (done) return;
+          try {
+            // 每次 tick 吃 BLOCK_CHARS 个字，跨行会直接自动换行
+            var remainThisLine = lineIdx < totalLines ? (lines[lineIdx].length - lineProgress) : 0;
+            var eat = BLOCK_CHARS;
+            while (eat > 0 && lineIdx < totalLines) {
+              if (remainThisLine <= 0) {
+                // 这行已经吃完，直接进入下一行（补上换行符字符）
+                typedChars += 1; // \n 算一个字
+                lineIdx += 1;
+                lineProgress = 0;
+                remainThisLine = lineIdx < totalLines ? lines[lineIdx].length : 0;
+                eat -= 1;
+                continue;
+              }
+              var take = Math.min(eat, remainThisLine);
+              lineProgress += take;
+              typedChars += take;
+              eat -= take;
+              remainThisLine = lineIdx < totalLines ? (lines[lineIdx].length - lineProgress) : 0;
+              if (lineIdx < totalLines && remainThisLine === 0) {
+                // 正好把这行吃完，下一步就进下一行
+                typedChars += 1;
+                lineIdx += 1;
+                lineProgress = 0;
+                remainThisLine = lineIdx < totalLines ? lines[lineIdx].length : 0;
+              }
+            }
+            if (lineIdx >= totalLines || typedChars >= totalChars) {
+              // 打完了
+              lineIdx = totalLines;
+              typedChars = totalChars;
+              redraw(false);
+              updateProgress();
+              if (progBar) progBar.style.width = '100%';
+              if (tipEl) tipEl.innerHTML = '✅ 源代码已经全部展示完成，稍后自动进入主站…';
+              timer = setTimeout(finish, 520);
+              return;
+            }
+            redraw(true);
+            updateProgress();
+            // 自适应间隔：字符越长越快
+            var interval = CHAR_INTERVAL_MAX;
+            timer = setTimeout(tick, interval + (Math.random() < 0.5 ? 0 : LINE_INTERVAL_MIN));
+          } catch(e){
+            // 异常直接结束进主站
+            finish();
+          }
+        }
+        // 启动
+        timer = setTimeout(tick, 200);
+      } catch(bigErr){
+        finish();
+      }
+    });
+  })();
+
+  // ========== 屏保倒计时（30 秒没操作就显示「瓦格纳」屏保） ==========
   var idleTimer = null;
+  var IDLE_TIMEOUT = 30000; // 30 秒无操作触发（原5秒太短，其他设备打开容易误以为黑屏）
   function showScreensaver() {
-    var ss = document.getElementById('screensaver');
-    if (ss) ss.classList.add('show');
+    var s = document.getElementById('screensaver');
+    if (!s) return;
+    // 有代码遮罩正在显示的话，屏保别抢戏，延后一下
+    try {
+      var m = document.getElementById('codeTypeMask');
+      if (m && m.parentNode) { idleTimer = setTimeout(showScreensaver, 4000); return; }
+    } catch(e){}
+    s.classList.add('show');
   }
   function hideScreensaver() {
-    var ss = document.getElementById('screensaver');
-    if (ss) ss.classList.remove('show');
-    CURRENT_TEAM = null; // 恢复后回到5个团队按钮首页
-    renderView();
+    var s = document.getElementById('screensaver');
+    if (s) s.classList.remove('show');
     resetIdleTimer();
   }
   function resetIdleTimer() {
