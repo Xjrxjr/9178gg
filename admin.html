@@ -141,6 +141,73 @@
   .divider { height: 1px; background: #e0e0e0; margin: 16px 0; }
   .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
   .badge-team { background: #e3f2fd; color: #1565c0; }
+
+  /* ===== JSON 代码显示 / Tab / 模态框 ===== */
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    padding: 4px; background: #f3f4f6; border-radius: 10px;
+  }
+  .tab-btn {
+    flex: 1; min-width: 140px; padding: 10px 14px; border-radius: 8px;
+    font-weight: bold; font-size: 13px; cursor: pointer; user-select: none;
+    border: none; background: transparent; color: #444; transition: all .15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,.75); }
+  .tab-btn.active { background: #ffffff; color: #1565c0; box-shadow: 0 2px 6px rgba(21,101,192,.18); }
+  .tab-btn .tab-count {
+    background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: normal;
+  }
+  .code-box-wrap { position: relative; }
+  .code-box-toolbar {
+    position: absolute; top: 8px; right: 8px; z-index: 10;
+    display: flex; gap: 6px;
+  }
+  .code-box-toolbar button {
+    padding: 6px 10px; font-size: 12px; border-radius: 6px;
+    border: 1px solid #e0e0e0; background: #ffffff; color: #444;
+    cursor: pointer; font-weight: bold;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    transition: all .12s;
+  }
+  .code-box-toolbar button:hover { background: #1565c0; color: #fff; border-color: #0d47a1; }
+  pre.code-box {
+    background: #0d1117; color: #e6edf3;
+    padding: 18px 20px 16px; border-radius: 12px;
+    font-size: 12.5px; line-height: 1.65; font-family: 'Consolas','Monaco','Courier New',monospace;
+    max-height: 480px; overflow: auto;
+    white-space: pre; word-break: normal;
+    border: 1px solid #30363d;
+    margin: 0;
+  }
+  pre.code-box::-webkit-scrollbar { width: 10px; height: 10px; }
+  pre.code-box::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+  pre.code-box::-webkit-scrollbar-track { background: #010409; }
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+    padding: 20px;
+  }
+  .modal-box {
+    background: #fff; border-radius: 14px; max-width: 900px; width: 100%;
+    max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal-header {
+    padding: 16px 20px; border-bottom: 1px solid #e0e0e0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header h3 { margin: 0; font-size: 16px; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+    background: #f3f4f6; color: #444; font-weight: bold; font-size: 16px;
+  }
+  .modal-close:hover { background: #ef5350; color: #fff; }
+  .modal-body { padding: 20px; overflow: auto; flex: 1; }
+  .modal-body pre.code-box { max-height: 68vh; }
+  .json-empty { color: #8b949e; font-style: italic; padding: 20px; text-align: center; }
+
   /* ===== 团队管理面板 ===== */
   .t-mgr-list { display: flex; flex-direction: column; gap: 10px; }
   .t-mgr-row {
@@ -252,9 +319,11 @@
   <!-- 主管理页 -->
   <div id="adminView" class="hidden">
     <div class="top-bar">
-      <div style="display:flex; gap:10px; align-items:center;">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
         <button class="btn-secondary" id="goSiteBtn">🌐 打开主网站</button>
         <button class="btn-secondary" id="reloadBtn">🔄 刷新数据</button>
+        <button class="btn-secondary" id="viewSourceBtn" style="background:#6a1b9a;color:#fff;border-color:#4a148c;">📜 查看后台源代码</button>
+        <button class="btn-secondary" id="goJsonTabBtn" style="background:#00695c;color:#fff;border-color:#004d40;">📋 跳到 JSON 数据面板</button>
       </div>
       <div style="color:white; font-size:13px;">
         仓库：<b>Xjrxjr/9178gg</b>（分支：<span id="branchLabel">检测中...</span>）
@@ -354,6 +423,39 @@
       <h3>📋 现有人员列表 <span id="totalCount" class="badge badge-team"></span></h3>
       <div id="peopleGrid" class="people-list"></div>
       </div><!-- end card-body-people -->
+    </div>
+
+    <!-- JSON 数据面板：data.json / team_recruit.json / teams.json -->
+    <div class="card" data-card="jsonview" data-collapsed="false" id="jsonCard">
+      <div class="card-header" onclick="toggleCard('jsonview')">
+        <h2>📋 当前 JSON 数据（可复制 / 下载 / 查看源码）</h2>
+        <span class="card-toggle" id="card-toggle-jsonview">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-jsonview">
+        <p style="font-size:13px;color:#555;margin:2px 0 12px;line-height:1.8;">
+          这里显示当前内存里改动中的**最新数据**（还没保存到仓库之前也能看到，方便你核对和备份）。
+          点 Tab 切换不同文件；右上角可以「📋 复制」到剪贴板，或者「💾 下载」为本地 .json 文件。
+        </p>
+        <div class="tabs" id="jsonTabs">
+          <button class="tab-btn active" data-jtab="data" onclick="switchJsonTab('data')">
+            🗂️ data.json <span class="tab-count" id="jtab-count-data">0 人</span>
+          </button>
+          <button class="tab-btn" data-jtab="recruit" onclick="switchJsonTab('recruit')">
+            🟢 team_recruit.json <span class="tab-count" id="jtab-count-recruit">0 项</span>
+          </button>
+          <button class="tab-btn" data-jtab="teams" onclick="switchJsonTab('teams')">
+            🏗️ teams.json <span class="tab-count" id="jtab-count-teams">0 队</span>
+          </button>
+        </div>
+        <div class="code-box-wrap">
+          <div class="code-box-toolbar">
+            <button type="button" onclick="copyCurrentJson()">📋 复制</button>
+            <button type="button" onclick="downloadCurrentJson()">💾 下载</button>
+            <button type="button" onclick="openCurrentJsonModal()">🔍 大窗口查看</button>
+          </div>
+          <pre class="code-box" id="jsonContentBox">(加载中，请先登录后台或点击刷新数据按钮)</pre>
+        </div>
+      </div>
     </div>
 
     <!-- 保存到仓库 -->
@@ -509,12 +611,148 @@ function toggleCard(key){
   } catch(e){}
 }
 function applyAllCardsFromStorage(){
-  ['teams','recruit','people','save'].forEach(function(k){
+  ['teams','recruit','people','jsonview','save'].forEach(function(k){
     try {
       var v = localStorage.getItem('admin_card_' + k);
       if (v === '1') toggleCard(k); // 已折叠
     } catch(e){}
   });
+}
+
+// ========== JSON 数据面板（3 个 Tab + 复制 / 下载 / 大窗口） ==========
+var CURRENT_JSON_TAB = 'data';
+function sanitizeJsonData(obj){
+  // 移除临时内部字段 _sha
+  if (Array.isArray(obj)) {
+    return obj.map(function(x){
+      if (x && typeof x === 'object' && !Array.isArray(x)) {
+        var c = {}; for (var k in x) if (k !== '_sha') c[k] = x[k]; return c;
+      }
+      return x;
+    });
+  }
+  if (obj && typeof obj === 'object') {
+    var c2 = {}; for (var k2 in obj) if (k2 !== '_sha') c2[k2] = obj[k2]; return c2;
+  }
+  return obj;
+}
+function getJsonDataset(){
+  var people = sanitizeJsonData(PEOPLE || []);
+  var teams  = teamsDeepClone(TEAMS || []);
+  var recruit = sanitizeJsonData(RECRUIT || {});
+  return {
+    data:    { name: 'data.json',         filename: 'data.json',         text: JSON.stringify(people, null, 2),  count: people.length + ' 人' },
+    recruit: { name: 'team_recruit.json', filename: 'team_recruit.json', text: JSON.stringify(recruit, null, 2), count: Object.keys(recruit).length + ' 项' },
+    teams:   { name: 'teams.json',        filename: 'teams.json',        text: JSON.stringify(teams, null, 2),   count: teams.length + ' 队（启用 ' + activeTeams().length + '）' }
+  };
+}
+function switchJsonTab(tab){
+  CURRENT_JSON_TAB = tab;
+  var btns = document.querySelectorAll('#jsonTabs .tab-btn');
+  btns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-jtab') === tab); });
+  refreshJsonPanel();
+}
+function refreshJsonPanel(){
+  var sets = getJsonDataset();
+  var d = sets[CURRENT_JSON_TAB] || sets.data;
+  var box = document.getElementById('jsonContentBox');
+  if (box) box.textContent = (d && d.text && d.text.length) ? d.text : '(当前没有数据)';
+  // 更新三个 Tab 上的计数
+  var cd = document.getElementById('jtab-count-data');     if (cd) cd.textContent = sets.data.count;
+  var cr = document.getElementById('jtab-count-recruit');  if (cr) cr.textContent = sets.recruit.count;
+  var ct = document.getElementById('jtab-count-teams');    if (ct) ct.textContent = sets.teams.count;
+}
+function getCurrentJsonSet(){ var s = getJsonDataset(); return s[CURRENT_JSON_TAB] || s.data; }
+function copyToClipboard(text, okMsg){
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){
+        if (okMsg) showStatus('saveStatus', okMsg, 'ok');
+      }).catch(function(){ copyTextareaFallback(text, okMsg); });
+    } else { copyTextareaFallback(text, okMsg); }
+  } catch(e){ copyTextareaFallback(text, okMsg); }
+}
+function copyTextareaFallback(text, okMsg){
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (okMsg) showStatus('saveStatus', ok ? okMsg : '复制失败（请手动选中复制）', ok ? 'ok' : 'err');
+  } catch(e){ if (okMsg) showStatus('saveStatus', '复制失败: '+e.message, 'err'); }
+}
+function copyCurrentJson(){
+  var s = getCurrentJsonSet();
+  copyToClipboard(s.text, '✅ 已把「' + s.name + '」完整 JSON 复制到剪贴板。');
+}
+function downloadText(filename, text, mime){
+  try {
+    var blob = new Blob([text], { type: mime || 'application/json;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch(e){} }, 500);
+  } catch(e){
+    showStatus('saveStatus', '下载失败: '+e.message, 'err');
+  }
+}
+function downloadCurrentJson(){
+  var s = getCurrentJsonSet();
+  downloadText(s.filename, s.text, 'application/json;charset=utf-8');
+  showStatus('saveStatus', '✅ 已开始下载「' + s.filename + '」', 'ok');
+}
+
+// ========== 通用代码模态框（单条人员 / 单文件大窗口 / 后台源码） ==========
+var MODAL_CODE_TEXT = '';
+var MODAL_FILENAME = 'export.json';
+function openCodeModal(title, filename, text, mime){
+  MODAL_CODE_TEXT = String(text == null ? '' : text);
+  MODAL_FILENAME = filename || 'export.txt';
+  var t = document.getElementById('codeModalTitle'); if (t) t.textContent = title;
+  var b = document.getElementById('codeModalBody'); if (b) b.textContent = MODAL_CODE_TEXT || '(空)';
+  var dl = document.getElementById('modalDownloadBtn');
+  if (dl) {
+    dl.textContent = (mime && mime.indexOf('html') >= 0) ? '💾 下载为 .html' : '💾 下载文件';
+  }
+  var mask = document.getElementById('codeModalMask');
+  if (mask) mask.classList.remove('hidden');
+}
+function closeCodeModal(){
+  var mask = document.getElementById('codeModalMask');
+  if (mask) mask.classList.add('hidden');
+}
+function copyModalCode(){
+  copyToClipboard(MODAL_CODE_TEXT, '✅ 已把模态框里的代码复制到剪贴板。');
+}
+function downloadModalCode(){
+  if (!MODAL_CODE_TEXT && MODAL_CODE_TEXT !== '') return;
+  var isHtml = /\.html?$/i.test(MODAL_FILENAME) || /<!doctype\s|<html\b/i.test(MODAL_CODE_TEXT.slice(0, 500));
+  downloadText(
+    MODAL_FILENAME,
+    MODAL_CODE_TEXT,
+    isHtml ? 'text/html;charset=utf-8' : 'application/json;charset=utf-8'
+  );
+  showStatus('saveStatus', '✅ 已开始下载「' + MODAL_FILENAME + '」', 'ok');
+}
+function openCurrentJsonModal(){
+  var s = getCurrentJsonSet();
+  openCodeModal('📋 JSON 大窗口：' + s.name, s.filename, s.text, 'application/json;charset=utf-8');
+}
+function openPersonJsonModal(person){
+  var p = person || {};
+  var title = '👤 人员代码 — ' + (p.name || '(未命名)') + '（团队：' + teamName(p.team||0) + '）';
+  var txt = JSON.stringify(p, null, 2);
+  openCodeModal(title, 'person_' + (p.id||p.name||'x') + '.json', txt, 'application/json;charset=utf-8');
+}
+function openAdminSourceModal(){
+  try {
+    var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+    openCodeModal('📜 后台源代码 admin.html（完整，可另存为文件）', 'admin.html', html, 'text/html;charset=utf-8');
+  } catch(e){
+    showStatus('saveStatus', '读取源代码失败: '+e.message, 'err');
+  }
 }
 
 // ========== 状态提示 ==========
@@ -710,6 +948,20 @@ async function enterAdmin(pat){
     document.getElementById('adminView').classList.remove('hidden');
     document.getElementById('goSiteBtn').onclick = function(){ window.open('./index.html','_blank'); };
     document.getElementById('reloadBtn').onclick = loadAll;
+    try {
+      var vs = document.getElementById('viewSourceBtn');
+      if (vs) vs.onclick = function(){ openAdminSourceModal(); };
+      var gj = document.getElementById('goJsonTabBtn');
+      if (gj) gj.onclick = function(){
+        // 确保 JSON 面板是展开的，然后滚过去
+        try {
+          var card = document.querySelector('.card[data-card="jsonview"]');
+          if (card && card.getAttribute('data-collapsed') === 'true') toggleCard('jsonview');
+          var target = document.getElementById('jsonCard');
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch(e){}
+      };
+    } catch(e){}
     // 团队管理面板按钮
     try {
       var ab = document.getElementById('addTeamBtn');
@@ -781,6 +1033,7 @@ function loadAll(){
     resetPersonForm();
     renderPeople();
     updateTotalCount();
+    try { refreshJsonPanel(); } catch(e){}
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
 }
@@ -1079,9 +1332,11 @@ function renderPeople(){
         '</div>' +
       '</div>' +
       '<div class="p-actions">' +
+        '<button class="btn-secondary" data-act="code" style="background:#00695c;color:#fff;border-color:#004d40;">{'+'}'+'} 代码</button>' +
         '<button class="btn-secondary" data-act="edit">✏️ 编辑</button>' +
         '<button class="btn-danger" data-act="del">🗑️ 删除</button>' +
       '</div>';
+    item.querySelector('[data-act=code]').onclick = function(){ openPersonJsonModal(p); };
     item.querySelector('[data-act=edit]').onclick = function(){ editPerson(p); };
     item.querySelector('[data-act=del]').onclick = function(){
       if (confirm('确定删除「'+(p.name||'')+'」吗？这个操作只影响本地草稿，点了「保存所有改动」才会真正同步到网站。')){
@@ -1207,6 +1462,7 @@ function savePersonForm(){
   showStatus('saveStatus','人员已保存到草稿。修改完后点右下角「🚀 保存所有改动」上传到网站。','ok');
   renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
   resetPersonForm();
+  try { refreshJsonPanel(); } catch(e){}
 }
 
 // ========== 提交：上传图片 + 写 JSON ==========
@@ -1274,5 +1530,24 @@ async function saveAllToRepo(){
   }
 }
 </script>
+
+<!-- 通用模态框：查看单条人员 JSON / 单文件大窗口 / 后台源码 -->
+<div class="modal-mask hidden" id="codeModalMask" onclick="if(event.target===this)closeCodeModal()">
+  <div class="modal-box" id="codeModalBox">
+    <div class="modal-header">
+      <h3 id="codeModalTitle">代码</h3>
+      <button class="modal-close" onclick="closeCodeModal()" title="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="code-box-wrap" style="margin-bottom:10px;">
+        <div class="code-box-toolbar">
+          <button type="button" onclick="copyModalCode()">📋 复制全部</button>
+          <button type="button" id="modalDownloadBtn" onclick="downloadModalCode()">💾 下载文件</button>
+        </div>
+        <pre class="code-box" id="codeModalBody">(空)</pre>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
