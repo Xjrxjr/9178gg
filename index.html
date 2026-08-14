@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -70,6 +70,25 @@
   }
   .back-btn:hover { background: #ffc107; transform: translateX(-2px); }
   .back-btn.show { display: inline-flex; align-items: center; gap: 6px; }
+  .refresh-btn {
+    background: #1565c0;
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.4s;
+    box-shadow: 0 4px 12px rgba(21,101,192,0.35);
+    flex-shrink: 0;
+  }
+  .refresh-btn:hover { background: #5568d3; }
+  .refresh-btn.spinning { animation: refresh-spin 0.7s ease; }
+  @keyframes refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .team-title-bar {
     display: flex;
     align-items: center;
@@ -547,6 +566,7 @@
       <button class="back-btn" id="backBtn" onclick="goBackToTeams()">← 返回</button>
       <h1><svg width="36" height="36" viewBox="0 0 110 80" style="vertical-align:middle;margin-right:8px;"><path d="M55 4 L78 14 L78 34 Q78 54 55 72 Q32 54 32 34 L32 14 Z" fill="#0d47a1" stroke="#ffd700" stroke-width="2"/><polygon points="55,16 58,26 55,36 52,26" fill="#ffd700"/><text x="55" y="74" text-anchor="middle" fill="#ffd700" font-size="10" font-family="Arial" font-weight="bold">LSPD</text></svg> 人员展示</h1>
     </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="doRefresh()" title="刷新人员数据">🔄</button>
   </header>
 
   <!-- 团队选择页 -->
@@ -706,6 +726,21 @@
     var obj = JSON.parse(text);
     try { obj = fixGarbledInObject(obj); } catch (e) {}
     return obj;
+  }
+
+  // 刷新：清掉本地缓冲，强制从服务器重新拉取最新 data.json
+  function doRefresh() {
+    var btn = document.getElementById('refreshBtn');
+    if (btn) {
+      btn.classList.remove('spinning');
+      void btn.offsetWidth; // 触发重绘，重启动画
+      btn.classList.add('spinning');
+    }
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    loadDataFromJson(function(ok) {
+      renderView();
+      showToast(ok ? '已刷新到最新数据' : '刷新失败，请稍后重试', ok ? 'success' : 'error');
+    });
   }
 
   // 初始化：加载 data.json

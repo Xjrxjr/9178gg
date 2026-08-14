@@ -7,6 +7,12 @@ Thumbs.db
 _*.py
 _*.cjs
 _*.txt
+_*.vbs
+_*.js
+# Temporary data / fix artifacts
+remote_data.json
+data_fixed.json
+Paste
 # Hidden git / IDE
 .vscode/
 .git/
