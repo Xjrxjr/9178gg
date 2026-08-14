@@ -1,6 +1,5 @@
 [
   {
-    "id": 1,
     "name": "å±é¿ï¼å¢åè",
     "team": 1,
     "image": "AA0089A8DB366925CF4C9F2957123C8C.png",
@@ -9,7 +8,8 @@
     "email": "zhangsan@example.com",
     "bio": "5000åä¸å°æ¶",
     "wechat": "",
-    "qqcontact": ""
+    "qqcontact": "",
+    "id": 1
   },
   {
     "id": 2,
