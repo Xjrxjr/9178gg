@@ -800,7 +800,7 @@
         xhr.send();
       } catch (e) {
         var raw = localStorage.getItem(STORAGE_KEY);
-        PEOPLE_DATA = raw ? (function(){try{return JSON.parse(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
+        PEOPLE_DATA = raw ? (function(){try{return _jsonParseWithFix(raw)}catch(e){return EMBEDDED_DATA}})() : EMBEDDED_DATA;
         callback(false);
       }
     }
@@ -997,12 +997,11 @@
     document.getElementById('detailName').textContent = p.name || '';
     document.getElementById('detailDesc').textContent = p.desc || '';
 
-    // 联系方式
+    // 联系方式（QQ号不对外公开，仅在后台管理系统可查看/修改）
     const contacts = [];
     if (p.phone) contacts.push({ icon: '📞', label: '电话', value: p.phone, link: 'tel:' + p.phone });
     if (p.email) contacts.push({ icon: '📧', label: '邮箱', value: p.email, link: 'mailto:' + p.email });
     if (p.wechat) contacts.push({ icon: '💬', label: '微信', value: p.wechat, copy: true });
-    if (p.qqcontact) contacts.push({ icon: '🐧', label: 'QQ', value: p.qqcontact, copy: true });
     const contactSection = document.getElementById('detailContactSection');
     const contactGrid = document.getElementById('detailContactGrid');
     if (contacts.length > 0) {

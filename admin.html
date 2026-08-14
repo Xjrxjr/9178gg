@@ -227,6 +227,70 @@
 </div>
 
 <script>
+// ===== UTF-8 安全的 Base64 编解码（避免中文乱码） =====
+// atob/btoa 只认 0-255 的字节，遇到中文会乱码；这里用 TextEncoder/TextDecoder 正确处理 UTF-8
+function base64ToUtf8(b64){
+  var clean = String(b64 || '').replace(/\s/g, '');
+  if(!clean) return '';
+  var bin = atob(clean);
+  var bytes = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  try { return new TextDecoder('utf-8', { fatal:false }).decode(bytes); }
+  catch(e){
+    var s=''; for(var j=0;j<bytes.length;j++) s += String.fromCharCode(bytes[j]);
+    try { return decodeURIComponent(escape(s)); } catch(e2){ return s; }
+  }
+}
+function utf8ToBase64(str){
+  var s = String(str==null?'':str);
+  var bytes;
+  try { bytes = new TextEncoder().encode(s); }
+  catch(e){
+    var esc = unescape(encodeURIComponent(s));
+    bytes = new Uint8Array(esc.length);
+    for(var i=0;i<esc.length;i++) bytes[i] = esc.charCodeAt(i);
+  }
+  var bin=''; for(var j=0;j<bytes.length;j++) bin += String.fromCharCode(bytes[j]);
+  return btoa(bin);
+}
+// ===== 双重 UTF-8 乱码自动检测与修复 =====
+// 原因：如果 data.json 曾用 atob 直接解码或被当作 Latin-1 再编码一次，
+// 浏览器按 UTF-8 读到的就是损坏文本（例如「沃克」→「æ²å­»」）。
+// 修复：把 U+0080..U+00FF 区间的字符按 Latin-1 取出字节，再用 UTF-8 重新解码。
+function _isGarbledString(s){
+  if(typeof s !== 'string' || !s) return false;
+  return /[\u0080-\u00ff]/.test(s);
+}
+function _tryFixGarbledString(s){
+  if(typeof s !== 'string' || !s) return s;
+  if(!_isGarbledString(s)) return s;
+  try{
+    var bytes = new Uint8Array(s.length);
+    for(var i=0;i<s.length;i++){
+      var cp = s.charCodeAt(i);
+      if(cp > 255) return s; // 含真正多字节字符，不是单纯的 Latin-1 乱码
+      bytes[i] = cp;
+    }
+    if(typeof TextDecoder === 'function'){
+      var fixed = new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+      if(!/[\u0080-\u00ff]/.test(fixed)) return fixed;
+    }
+    return s;
+  }catch(e){ return s; }
+}
+function fixGarbledInObject(obj){
+  if(obj === null || obj === undefined) return obj;
+  if(Array.isArray(obj)){ for(var i=0;i<obj.length;i++) obj[i]=fixGarbledInObject(obj[i]); return obj; }
+  if(typeof obj === 'string') return _tryFixGarbledString(obj);
+  if(typeof obj === 'object'){ for(var k in obj) if(Object.prototype.hasOwnProperty.call(obj,k)) obj[k]=fixGarbledInObject(obj[k]); return obj; }
+  return obj;
+}
+function _jsonParseWithFix(text){
+  var obj = JSON.parse(text);
+  try { obj = fixGarbledInObject(obj); } catch(e){}
+  return obj;
+}
+
 // ========== 全局配置（与主网站 index.html 保持一致）==========
 var OWNER = 'Xjrxjr';
 var REPO  = '9178gg';
@@ -378,7 +442,7 @@ function getContent(path){
   .then(function(data){
     if(!data) return null;
     if(Array.isArray(data)) return null;
-    var content = data.content ? atob(data.content.replace(/\s/g,'')) : '';
+    var content = data.content ? base64ToUtf8(data.content) : '';
     return { sha: data.sha, content: content };
   })
   .catch(function(err){
@@ -469,10 +533,10 @@ function loadAll(){
   Promise.all([getContent('data.json'), getContent('team_recruit.json')])
   .then(function(results){
     var d = results[0], r = results[1];
-    try { PEOPLE = d ? JSON.parse(d.content) : []; }
+    try { PEOPLE = d ? _jsonParseWithFix(d.content) : []; }
     catch(e){ PEOPLE = []; alert('data.json 格式损坏: '+e.message); }
     PEOPLE._sha = d? d.sha : null;
-    try { RECRUIT = r ? JSON.parse(r.content) : {}; }
+    try { RECRUIT = r ? _jsonParseWithFix(r.content) : {}; }
     catch(e){ RECRUIT = {}; }
     RECRUIT._sha = r? r.sha : null;
     DIRTY_PEOPLE = false; DIRTY_RECRUIT = false; PENDING_IMAGES = [];
@@ -726,7 +790,7 @@ async function saveAllToRepo(){
     var dsha = PEOPLE._sha || null;
     if (!dsha) { try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha;} catch(e){} }
     var dataStr = JSON.stringify(PEOPLE, null, 2);
-    var dataB64 = btoa(unescape(encodeURIComponent(dataStr)));
+    var dataB64 = utf8ToBase64(dataStr);
     await writeFile('data.json', dataB64, dsha, '后台更新 data.json ('+PEOPLE.length+'人)');
     PEOPLE._sha = null; // 下次刷新重新拉
     status.push('✅ 更新 data.json（共 '+PEOPLE.length+' 人）');
@@ -740,7 +804,7 @@ async function saveAllToRepo(){
     var recruitCopy = {};
     for (var k in RECRUIT) if (k !== '_sha') recruitCopy[k] = RECRUIT[k];
     var rStr = JSON.stringify(recruitCopy, null, 2);
-    var rB64 = btoa(rStr);
+    var rB64 = utf8ToBase64(rStr);
     await writeFile('team_recruit.json', rB64, rsha, '后台更新 team_recruit.json');
     RECRUIT._sha = null;
     status.push('✅ 更新 team_recruit.json');
