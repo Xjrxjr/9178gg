@@ -1,15 +1,15 @@
 [
   {
-    "id": 1,
     "name": "局长：卢克肖",
     "team": 1,
-    "image": "AA0089A8DB366925CF4C9F2957123C8C.png",
+    "image": "p_mssq9tgx_dbnl.png",
     "desc": "警号：2001",
-    "phone": "13800138001",
-    "email": "zhangsan@example.com",
+    "phone": "",
+    "email": "",
     "bio": "5000块一小时",
     "wechat": "",
-    "qqcontact": ""
+    "qqcontact": "",
+    "id": 1
   },
   {
     "name": "罗伯特",
