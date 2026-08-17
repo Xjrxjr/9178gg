@@ -655,6 +655,171 @@
     .t-mgr-header, .t-mgr-row { grid-template-columns: 30px 42px 1fr 1fr; grid-auto-rows: auto; }
     .t-mgr-header .hide-sm, .t-mgr-row .hide-sm { display: none; }
   }
+
+  /* ============ 🖼️ 头像自定义面板 ============ */
+  .avatar-custom-box {
+    background: linear-gradient(180deg, rgba(99,102,241,.08), rgba(14,165,233,.06));
+    border: 1px solid rgba(99,102,241,.22);
+    border-radius: 14px;
+    padding: 0 14px;
+  }
+  .avatar-custom-box > summary {
+    cursor: pointer;
+    padding: 12px 4px;
+    font-weight: 600;
+    color: #c7d2fe;
+    user-select: none;
+    list-style: none;
+  }
+  .avatar-custom-box > summary::-webkit-details-marker { display: none; }
+  .avatar-custom-box > summary::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 8px;
+    color: #a5b4fc;
+    transition: transform .2s;
+  }
+  .avatar-custom-box[open] > summary::before { transform: rotate(90deg); }
+  .avatar-custom-inner {
+    padding: 4px 6px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .avatar-preview-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .avp-col { display:flex; flex-direction: column; gap: 8px; align-items: center; }
+  .avp-label {
+    font-size: 12px;
+    color: #93c5fd;
+    letter-spacing: .5px;
+  }
+  /* 卡片预览：模拟主网站极光玻璃卡 */
+  .avp-card {
+    width: 160px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid rgba(255,255,255,.2);
+    box-shadow: 0 8px 22px rgba(0,0,0,.35);
+    color: #fff;
+    position: relative;
+    --ch: 92px;
+  }
+  .avp-card img {
+    width: 100%;
+    height: var(--ch);
+    display: block;
+    background: linear-gradient(135deg,#1e293b,#334155);
+    transition: all .15s ease;
+  }
+  .avp-card::after {
+    content: '';
+    position: absolute; left: 0; top: 0; right: 0;
+    height: var(--ch);
+    background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.55) 100%);
+    pointer-events: none;
+  }
+  .avp-card-info { padding: 8px 7px 10px; background: linear-gradient(135deg,#1e3a8a,#6d28d9); }
+  .avp-name { font-size: 13px; font-weight: 700; }
+  .avp-desc { font-size: 11px; opacity: .85; margin-top: 2px; }
+
+  /* 详情弹窗预览：圆形头像 */
+  .avp-detail {
+    width: 160px;
+    height: 160px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(500px 220px at 0% 0%, rgba(251,191,36,.35), transparent 60%),
+      radial-gradient(400px 200px at 100% 100%, rgba(236,72,153,.28), transparent 60%),
+      linear-gradient(135deg, #1e3a8a 0%, #3730a3 45%, #6d28d9 85%, #831843 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .avp-detail img {
+    width: 124px; height: 124px;
+    border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.45);
+    object-fit: cover;
+    background: linear-gradient(135deg,#1e293b,#334155);
+    transition: all .15s ease;
+  }
+
+  .avatar-custom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 18px;
+    background: rgba(15,23,42,.45);
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(148,163,184,.15);
+  }
+  .acg-item { display: flex; flex-direction: column; gap: 6px; }
+  .acg-item > label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+  .acg-val {
+    font-weight: 700;
+    color: #67e8f9;
+    background: rgba(34,211,238,.1);
+    padding: 1px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .acg-item input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, #6366f1, #22d3ee);
+    border-radius: 999px;
+    outline: none;
+  }
+  .acg-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #6366f1;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(99,102,241,.5);
+    transition: transform .15s;
+  }
+  .acg-item input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  .acg-item input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #6366f1;
+    cursor: pointer;
+  }
+  .acg-item select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(30,41,59,.8);
+    color: #e2e8f0;
+    border: 1px solid rgba(148,163,184,.22);
+    font-size: 13px;
+  }
+  .acg-presets .btn-secondary { padding: 7px 12px !important; font-size: 12.5px !important; }
+  @media (max-width: 900px) {
+    .avatar-custom-grid { grid-template-columns: 1fr 1fr; }
+    .avatar-preview-pair { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -790,21 +955,107 @@
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
         </div>
-        <div class="row" style="margin-top: 10px;">
-          <div class="col"><label>头像位置（在主网站卡片中的位置）</label>
-            <select id="p_avatarPos">
-              <option value="top">⬆️ 顶部（默认，宽图横版）</option>
-              <option value="left">⬅️ 左侧（方头像 + 文字在右）</option>
-              <option value="right">➡️ 右侧（方头像 + 文字在左）</option>
-              <option value="center">🔘 居中（圆形头像 + 文字在下方）</option>
-              <option value="bottom">⬇️ 底部（宽图横版 + 文字在上方）</option>
-            </select>
-          </div>
-        </div>
         <div class="row" style="margin-top: 14px; gap: 10px;">
           <button class="btn-primary" id="savePersonBtn">💾 保存这个人</button>
           <button class="btn-secondary" id="resetPersonBtn">🗑️ 清空表单</button>
         </div>
+
+        <!-- ======== 🖼️ 头像自定义（位置 / 大小 / 缩放 / 填充） ======== -->
+        <details class="avatar-custom-box" style="margin-top:18px;">
+          <summary>🖼️ 头像自定义（图片位置 / 大小 / 缩放 / 填充）</summary>
+          <div class="avatar-custom-inner">
+
+            <!-- 实时预览：左边卡片样子 + 右边详情圆形样子 -->
+            <div class="avatar-preview-pair">
+              <div class="avp-col">
+                <div class="avp-label">主网站 · 卡片预览</div>
+                <div class="avp-card" id="avpCard">
+                  <img id="avpCardImg" src="" alt="">
+                  <div class="avp-card-info">
+                    <div class="avp-name">姓名示例</div>
+                    <div class="avp-desc">警号示例</div>
+                  </div>
+                </div>
+              </div>
+              <div class="avp-col">
+                <div class="avp-label">主网站 · 详情弹窗预览</div>
+                <div class="avp-detail" id="avpDetail">
+                  <img id="avpDetailImg" src="" alt="">
+                </div>
+              </div>
+            </div>
+
+            <div class="avatar-custom-grid">
+              <!-- 填充方式 -->
+              <div class="acg-item">
+                <label>图片填充方式
+                  <span class="acg-val" id="val_avatarFit">cover</span>
+                </label>
+                <select id="avatarFit" onchange="applyAvatarCustom()">
+                  <option value="cover">cover（裁切铺满，默认）</option>
+                  <option value="contain">contain（完整显示，留空白）</option>
+                  <option value="fill">fill（拉伸铺满）</option>
+                  <option value="none">none（原图）</option>
+                  <option value="scale-down">scale-down（自适应缩小）</option>
+                </select>
+              </div>
+
+              <!-- 卡片头像高度 -->
+              <div class="acg-item">
+                <label>卡片头像高度
+                  <span class="acg-val"><span id="val_avatarCardH">92</span> px</span>
+                </label>
+                <input type="range" id="avatarCardH" min="60" max="260" value="92" oninput="applyAvatarCustom()">
+              </div>
+
+              <!-- 详情圆形头像大小 -->
+              <div class="acg-item">
+                <label>详情弹窗头像大小
+                  <span class="acg-val"><span id="val_avatarDetailSize">124</span> px</span>
+                </label>
+                <input type="range" id="avatarDetailSize" min="60" max="220" value="124" oninput="applyAvatarCustom()">
+              </div>
+
+              <!-- 缩放 -->
+              <div class="acg-item">
+                <label>图片缩放
+                  <span class="acg-val"><span id="val_avatarScale">100</span> %</span>
+                </label>
+                <input type="range" id="avatarScale" min="50" max="200" value="100" oninput="applyAvatarCustom()">
+              </div>
+
+              <!-- 位置 X -->
+              <div class="acg-item">
+                <label>图片水平位置（左 → 右）
+                  <span class="acg-val"><span id="val_avatarPosX">50</span> %</span>
+                </label>
+                <input type="range" id="avatarPosX" min="0" max="100" value="50" oninput="applyAvatarCustom()">
+              </div>
+
+              <!-- 位置 Y -->
+              <div class="acg-item">
+                <label>图片垂直位置（上 → 下）
+                  <span class="acg-val"><span id="val_avatarPosY">50</span> %</span>
+                </label>
+                <input type="range" id="avatarPosY" min="0" max="100" value="50" oninput="applyAvatarCustom()">
+              </div>
+
+              <!-- 快捷预设 -->
+              <div class="acg-item acg-presets" style="grid-column: 1 / -1;">
+                <label>🎯 一键预设</label>
+                <div class="row" style="gap:8px;flex-wrap:wrap;">
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('face')">🧑 人脸居中（默认）</button>
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('top')">⬆️ 靠上显示</button>
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('center')">⬛ 居中完整</button>
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('zoom')">🔍 放大特写</button>
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('tall')">📏 高卡片（全身照）</button>
+                  <button type="button" class="btn-secondary" onclick="presetAvatar('reset')">♻️ 全部恢复默认</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <input type="hidden" id="p_editid" value="">
       </div>
 
@@ -1778,13 +2029,20 @@ document.getElementById('avatarFile').onchange = function(e){
     // 加入待上传队列
     PENDING_IMAGES.push({ name: fname, base64: b64 });
     document.getElementById('avatarName').value = fname;
-    document.getElementById('avatarPreview').src = 'data:image;base64,'+b64;
+    var previewSrc = 'data:image;base64,'+b64;
+    document.getElementById('avatarPreview').src = previewSrc;
+    // 同步头像自定义预览区两张图
+    var ci = document.getElementById('avpCardImg');   if (ci) ci.src = previewSrc;
+    var di = document.getElementById('avpDetailImg'); if (di) di.src = previewSrc;
   };
   reader.readAsDataURL(f);
 };
 document.getElementById('avatarName').addEventListener('input', function(){
   var v = this.value.trim();
   document.getElementById('avatarPreview').src = v ? resolveAvatar(v) : '';
+  // 同步更新头像自定义预览区里的两张示例图
+  var ci = document.getElementById('avpCardImg'); if (ci) ci.src = v ? resolveAvatar(v) : '';
+  var di = document.getElementById('avpDetailImg'); if (di) di.src = v ? resolveAvatar(v) : '';
 });
 // QQ号一键设为头像
 document.getElementById('useQQAvatarBtn').onclick = function(){
@@ -1793,11 +2051,150 @@ document.getElementById('useQQAvatarBtn').onclick = function(){
   if (!/^\d+$/.test(qq)) { alert('QQ号只能是纯数字，请检查'); return; }
   var avatarValue = 'qq:' + qq;
   document.getElementById('avatarName').value = avatarValue;
-  document.getElementById('avatarPreview').src = resolveAvatar(avatarValue);
+  var src = resolveAvatar(avatarValue);
+  document.getElementById('avatarPreview').src = src;
+  var ci = document.getElementById('avpCardImg'); if (ci) ci.src = src;
+  var di = document.getElementById('avpDetailImg'); if (di) di.src = src;
   showStatus('saveStatus', '✅ 已将头像设置为 QQ('+qq+') 的实时头像，点「保存这个人」后生效。主网站会自动获取该QQ最新头像。', 'ok');
 };
 document.getElementById('resetPersonBtn').onclick = resetPersonForm;
 document.getElementById('savePersonBtn').onclick = savePersonForm;
+
+// ===== 🖼️ 头像自定义：默认值 + 辅助函数 =====
+var AVATAR_DEFAULT = {
+  avatarFit: 'cover',
+  avatarCardH: 92,
+  avatarDetailSize: 124,
+  avatarScale: 100,
+  avatarPosX: 50,
+  avatarPosY: 50
+};
+// 读取表单上的自定义字段 → 返回一个对象（字段值为默认时会省略，节省 JSON 体积）
+function getAvatarCustomFromForm(){
+  var fit = document.getElementById('avatarFit').value;
+  var ch  = +document.getElementById('avatarCardH').value;
+  var ds  = +document.getElementById('avatarDetailSize').value;
+  var sc  = +document.getElementById('avatarScale').value;
+  var px  = +document.getElementById('avatarPosX').value;
+  var py  = +document.getElementById('avatarPosY').value;
+  var out = {};
+  if (fit !== AVATAR_DEFAULT.avatarFit)           out.avatarFit = fit;
+  if (ch  !== AVATAR_DEFAULT.avatarCardH)          out.avatarCardH = ch;
+  if (ds  !== AVATAR_DEFAULT.avatarDetailSize)     out.avatarDetailSize = ds;
+  if (sc  !== AVATAR_DEFAULT.avatarScale)          out.avatarScale = sc;
+  if (px  !== AVATAR_DEFAULT.avatarPosX)           out.avatarPosX = px;
+  if (py  !== AVATAR_DEFAULT.avatarPosY)           out.avatarPosY = py;
+  return out;
+}
+// 把人员对象上已保存的自定义字段填回表单（缺省则回默认）
+function setAvatarCustomToForm(p){
+  var d = AVATAR_DEFAULT;
+  if (!p) p = {};
+  document.getElementById('avatarFit').value        = p.avatarFit        || d.avatarFit;
+  document.getElementById('avatarCardH').value      = p.avatarCardH      != null ? p.avatarCardH      : d.avatarCardH;
+  document.getElementById('avatarDetailSize').value = p.avatarDetailSize != null ? p.avatarDetailSize : d.avatarDetailSize;
+  document.getElementById('avatarScale').value      = p.avatarScale      != null ? p.avatarScale      : d.avatarScale;
+  document.getElementById('avatarPosX').value       = p.avatarPosX       != null ? p.avatarPosX       : d.avatarPosX;
+  document.getElementById('avatarPosY').value       = p.avatarPosY       != null ? p.avatarPosY       : d.avatarPosY;
+  applyAvatarCustom();
+}
+// 实时把当前滑块值应用到：数值显示 + 两个预览图样式
+function applyAvatarCustom(){
+  var fit = document.getElementById('avatarFit').value;
+  var ch  = +document.getElementById('avatarCardH').value;
+  var ds  = +document.getElementById('avatarDetailSize').value;
+  var sc  = +document.getElementById('avatarScale').value;
+  var px  = +document.getElementById('avatarPosX').value;
+  var py  = +document.getElementById('avatarPosY').value;
+  // 数值标签
+  var $ = function(id){ return document.getElementById(id); };
+  $('val_avatarFit').textContent        = fit;
+  $('val_avatarCardH').textContent      = ch;
+  $('val_avatarDetailSize').textContent = ds;
+  $('val_avatarScale').textContent      = sc;
+  $('val_avatarPosX').textContent       = px;
+  $('val_avatarPosY').textContent       = py;
+
+  var objectPos = px + '% ' + py + '%';
+  var scaleVal = 'scale(' + (sc / 100) + ')';
+
+  // 卡片预览图
+  var ci = $('avpCardImg');
+  if (ci) {
+    ci.style.height      = ch + 'px';
+    ci.style.objectFit   = fit;
+    ci.style.objectPosition = objectPos;
+    ci.style.transform   = scaleVal;
+    ci.style.transformOrigin = objectPos;
+  }
+  // 卡片：阴影覆盖层高度也跟随
+  var cardBox = $('avpCard');
+  if (cardBox) {
+    var overlay = cardBox.querySelector(':scope::after'); // 伪元素不能直接选，但我们可以用 CSS 变量控制
+    cardBox.style.setProperty('--ch', ch + 'px');
+  }
+
+  // 详情圆形预览
+  var di = $('avpDetailImg');
+  if (di) {
+    di.style.width        = ds + 'px';
+    di.style.height       = ds + 'px';
+    di.style.objectFit    = fit;
+    di.style.objectPosition = objectPos;
+    di.style.transform    = scaleVal;
+    di.style.transformOrigin = objectPos;
+  }
+}
+// 一键预设
+function presetAvatar(kind){
+  var d = AVATAR_DEFAULT;
+  var setField = function(id, v){ var el = document.getElementById(id); if (el) el.value = v; };
+  switch(kind){
+    case 'face':   // 默认：人脸居中
+      setField('avatarFit', 'cover');
+      setField('avatarCardH', d.avatarCardH);
+      setField('avatarDetailSize', d.avatarDetailSize);
+      setField('avatarScale', 100);
+      setField('avatarPosX', 50);
+      setField('avatarPosY', 40); // 略偏上，人脸更居中
+      break;
+    case 'top':    // 靠上（头像顶部显示）
+      setField('avatarFit', 'cover');
+      setField('avatarScale', 100);
+      setField('avatarPosX', 50);
+      setField('avatarPosY', 0);
+      break;
+    case 'center': // 居中完整（不裁切）
+      setField('avatarFit', 'contain');
+      setField('avatarScale', 100);
+      setField('avatarPosX', 50);
+      setField('avatarPosY', 50);
+      break;
+    case 'zoom':   // 放大特写
+      setField('avatarFit', 'cover');
+      setField('avatarScale', 145);
+      setField('avatarPosX', 50);
+      setField('avatarPosY', 42);
+      break;
+    case 'tall':   // 高卡片（全身照）
+      setField('avatarFit', 'cover');
+      setField('avatarCardH', 180);
+      setField('avatarScale', 100);
+      setField('avatarPosX', 50);
+      setField('avatarPosY', 10);
+      break;
+    case 'reset':
+    default:
+      setField('avatarFit', d.avatarFit);
+      setField('avatarCardH', d.avatarCardH);
+      setField('avatarDetailSize', d.avatarDetailSize);
+      setField('avatarScale', d.avatarScale);
+      setField('avatarPosX', d.avatarPosX);
+      setField('avatarPosY', d.avatarPosY);
+      break;
+  }
+  applyAvatarCustom();
+}
 
 function resetPersonForm(){
   editingId = null;
@@ -1805,9 +2202,13 @@ function resetPersonForm(){
   document.getElementById('formTitle').textContent = '➕ 添加新人员';
   ['p_name','p_phone','p_email','p_wechat','p_qq','p_desc','p_bio','avatarName'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
-  document.getElementById('p_avatarPos').value = 'top';
   document.getElementById('avatarFile').value = '';
   document.getElementById('avatarPreview').src = '';
+  // 头像自定义字段也恢复默认，并同步预览
+  setAvatarCustomToForm(null);
+  // 预览图片清空
+  var ci = document.getElementById('avpCardImg');   if (ci) ci.src = '';
+  var di = document.getElementById('avpDetailImg'); if (di) di.src = '';
 }
 function editPerson(p){
   editingId = String(p.id);
@@ -1827,9 +2228,14 @@ function editPerson(p){
   document.getElementById('p_qq').value     = p.qqcontact || qqFromAvatar || '';
   document.getElementById('p_desc').value   = p.desc || '';
   document.getElementById('p_bio').value    = p.bio || '';
-  document.getElementById('p_avatarPos').value = p.avatarPos || 'top';
   document.getElementById('avatarName').value = p.image || '';
-  document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
+  var src = resolveAvatar(p.image || '');
+  document.getElementById('avatarPreview').src = src;
+  // 填充头像自定义字段
+  setAvatarCustomToForm(p);
+  // 同步预览图 src
+  var ci = document.getElementById('avpCardImg');   if (ci) ci.src = src;
+  var di = document.getElementById('avpDetailImg'); if (di) di.src = src;
   window.scrollTo({top: document.getElementById('addPersonBox').offsetTop - 20, behavior:'smooth'});
 }
 function savePersonForm(){
@@ -1838,8 +2244,6 @@ function savePersonForm(){
   if (!name) { alert('请填写姓名'); return; }
   if (!team) { alert('请选择所属团队'); return; }
   var img  = document.getElementById('avatarName').value.trim();
-  var pos  = document.getElementById('p_avatarPos').value || 'top';
-  if (['top','left','right','center','bottom'].indexOf(pos) < 0) pos = 'top';
   var obj = {
     name: name,
     team: team,
@@ -1849,9 +2253,12 @@ function savePersonForm(){
     email: document.getElementById('p_email').value.trim(),
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
-    qqcontact: document.getElementById('p_qq').value.trim(),
-    avatarPos: pos
+    qqcontact: document.getElementById('p_qq').value.trim()
   };
+  // 合并头像自定义字段（默认值的字段会被省略，节省 JSON 体积）
+  var custom = getAvatarCustomFromForm();
+  for (var k in custom) obj[k] = custom[k];
+
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
     if (idx >= 0) {
