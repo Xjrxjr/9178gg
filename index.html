@@ -441,6 +441,7 @@
       inset 0 1px 0 rgba(255,255,255,.28);
     transition: all 0.28s cubic-bezier(.2,.8,.2,1);
     position: relative;
+    --card-h: 92px;
   }
   .card::before {
     content: ''; position: absolute; inset: 0;
@@ -460,7 +461,7 @@
   }
   .card img {
     width: 100%;
-    height: 92px;
+    height: var(--card-h);
     object-fit: cover;
     background: linear-gradient(135deg,#1e293b,#334155);
     display: block;
@@ -468,7 +469,8 @@
   }
   .card::after {
     content: '';
-    position: absolute; left: 0; top: 0; right: 0; height: 92px;
+    position: absolute; left: 0; top: 0; right: 0;
+    height: var(--card-h);
     background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.55) 100%);
     pointer-events: none;
   }
@@ -1289,10 +1291,11 @@
 
     grid.innerHTML = data.map(p => {
       const imgSrc = getImgSrc(p.image);
+      const { cardVar, imgStyle } = getAvatarStyleCard(p);
       return `
-      <div class="card">
+      <div class="card" style="${cardVar}">
         <div class="detail-click" onclick="openDetail('${p.id}')">
-          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
+          <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" style="${imgStyle}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
           <div class="info">
             <div class="name">${escapeHtml(p.name)}</div>
             ${p.desc ? `<div class="desc">${escapeHtml(p.desc)}</div>` : ''}
@@ -1306,6 +1309,48 @@
     return String(str).replace(/[&<>"']/g, c => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     })[c]);
+  }
+
+  // ===== 🖼️ 头像自定义：默认值 + 样式计算（与后台保持一致） =====
+  const AVATAR_DEFAULT = {
+    avatarFit: 'cover',
+    avatarCardH: 92,
+    avatarDetailSize: 124,
+    avatarScale: 100,
+    avatarPosX: 50,
+    avatarPosY: 50
+  };
+  function _avatarOpts(p){
+    return Object.assign({}, AVATAR_DEFAULT, p || {});
+  }
+  // 返回卡片外层 div 的 style 变量 和 img 的 style
+  function getAvatarStyleCard(p) {
+    const o = _avatarOpts(p);
+    const pos = (+o.avatarPosX) + '% ' + (+o.avatarPosY) + '%';
+    const scale = (+o.avatarScale) / 100;
+    return {
+      cardVar: '--card-h:' + (+o.avatarCardH) + 'px;',
+      imgStyle:
+        'object-fit:' + o.avatarFit + ';' +
+        'object-position:' + pos + ';' +
+        'transform:scale(' + scale + ');' +
+        'transform-origin:' + pos + ';'
+    };
+  }
+  // 返回详情弹窗圆形头像 img 的 style（width/height/fit/position/transform）
+  function getAvatarStyleDetail(p) {
+    const o = _avatarOpts(p);
+    const pos = (+o.avatarPosX) + '% ' + (+o.avatarPosY) + '%';
+    const scale = (+o.avatarScale) / 100;
+    const size = (+o.avatarDetailSize) + 'px';
+    return (
+      'width:' + size + ';' +
+      'height:' + size + ';' +
+      'object-fit:' + o.avatarFit + ';' +
+      'object-position:' + pos + ';' +
+      'transform:scale(' + scale + ');' +
+      'transform-origin:' + pos + ';'
+    );
   }
 
   // 将存储的图片字段转换为实际可显示的 src
@@ -1329,8 +1374,10 @@
     currentDetailId = id;
 
     const imgSrc = getImgSrc(p.image);
-    document.getElementById('detailImg').src = imgSrc;
-    document.getElementById('detailImg').onerror = function() {
+    const imgEl = document.getElementById('detailImg');
+    imgEl.src = imgSrc;
+    imgEl.setAttribute('style', getAvatarStyleDetail(p));
+    imgEl.onerror = function() {
       this.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>';
     };
     document.getElementById('detailName').textContent = p.name || '';
