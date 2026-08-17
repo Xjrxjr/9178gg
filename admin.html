@@ -1214,6 +1214,25 @@ function explainGhError(status, fallbackMsg){
   }
   return 'GitHub API 错误: '+status + ' ' + (fallbackMsg||'');
 }
+// 把 fetch 网络层错误（Failed to fetch / TypeError）翻译成中文 + 给具体排查步骤
+function explainNetworkError(err){
+  var rawMsg = String(err && err.message || err || '未知网络错误');
+  var target = '目标仓库：' + OWNER + '/' + REPO + ' @ ' + BRANCH;
+  if (/Failed to fetch/i.test(rawMsg) || /TypeError/i.test(rawMsg) || /NetworkError/i.test(rawMsg) || /ERR_|net::/i.test(rawMsg)) {
+    return 'GitHub API 网络不通（Failed to fetch）\n' +
+           target + '\n' +
+           '常见原因 & 解决步骤（按顺序试）：\n' +
+           '① 浏览器联网检查：新开标签页打开 https://api.github.com ，能看到 JSON 说明外网通，JSON 不出来=浏览器/系统没网。\n' +
+           '② 登录后台用的是 file:// 直开？这种情况下部分浏览器会限制 fetch 跨域。解决：对本地 admin.html 起一个本地服务（最简单：Python 命令 python -m http.server 然后访问 localhost:8000/admin.html）。\n' +
+           '③ 浏览器扩展/插件/公司代理/杀毒软件拦截了 api.github.com 请求。临时关掉广告拦截/代理/VPN/防火墙再试；或者打开 DevTools(F12) → Network 面板看 api.github.com 请求被谁阻断。\n' +
+           '④ 如果控制台里有 Mixed Content / CORS 红字：确保打开 admin.html 的页面不是 http 站点（GitHub API 只允许 HTTPS）。\n' +
+           '快速绕过：直接在本地 git 命令行执行 git push 把本地提交推上去，效果一样。\n' +
+           '原始错误：' + rawMsg;
+  }
+  // 401/403/404 我们已经在 ghGet/ghPut 里转成中文了，保留原 message + 附带仓库信息
+  return rawMsg + '\n' + target;
+}
+
 function ghGet(path){
   return fetch('https://api.github.com' + path, { headers: ghHeaders() })
   .then(function(r){
@@ -1222,7 +1241,8 @@ function ghGet(path){
     if(!r.ok){ throw new Error('GitHub API 错误: '+r.status); }
     if (r.status === 204) return null;
     return r.json();
-  });
+  })
+  .catch(function(err){ throw new Error(explainNetworkError(err)); });
 }
 function ghPut(path, body){
   return fetch('https://api.github.com' + path, {
@@ -1234,7 +1254,7 @@ function ghPut(path, body){
     }
     if(!r.ok){ return r.json().then(function(err){ throw new Error('提交失败: ' + (r.status) + ' - ' + JSON.stringify(err).slice(0,400)); }); }
     return r.json();
-  });
+  }).catch(function(err){ throw new Error(explainNetworkError(err)); });
 }
 function getContent(path){
   // 返回 {sha, content(base64 decoded string)} 或 null
@@ -1305,6 +1325,43 @@ async function enterAdmin(pat){
           '· 细粒度 Token：对该仓库 Repository permissions → Contents 必须选「Read and write」。'
         );
       }
+    }
+
+    // 步骤 D：真写权限冒烟测试（PUT 一个临时 touch 文件再删掉）
+    // 这样进入后台前就拦住"看起来有读权限、实际保存时 Failed/403"的情况
+    showStatus('loginStatus', '🧪 真写权限测试（创建+删除一个临时文件）...', 'info');
+    try {
+      var touchPath = '.admin-touch-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6);
+      var touchContent = utf8ToBase64('admin-write-check:' + Date.now());
+      var touchRes = await writeFile(touchPath, touchContent, null, '后台登录: 写权限冒烟测试 (临时文件)');
+      if (touchRes && touchRes.content && touchRes.content.sha) {
+        try {
+          // 再 DELETE 掉，避免仓库残留临时文件
+          var delResp = await fetch(
+            'https://api.github.com/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(touchPath),
+            {
+              method: 'DELETE',
+              headers: ghHeaders({'Content-Type':'application/json'}),
+              body: JSON.stringify({
+                message: '后台登录: 删除写权限测试临时文件',
+                sha: touchRes.content.sha,
+                branch: BRANCH
+              })
+            }
+          );
+          if (!delResp.ok && delResp.status!==404) {
+            // 删除失败不阻断（顶多仓库留个小文件），给个软提示
+            try { console.warn('写权限测试: 清理临时文件失败 '+delResp.status, await delResp.text()); } catch(_) {}
+          }
+        } catch (cleanupErr) {
+          try { console.warn('写权限测试: 清理临时文件请求失败', cleanupErr); } catch(_) {}
+        }
+      }
+    } catch (e) {
+      throw new Error('写权限冒烟测试失败（真正点"保存所有改动"大概率也会失败）：\n' +
+        (e.message || String(e)) + '\n\n' +
+        '如果上面是「Failed to fetch」：请按报错里的 4 步排查网络/CORS/file:// 问题；\n' +
+        '如果上面是 401/403/404：重新生成 PAT（经典Token 勾选 repo，细粒度 Token Contents: Read and write）。');
     }
 
     // 登录通过：显示主界面 + 更新顶部栏分支信息
@@ -1917,7 +1974,33 @@ async function saveAllToRepo(){
 
     showStatus('saveStatus','🎉 全部保存成功！\n'+status.join('\n')+'\n\n⏳ 等 1~2 分钟后刷新主网站（Ctrl+F5 强刷）就能看到最新效果。', 'ok');
   } catch (err) {
-    showStatus('saveStatus','❌ 保存失败：'+err.message+'\n\n常见原因：\n①PAT 过期或未勾选 repo 权限（重新生成一次）\n②网络问题，稍后重试','err');
+    var step = status.length === 0 ? '步骤1/4 (上传头像)' :
+               status.length === 1 ? '步骤2/4 (写 data.json)' :
+               status.length === 2 ? '步骤3/4 (写 team_recruit.json)' :
+                                     '步骤4/4 (写 teams.json)';
+    var patInfo = '';
+    try {
+      var p = (PAT || '').trim();
+      if (!p) patInfo = '（PAT 是空的！请在登录页重新填入）';
+      else {
+        var looksLikeClassic = /^ghp_[A-Za-z0-9]{36}$/.test(p);
+        var looksLikeFine    = /^github_pat_[A-Za-z0-9_]{82,}$/.test(p);
+        patInfo = '（当前 PAT 长度 '+p.length+' 位。格式：经典Token '+(looksLikeClassic?'✓格式正常':'✗看起来不像，ghp_+36字母数字') +
+                  '；细粒度Token '+(looksLikeFine?'✓格式正常':'✗看起来不像，github_pat_+82位以上')+'）';
+      }
+    } catch(_) {}
+    showStatus('saveStatus',
+      '❌ 保存失败：失败在 '+step+'\n'+
+      '错误：'+(err.message || String(err))+'\n\n'+
+      patInfo+'\n\n'+
+      '排查指引：\n'+
+      '① 打开 DevTools(F12) → Console 看红字 / Network 面板筛选 api.github.com，点那条红色请求查看具体报错。\n'+
+      '② 如果报 Failed to fetch：先开新标签页打开 https://api.github.com 能不能出 JSON；不能=没网/被拦截。\n'+
+      '③ 如果报 401：PAT 过期/输错/复制带了空格 → 重新生成，粘贴前先粘到记事本确认字符完整。\n'+
+      '④ 如果报 403：经典Token 没勾 repo / 细粒度Token Contents 不是 Read and write → 重新生成一次。\n'+
+      '⑤ 如果报 404：私有仓库没权限 GitHub 会故意返回 404，请先确认 Token 对该仓库有读写。\n'+
+      '目标仓库：'+OWNER+'/'+REPO+' @ '+BRANCH,
+      'err');
   } finally {
     btn.disabled = false;
   }
