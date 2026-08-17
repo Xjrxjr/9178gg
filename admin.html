@@ -790,6 +790,17 @@
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
         </div>
+        <div class="row" style="margin-top: 10px;">
+          <div class="col"><label>头像位置（在主网站卡片中的位置）</label>
+            <select id="p_avatarPos">
+              <option value="top">⬆️ 顶部（默认，宽图横版）</option>
+              <option value="left">⬅️ 左侧（方头像 + 文字在右）</option>
+              <option value="right">➡️ 右侧（方头像 + 文字在左）</option>
+              <option value="center">🔘 居中（圆形头像 + 文字在下方）</option>
+              <option value="bottom">⬇️ 底部（宽图横版 + 文字在上方）</option>
+            </select>
+          </div>
+        </div>
         <div class="row" style="margin-top: 14px; gap: 10px;">
           <button class="btn-primary" id="savePersonBtn">💾 保存这个人</button>
           <button class="btn-secondary" id="resetPersonBtn">🗑️ 清空表单</button>
@@ -1794,6 +1805,7 @@ function resetPersonForm(){
   document.getElementById('formTitle').textContent = '➕ 添加新人员';
   ['p_name','p_phone','p_email','p_wechat','p_qq','p_desc','p_bio','avatarName'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
+  document.getElementById('p_avatarPos').value = 'top';
   document.getElementById('avatarFile').value = '';
   document.getElementById('avatarPreview').src = '';
 }
@@ -1815,6 +1827,7 @@ function editPerson(p){
   document.getElementById('p_qq').value     = p.qqcontact || qqFromAvatar || '';
   document.getElementById('p_desc').value   = p.desc || '';
   document.getElementById('p_bio').value    = p.bio || '';
+  document.getElementById('p_avatarPos').value = p.avatarPos || 'top';
   document.getElementById('avatarName').value = p.image || '';
   document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
   window.scrollTo({top: document.getElementById('addPersonBox').offsetTop - 20, behavior:'smooth'});
@@ -1825,6 +1838,8 @@ function savePersonForm(){
   if (!name) { alert('请填写姓名'); return; }
   if (!team) { alert('请选择所属团队'); return; }
   var img  = document.getElementById('avatarName').value.trim();
+  var pos  = document.getElementById('p_avatarPos').value || 'top';
+  if (['top','left','right','center','bottom'].indexOf(pos) < 0) pos = 'top';
   var obj = {
     name: name,
     team: team,
@@ -1834,7 +1849,8 @@ function savePersonForm(){
     email: document.getElementById('p_email').value.trim(),
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
-    qqcontact: document.getElementById('p_qq').value.trim()
+    qqcontact: document.getElementById('p_qq').value.trim(),
+    avatarPos: pos
   };
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });

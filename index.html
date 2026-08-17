@@ -491,6 +491,139 @@
     line-height: 1.4;
   }
 
+  /* ============ 头像自定义位置 ============ */
+  .card .detail-click {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+  }
+  /* 默认 top：图片顶部，信息下方 */
+  .card[data-avatar-pos="top"] .detail-click,
+  .card:not([data-avatar-pos]) .detail-click {
+    flex-direction: column;
+  }
+  .card[data-avatar-pos="top"] img,
+  .card:not([data-avatar-pos]) img {
+    width: 100%;
+    height: 92px;
+    object-fit: cover;
+  }
+  .card[data-avatar-pos="top"] .info,
+  .card:not([data-avatar-pos]) .info {
+    text-align: center;
+  }
+  .card[data-avatar-pos="top"]::after,
+  .card:not([data-avatar-pos])::after {
+    content: '';
+    position: absolute; left: 0; top: 0; right: 0; height: 92px;
+    background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.55) 100%);
+    pointer-events: none;
+  }
+
+  /* 头像在左，信息在右 */
+  .card[data-avatar-pos="left"] .detail-click {
+    flex-direction: row;
+    align-items: center;
+    min-height: 92px;
+    padding: 8px;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+  .card[data-avatar-pos="left"] img {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 3px 10px rgba(0,0,0,.35);
+  }
+  .card[data-avatar-pos="left"] .info {
+    flex: 1;
+    text-align: left;
+    padding: 0;
+    min-width: 0;
+  }
+  .card[data-avatar-pos="left"]::after { display: none; }
+
+  /* 头像在右，信息在左 */
+  .card[data-avatar-pos="right"] .detail-click {
+    flex-direction: row-reverse;
+    align-items: center;
+    min-height: 92px;
+    padding: 8px;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+  .card[data-avatar-pos="right"] img {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 3px 10px rgba(0,0,0,.35);
+  }
+  .card[data-avatar-pos="right"] .info {
+    flex: 1;
+    text-align: right;
+    padding: 0;
+    min-width: 0;
+  }
+  .card[data-avatar-pos="right"]::after { display: none; }
+
+  /* 头像居中（头像+信息上下堆叠，垂直居中） */
+  .card[data-avatar-pos="center"] .detail-click {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    padding: 14px 8px;
+    gap: 8px;
+    box-sizing: border-box;
+  }
+  .card[data-avatar-pos="center"] img {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 14px rgba(0,0,0,.38);
+    border: 2px solid rgba(255,255,255,.35);
+  }
+  .card[data-avatar-pos="center"] .info {
+    text-align: center;
+    padding: 0;
+  }
+  .card[data-avatar-pos="center"]::after { display: none; }
+
+  /* 头像在底部，信息在顶部 */
+  .card[data-avatar-pos="bottom"] .detail-click {
+    flex-direction: column-reverse;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    height: 100%;
+  }
+  .card[data-avatar-pos="bottom"] img {
+    width: 100%;
+    height: 92px;
+    object-fit: cover;
+  }
+  .card[data-avatar-pos="bottom"] .info {
+    flex: 1;
+    padding: 12px 7px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .card[data-avatar-pos="bottom"]::after {
+    content: '';
+    position: absolute; left: 0; bottom: 0; right: 0; height: 92px;
+    background: linear-gradient(0deg, transparent 55%, rgba(0,0,0,.5) 100%);
+    pointer-events: none;
+  }
+
   .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -1153,12 +1286,16 @@
   function getData() {
     // 兼容新旧两套字段名（旧: role/description/avatar, 新: desc/bio/image）
     // 兼容 team 字段（无 team 则默认归到 1:LSPD）
+    // 头像位置 avatarPos：top(默认)/left/right/center/bottom
     return (PEOPLE_DATA || []).map(function(p) {
+      var pos = p.avatarPos || 'top';
+      if (['top','left','right','center','bottom'].indexOf(pos) < 0) pos = 'top';
       return Object.assign({}, p, {
         image: p.image !== undefined ? p.image : (p.avatar || ''),
         desc: p.desc || p.role || '',
         bio: p.bio || p.description || '',
-        team: p.team || (p.team_id) || 1
+        team: p.team || (p.team_id) || 1,
+        avatarPos: pos
       });
     });
   }
@@ -1290,7 +1427,7 @@
     grid.innerHTML = data.map(p => {
       const imgSrc = getImgSrc(p.image);
       return `
-      <div class="card">
+      <div class="card" data-avatar-pos="${escapeHtml(p.avatarPos || 'top')}">
         <div class="detail-click" onclick="openDetail('${p.id}')">
           <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
           <div class="info">
