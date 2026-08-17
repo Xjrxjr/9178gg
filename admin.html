@@ -412,6 +412,98 @@
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
         </div>
+
+        <!-- ====== 头像大小/裁剪调节（每个人单独设置，存进 data.json） ====== -->
+        <div id="avatarTunerBox" style="margin-top: 14px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 16px; background: #fff;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:bold;">🖼️ 头像显示调节</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-secondary" data-avpreset="tiny"  style="padding:6px 10px;font-size:12px;">🔽 极小</button>
+              <button type="button" class="btn-secondary" data-avpreset="small" style="padding:6px 10px;font-size:12px;">⬇️ 小</button>
+              <button type="button" class="btn-secondary" data-avpreset="default" style="padding:6px 10px;font-size:12px;">↩️ 默认</button>
+              <button type="button" class="btn-secondary" data-avpreset="big"   style="padding:6px 10px;font-size:12px;">⬆️ 大</button>
+              <button type="button" class="btn-secondary" data-avpreset="huge"  style="padding:6px 10px;font-size:12px;">🔼 超大</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>卡片头像高度</span>
+                <span id="av_hVal" style="color:#1565c0;font-weight:bold;">80 px</span>
+              </label>
+              <input type="range" id="av_h" min="30" max="320" step="2" value="80" style="width:100%;">
+            </div>
+            <div>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>详情头像直径</span>
+                <span id="av_dVal" style="color:#1565c0;font-weight:bold;">120 px</span>
+              </label>
+              <input type="range" id="av_d" min="60" max="360" step="2" value="120" style="width:100%;">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:4px;font-size:13px;">裁切方式</label>
+              <select id="av_fit" style="width:100%;">
+                <option value="cover">🪚 裁切铺满 cover（常用，头像不压扁）</option>
+                <option value="contain">⬜ 完整显示 contain（两边留白）</option>
+                <option value="fill">↔️ 拉伸铺满 fill（会变形）</option>
+                <option value="none">🔳 原始大小 none</option>
+                <option value="scale-down">✂️ 缩到合适 scale-down</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+            <div>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>头像左右位置</span>
+                <span id="av_xVal" style="color:#1565c0;font-weight:bold;">center</span>
+              </label>
+              <select id="av_x" style="width:100%;">
+                <option value="left">⬅️ 左对齐 left</option>
+                <option value="center" selected>↔️ 居中 center</option>
+                <option value="right">➡️ 右对齐 right</option>
+                <option value="25%">◀️ 偏左 25%</option>
+                <option value="75%">▶️ 偏右 75%</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>头像上下位置</span>
+                <span id="av_yVal" style="color:#1565c0;font-weight:bold;">center</span>
+              </label>
+              <select id="av_y" style="width:100%;">
+                <option value="top">⬆️ 顶部 top（截下巴，适合大头照）</option>
+                <option value="25%">🔝 上 25%（截额头，适合证件照）</option>
+                <option value="center" selected>↕️ 居中 center（默认）</option>
+                <option value="75%">🔽 下 75%（截头顶，偏下巴）</option>
+                <option value="bottom">⬇️ 底部 bottom（截头顶）</option>
+              </select>
+            </div>
+          </div>
+          <!-- 实时预览：和主站卡片 + 详情弹窗完全同效果 -->
+          <div style="margin-top:14px;border:1.5px dashed #ccc;border-radius:10px;padding:12px;background:#fafafa;">
+            <div style="font-size:12px;color:#666;margin-bottom:8px;"><b>实时预览</b>（拖动滑块立刻看效果，和主站渲染一致）</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+              <div style="width:220px;flex:0 0 220px;">
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">① 人员卡片</div>
+                <div class="card" id="av_prevCard" style="position:relative;background:white;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);width:220px;">
+                  <img id="av_prevCardImg" src="" alt="" style="width:100%;height:80px;object-fit:cover;object-position:center center;background:#eee;display:block;">
+                  <div style="padding:8px 10px;">
+                    <div id="av_prevName" style="font-weight:bold;">👮 预览</div>
+                    <div style="font-size:12px;color:#666;">警号：示例 001</div>
+                  </div>
+                </div>
+              </div>
+              <div style="width:220px;flex:0 0 220px;">
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">② 详情弹窗大圆头像</div>
+                <div style="background:linear-gradient(135deg,#1565c0 0%,#0d47a1 100%);border-radius:10px;color:white;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+                  <img id="av_prevDetail" src="" alt="" style="width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,.35);object-fit:cover;object-position:center center;background:white;">
+                  <div style="font-weight:bold;">头像位置可单独设置</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="row" style="margin-top: 14px; gap: 10px;">
           <button class="btn-primary" id="savePersonBtn">💾 保存这个人</button>
           <button class="btn-secondary" id="resetPersonBtn">🗑️ 清空表单</button>
@@ -820,6 +912,123 @@ var RECRUIT = {};         // 招募状态：teamId -> true/false/null
 var DIRTY_RECRUIT = false;
 var PENDING_IMAGES = [];  // 待上传的图片 [{name, base64}]
 var filterTeamId = 'all';
+
+// ========== 头像调节：默认值 + 预设（每个人单独存进 data.json 的 5 个字段） ==========
+var AV_DEFAULTS = { h: 80, d: 120, fit: 'cover', x: 'center', y: 'center' };
+var AV_PRESETS  = {
+  tiny:    { h: 46,  d: 76,  fit: 'cover',   x: 'center', y: 'top' },
+  small:   { h: 62,  d: 96,  fit: 'cover',   x: 'center', y: '25%' },
+  default: { h: 80,  d: 120, fit: 'cover',   x: 'center', y: 'center' },
+  big:     { h: 120, d: 170, fit: 'cover',   x: 'center', y: 'center' },
+  huge:    { h: 200, d: 260, fit: 'cover',   x: 'center', y: '25%' }
+};
+function avApplyToForm(vals){
+  var v = Object.assign({}, AV_DEFAULTS, vals||{});
+  ['h','d','fit','x','y'].forEach(function(k){
+    var el = document.getElementById('av_'+k);
+    if (!el) return;
+    el.value = v[k];
+    var lv = document.getElementById('av_'+k+'Val');
+    if (lv) lv.textContent = (k==='h'||k==='d') ? (v[k]+' px') : v[k];
+  });
+  avApplyPreview();
+}
+function avReadForm(){
+  var r = {
+    h:   +(document.getElementById('av_h') && document.getElementById('av_h').value) || AV_DEFAULTS.h,
+    d:   +(document.getElementById('av_d') && document.getElementById('av_d').value) || AV_DEFAULTS.d,
+    fit: (document.getElementById('av_fit') && document.getElementById('av_fit').value) || AV_DEFAULTS.fit,
+    x:   (document.getElementById('av_x')   && document.getElementById('av_x').value)   || AV_DEFAULTS.x,
+    y:   (document.getElementById('av_y')   && document.getElementById('av_y').value)   || AV_DEFAULTS.y
+  };
+  return r;
+}
+function avApplyPreview(){
+  var r = avReadForm();
+  var cardImg = document.getElementById('av_prevCardImg');
+  var detImg  = document.getElementById('av_prevDetail');
+  if (cardImg) {
+    cardImg.style.height      = r.h + 'px';
+    cardImg.style.objectFit   = r.fit;
+    cardImg.style.objectPosition = r.x + ' ' + r.y;
+  }
+  if (detImg) {
+    detImg.style.width          = r.d + 'px';
+    detImg.style.height         = r.d + 'px';
+    detImg.style.objectFit      = r.fit;
+    detImg.style.objectPosition = r.x + ' ' + r.y;
+  }
+  var title = document.getElementById('av_prevName');
+  if (title) {
+    var name = (document.getElementById('p_name') && document.getElementById('p_name').value.trim()) || '👮 预览';
+    title.textContent = name;
+  }
+}
+// 页面加载时绑定头像调节事件（等 DOM 一存在就绑）
+function avBindTuner(){
+  ['h','d'].forEach(function(k){
+    var el = document.getElementById('av_'+k);
+    if (!el) return;
+    el.addEventListener('input', function(){
+      var lv = document.getElementById('av_'+k+'Val');
+      if (lv) lv.textContent = this.value + ' px';
+      avApplyPreview();
+    });
+  });
+  ['fit','x','y'].forEach(function(k){
+    var el = document.getElementById('av_'+k);
+    if (!el) return;
+    el.addEventListener('change', function(){
+      var lv = document.getElementById('av_'+k+'Val');
+      if (lv) lv.textContent = this.value;
+      avApplyPreview();
+    });
+  });
+  var btns = document.querySelectorAll('[data-avpreset]');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var key = this.getAttribute('data-avpreset') || 'default';
+      avApplyToForm(AV_PRESETS[key] || AV_PRESETS['default']);
+    });
+  });
+  // 名字改了预览也同步
+  var pn = document.getElementById('p_name');
+  if (pn) pn.addEventListener('input', avApplyPreview);
+  // 头像预览图也跟着「新增人员」那张头像同步
+  var avName = document.getElementById('avatarName');
+  if (avName) avName.addEventListener('input', function(){
+    var u = resolveAvatar(this.value || '') || '';
+    var c = document.getElementById('av_prevCardImg');
+    var d = document.getElementById('av_prevDetail');
+    if (c) c.src = u;
+    if (d) d.src = u;
+  });
+  var avFile = document.getElementById('avatarFile');
+  if (avFile) avFile.addEventListener('change', function(){
+    setTimeout(function(){
+      var orig = document.getElementById('avatarPreview');
+      if (!orig) return;
+      var c = document.getElementById('av_prevCardImg');
+      var d = document.getElementById('av_prevDetail');
+      if (c) c.src = orig.src;
+      if (d) d.src = orig.src;
+    }, 60);
+  });
+  var useQQ = document.getElementById('useQQAvatarBtn');
+  if (useQQ) useQQ.addEventListener('click', function(){
+    setTimeout(function(){
+      var orig = document.getElementById('avatarPreview');
+      if (!orig) return;
+      var c = document.getElementById('av_prevCardImg');
+      var d = document.getElementById('av_prevDetail');
+      if (c) c.src = orig.src;
+      if (d) d.src = orig.src;
+    }, 200);
+  });
+  // 初始化默认
+  avApplyToForm(AV_DEFAULTS);
+}
+document.addEventListener('DOMContentLoaded', avBindTuner);
 var editingId = null;
 
 // ========== GitHub API ==========
@@ -1408,6 +1617,13 @@ function resetPersonForm(){
   document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
   document.getElementById('avatarFile').value = '';
   document.getElementById('avatarPreview').src = '';
+  // 头像调节：清空时也恢复默认值
+  avApplyToForm(AV_DEFAULTS);
+  // 清空前把预览图清空
+  var c = document.getElementById('av_prevCardImg');
+  var d = document.getElementById('av_prevDetail');
+  if (c) c.src = '';
+  if (d) d.src = '';
 }
 function editPerson(p){
   editingId = String(p.id);
@@ -1429,6 +1645,20 @@ function editPerson(p){
   document.getElementById('p_bio').value    = p.bio || '';
   document.getElementById('avatarName').value = p.image || '';
   document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
+  // 头像调节：加载这个人单独存的 5 个字段
+  avApplyToForm({
+    h:   +p.avatarH   || AV_DEFAULTS.h,
+    d:   +p.avatarD   || AV_DEFAULTS.d,
+    fit: p.avatarFit  || AV_DEFAULTS.fit,
+    x:   p.avatarX    || AV_DEFAULTS.x,
+    y:   p.avatarY    || AV_DEFAULTS.y
+  });
+  // 预览图同步当前头像
+  var pu = resolveAvatar(p.image || '');
+  var c = document.getElementById('av_prevCardImg');
+  var d = document.getElementById('av_prevDetail');
+  if (c) c.src = pu;
+  if (d) d.src = pu;
   window.scrollTo({top: document.getElementById('addPersonBox').offsetTop - 20, behavior:'smooth'});
 }
 function savePersonForm(){
@@ -1437,6 +1667,7 @@ function savePersonForm(){
   if (!name) { alert('请填写姓名'); return; }
   if (!team) { alert('请选择所属团队'); return; }
   var img  = document.getElementById('avatarName').value.trim();
+  var av = avReadForm();
   var obj = {
     name: name,
     team: team,
@@ -1446,7 +1677,13 @@ function savePersonForm(){
     email: document.getElementById('p_email').value.trim(),
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
-    qqcontact: document.getElementById('p_qq').value.trim()
+    qqcontact: document.getElementById('p_qq').value.trim(),
+    // 头像调节：5 个字段，每个人单独存
+    avatarH:   av.h,
+    avatarD:   av.d,
+    avatarFit: av.fit,
+    avatarX:   av.x,
+    avatarY:   av.y
   };
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
