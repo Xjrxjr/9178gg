@@ -370,5 +370,18 @@
     "wechat": "",
     "qqcontact": "",
     "bio": ""
+  },
+  {
+    "name": "网站制作者",
+    "team": 3,
+    "image": "p_msxhtm96_qbn3.webp",
+    "desc": "",
+    "phone": "",
+    "email": "",
+    "bio": "",
+    "wechat": "",
+    "qqcontact": "",
+    "avatarPosX": 11,
+    "id": "p_msxhv5ipirw2"
   }
 ]
