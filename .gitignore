@@ -9,26 +9,10 @@ _*.cjs
 _*.txt
 _*.vbs
 _*.js
-# PAT / local secret
-pat.js
-pat.local.json
-*.pat.secure
-# Desktop launchers and FiveM fix scripts (local-only, not part of the website)
-9178后台管理.url
-9178后台管理.vbs
-9178后台管理.lnk
-FiveM修复工具.vbs
-FiveM修复工具.lnk
-修复FiveM兼容报错.bat
-创建-桌面快捷方式-修复FiveM.vbs
-安装-创建桌面快捷方式.bat
-_install_desktop.vbs
-1-写入PAT到本地.bat
-Memory/
-Paste/
 # Temporary data / fix artifacts
 remote_data.json
 data_fixed.json
+Paste
 # Hidden git / IDE
 .vscode/
 .git/

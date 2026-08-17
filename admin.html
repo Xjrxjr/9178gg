@@ -413,11 +413,16 @@
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
         </div>
 
-        <!-- ====== 头像大小/位置调节（每个人单独设置，头像框不动，只移动图片） ====== -->
+        <!-- ====== 头像大小/位置调节（卡片/详情 分别4滑块，默认联动；头像框不动，只移动图片） ====== -->
         <div id="avatarTunerBox" style="margin-top: 14px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 16px; background: #fff;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-weight:bold;">🖼️ 头像显示调节 <span style="font-weight:normal;color:#757575;font-size:12px;">（头像框不动，只在框内缩放/平移图片）</span></div>
-            <div style="display:flex;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div style="font-weight:bold;">🖼️ 头像显示调节 <span style="font-weight:normal;color:#757575;font-size:12px;">（卡片 & 详情 各自独立调节；默认 🔗 联动同时变）</span></div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <label title="开启后拖任意一边滑块，另一边同时跟着变" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;cursor:pointer;">
+                <input type="checkbox" id="av_link" checked style="width:16px;height:16px;vertical-align:middle;">
+                <b>🔗 两边一起联动（推荐）</b>
+              </label>
+              <span style="display:inline-block;width:1px;height:18px;background:#ddd;"></span>
               <button type="button" class="btn-secondary" data-avpreset="small"   style="padding:6px 10px;font-size:12px;">⬇️ 头像小</button>
               <button type="button" class="btn-secondary" data-avpreset="default" style="padding:6px 10px;font-size:12px;">↩️ 默认居中</button>
               <button type="button" class="btn-secondary" data-avpreset="big"     style="padding:6px 10px;font-size:12px;">⬆️ 头像大</button>
@@ -425,49 +430,79 @@
               <button type="button" class="btn-secondary" data-avpreset="bighead" style="padding:6px 10px;font-size:12px;">🧑 大头照（偏下）</button>
             </div>
           </div>
-          <!-- 5 个滑块全部可拖 -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;">
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>🔍 头像大小（缩放）</span>
-                <span id="av_sVal" style="color:#1565c0;font-weight:bold;">1.00 ×</span>
-              </label>
-              <input type="range" id="av_s" min="0.4" max="2.4" step="0.02" value="1" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>0.4× 很小</span><span>1.0× 原尺寸</span><span>2.4× 超大</span></div>
+
+          <!-- 两列：左=卡片4调节；右=详情4调节（各自独立，默认联动） -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:6px;">
+            <!-- ========== 左：人员卡片 ========== -->
+            <div style="padding:12px 14px;border-radius:10px;background:#fafcff;border:1px solid #dceaff;">
+              <div style="font-weight:bold;margin-bottom:10px;color:#0d47a1;">📇 ① 人员卡片（外框永远 <b>高 80 px</b> 不变）</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;">
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>🔍 头像大小</span><span id="av_c_sVal" style="color:#1565c0;font-weight:bold;">1.00 ×</span>
+                  </label>
+                  <input type="range" id="av_c_s" min="0.4" max="2.4" step="0.02" value="1" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>✂️ 是否裁切</span><span id="av_c_cVal" style="color:#1565c0;font-weight:bold;">开启 · 裁切</span>
+                  </label>
+                  <input type="range" id="av_c_c" min="0" max="1" step="1" value="1" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>↔️ 左右位置</span><span id="av_c_oxVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+                  </label>
+                  <input type="range" id="av_c_ox" min="-50" max="50" step="1" value="0" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>↕️ 上下位置</span><span id="av_c_oyVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+                  </label>
+                  <input type="range" id="av_c_oy" min="-50" max="50" step="1" value="0" style="width:100%;">
+                </div>
+              </div>
             </div>
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>✂️ 是否裁切（超出框外的部分）</span>
-                <span id="av_cVal" style="color:#1565c0;font-weight:bold;">开启 · 裁切</span>
-              </label>
-              <input type="range" id="av_c" min="0" max="1" step="1" value="1" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>0 关闭 · 完整显示</span><span>1 开启 · 裁切铺框（推荐）</span></div>
-            </div>
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>↔️ 头像左右位置（← 左移 &nbsp; 右移 →）</span>
-                <span id="av_oxVal" style="color:#1565c0;font-weight:bold;">0 %</span>
-              </label>
-              <input type="range" id="av_ox" min="-50" max="50" step="1" value="0" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>-50% 最左</span><span>0 居中</span><span>+50% 最右</span></div>
-            </div>
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>↕️ 头像上下位置（↑ 上移 &nbsp; 下移 ↓）</span>
-                <span id="av_oyVal" style="color:#1565c0;font-weight:bold;">0 %</span>
-              </label>
-              <input type="range" id="av_oy" min="-50" max="50" step="1" value="0" style="width:100%;">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>-50% 最上</span><span>0 居中</span><span>+50% 最下</span></div>
+            <!-- ========== 右：详情弹窗大圆 ========== -->
+            <div style="padding:12px 14px;border-radius:10px;background:#fffdf5;border:1px solid #f3e3b4;">
+              <div style="font-weight:bold;margin-bottom:10px;color:#8a6200;">💫 ② 详情弹窗大圆头像（外框永远 <b>120×120</b> 不变，始终裁切不会缺角）</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;">
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>🔍 头像大小</span><span id="av_d_sVal" style="color:#1565c0;font-weight:bold;">1.00 ×</span>
+                  </label>
+                  <input type="range" id="av_d_s" min="0.4" max="2.4" step="0.02" value="1" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>✂️ 裁切</span><span id="av_d_cVal" style="color:#1565c0;font-weight:bold;">开启 · 裁切</span>
+                  </label>
+                  <input type="range" id="av_d_c" min="0" max="1" step="1" value="1" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>↔️ 左右位置</span><span id="av_d_oxVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+                  </label>
+                  <input type="range" id="av_d_ox" min="-50" max="50" step="1" value="0" style="width:100%;">
+                </div>
+                <div>
+                  <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                    <span>↕️ 上下位置</span><span id="av_d_oyVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+                  </label>
+                  <input type="range" id="av_d_oy" min="-50" max="50" step="1" value="0" style="width:100%;">
+                </div>
+              </div>
             </div>
           </div>
+
           <!-- 实时预览：头像框尺寸固定不动，只有图片在里面缩放/平移 -->
           <div style="margin-top:14px;border:1.5px dashed #ccc;border-radius:10px;padding:12px;background:#fafafa;">
-            <div style="font-size:12px;color:#666;margin-bottom:8px;"><b>实时预览</b>（两个头像框大小永远固定，只移动里面的图片，和主站一致）</div>
+            <div style="font-size:12px;color:#666;margin-bottom:8px;"><b>实时预览</b>（两个头像框永远固定不动，拖哪一列的滑块，对应的预览立刻跟着变）</div>
             <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
               <div style="width:220px;flex:0 0 220px;">
-                <div style="font-size:12px;color:#555;margin-bottom:4px;">① 人员卡片（卡片头像框永远 <b>高 80 px 不变</b>）</div>
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">① 人员卡片（<b>框高 80</b>，跟左边蓝列联动）</div>
                 <div class="card" id="av_prevCard" style="position:relative;background:white;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);width:220px;">
-                  <!-- 外层框高度固定 80px：头像框不动；里面 img 用 transform 平移缩放；裁切开关控制 overflow -->
+                  <!-- 框永远 80 高不动；里面 img transform 平移缩放 -->
                   <div id="av_prevCardClip" style="width:100%;height:80px;overflow:hidden;background:#eee;display:block;position:relative;">
                     <img id="av_prevCardImg" src="" alt=""
                       style="position:absolute;left:50%;top:50%;width:100%;height:100%;
@@ -482,17 +517,24 @@
                 </div>
               </div>
               <div style="width:220px;flex:0 0 220px;">
-                <div style="font-size:12px;color:#555;margin-bottom:4px;">② 详情弹窗大圆头像（外框永远 <b>120×120 不变</b>）</div>
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">② 详情弹窗大圆头像（<b>框 120×120</b>，跟右边黄列联动；<span style="color:#c0392b;">永远裁切不会缺角</span>）</div>
                 <div style="background:linear-gradient(135deg,#1565c0 0%,#0d47a1 100%);border-radius:10px;color:white;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;">
-                  <!-- 外层框尺寸永远 120px：头像框不动；img 在里面做 transform -->
-                  <div id="av_prevDetailClip" style="width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,.35);overflow:hidden;background:white;position:relative;box-sizing:content-box;">
+                  <!-- 详情大圆框：永远 120×120 圆形 + overflow:hidden 永远裁切 + box-sizing:border-box + padding/margin 0；
+                       根治"缺角"：不让边框 box-sizing 造成错位，也不让 img 溢出圆形之外 -->
+                  <div id="av_prevDetailClip"
+                    style="width:120px;height:120px;box-sizing:border-box;border-radius:50%;
+                           border:4px solid rgba(255,255,255,.35);background:white;
+                           overflow:hidden !important;position:relative;isolation:isolate;
+                           padding:0;margin:0;">
                     <img id="av_prevDetail" src="" alt=""
-                      style="position:absolute;left:50%;top:50%;width:100%;height:100%;
+                      style="position:absolute;left:50%;top:50%;
+                             width:100%;height:100%;
                              transform:translate(-50%,-50%) scale(1) translate(0%,0%);
                              transform-origin:center center;
-                             object-fit:cover;display:block;pointer-events:none;">
+                             object-fit:cover;display:block;pointer-events:none;
+                             border-radius:0;padding:0;margin:0;">
                   </div>
-                  <div style="font-weight:bold;">头像在框里自由缩放 + 上下左右平移</div>
+                  <div style="font-weight:bold;">独立调节：大小 / 左右 / 上下 / 裁切</div>
                 </div>
               </div>
             </div>
@@ -908,160 +950,205 @@ var DIRTY_RECRUIT = false;
 var PENDING_IMAGES = [];  // 待上传的图片 [{name, base64}]
 var filterTeamId = 'all';
 
-// ========== 头像调节：默认值 + 预设（每个人单独存进 data.json，4 个字段）
-//   头像框永远固定：卡片高 80px、详情大圆 120×120。
-//   只对 img 做 transform：scale(缩放) + translate(平移) + 父级 overflow(裁切)
-var AV_DEFAULTS = { s: 1.0, c: 1, ox: 0, oy: 0 };
-// 预设：一键填 4 个滑块值
-var AV_PRESETS  = {
-  small:   { s: 0.78, c: 1, ox: 0,   oy: 0   },   // 头像显小（人物缩小，留白更多）
-  default: { s: 1.00, c: 1, ox: 0,   oy: 0   },   // 默认居中
-  big:     { s: 1.40, c: 1, ox: 0,   oy: 0   },   // 头像放大
-  id:      { s: 1.25, c: 1, ox: 0,   oy: -18 },   // 🪪 证件照（把人物往上挪，不截额头）
-  bighead: { s: 1.55, c: 1, ox: 0,   oy:  12 }    // 🧑 大头照（放大 + 往下一点，不截下巴）
+// ========== 头像调节：每人 8 个独立字段（卡片4个 + 详情4个，默认 🔗 联动）
+// 字段名：
+//   卡片：cAvatarScale / cAvatarClip / cAvatarOffsetX / cAvatarOffsetY
+//   详情：dAvatarScale / dAvatarClip / dAvatarOffsetX / dAvatarOffsetY
+//
+// 预设填法：可以两边一样，也可以两边不一样（比如证件照卡片设 oy=-18，详情设 oy=-10）
+var AV_DEFAULTS = {
+  c: { s: 1.00, c: 1, ox: 0, oy: 0 },   // 卡片默认
+  d: { s: 1.00, c: 1, ox: 0, oy: 0 }    // 详情默认
+};
+var AV_PRESETS = {
+  small:   { c:{ s:0.78, c:1, ox:0, oy:0   }, d:{ s:0.78, c:1, ox:0, oy:0   } },
+  default: { c:{ s:1.00, c:1, ox:0, oy:0   }, d:{ s:1.00, c:1, ox:0, oy:0   } },
+  big:     { c:{ s:1.40, c:1, ox:0, oy:0   }, d:{ s:1.40, c:1, ox:0, oy:0   } },
+  id:      { c:{ s:1.25, c:1, ox:0, oy:-18 }, d:{ s:1.22, c:1, ox:0, oy:-10 } },  // 🪪 证件照：往上挪一点，不截额头
+  bighead: { c:{ s:1.55, c:1, ox:0, oy: 12 }, d:{ s:1.50, c:1, ox:0, oy:  8 } }   // 🧑 大头照：放大 + 往下，不截下巴
 };
 
-// 生成给 img 用的 transform 字符串
+// 给 img 生成 transform 字符串
 function avTransform(v){
-  var s  = (v && typeof v.s==='number')  ? v.s  : AV_DEFAULTS.s;
-  var ox = (v && typeof v.ox==='number') ? v.ox : AV_DEFAULTS.ox;
-  var oy = (v && typeof v.oy==='number') ? v.oy : AV_DEFAULTS.oy;
-  // 先 translate(-50%,-50%) 锚定到父级中心，再 scale 缩放，最后 translate(ox%,oy%) 做偏移
-  return 'translate(-50%,-50%) scale('+s.toFixed(3)+') translate('+ox+'%,'+oy+'%)';
+  var s  = (v && typeof v.s==='number')  ? v.s  : 1;
+  var ox = (v && typeof v.ox==='number') ? v.ox : 0;
+  var oy = (v && typeof v.oy==='number') ? v.oy : 0;
+  return 'translate(-50%,-50%) scale('+(+s).toFixed(3)+') translate('+ox+'%,'+oy+'%)';
 }
-// 生成 object-fit（裁切开关：1 用 cover 铺满裁切；0 用 contain 完整显示留白）
 function avObjectFit(v){
-  var c = (v && typeof v.c==='number') ? v.c : AV_DEFAULTS.c;
+  var c = (v && typeof v.c==='number') ? v.c : 1;
   return (+c === 1) ? 'cover' : 'contain';
 }
-// 兼容旧版 5 字段（avatarH/avatarD/avatarFit/avatarX/avatarY）→ 自动迁移到新版 4 字段
-// 没有旧字段、也没有新字段，就返回默认值
+
+// 旧字段 → 新字段 自动迁移（兼容旧版 5 字段 / 4 字段，返回 {c:{…},d:{…}}）
 function avMigrate(p){
-  if (!p) return Object.assign({}, AV_DEFAULTS);
-  var hasNew = ('avatarScale' in p) || ('avatarClip' in p) || ('avatarOffsetX' in p) || ('avatarOffsetY' in p);
-  if (hasNew) {
+  if (!p) return JSON.parse(JSON.stringify(AV_DEFAULTS));
+  // 8 个新字段
+  var hasCardNew = ('cAvatarScale' in p) || ('cAvatarClip' in p) || ('cAvatarOffsetX' in p) || ('cAvatarOffsetY' in p);
+  var hasDetNew  = ('dAvatarScale' in p) || ('dAvatarClip' in p) || ('dAvatarOffsetX' in p) || ('dAvatarOffsetY' in p);
+  var buildNew = function(pfx){
+    var S = p[pfx+'Scale'], C = p[pfx+'Clip'], OX = p[pfx+'OffsetX'], OY = p[pfx+'OffsetY'];
     return {
-      s:  +p.avatarScale || AV_DEFAULTS.s,
-      c:  typeof p.avatarClip === 'undefined' ? AV_DEFAULTS.c : (+p.avatarClip ? 1 : 0),
+      s:  (+S && isFinite(+S)) ? +S : AV_DEFAULTS.c.s,
+      c:  typeof C === 'undefined' ? AV_DEFAULTS.c.c : (+C ? 1 : 0),
+      ox: (+OX != null && isFinite(+OX)) ? +OX : 0,
+      oy: (+OY != null && isFinite(+OY)) ? +OY : 0
+    };
+  };
+  if (hasCardNew || hasDetNew) {
+    return {
+      c: buildNew('cAvatar'),
+      d: buildNew('dAvatar')
+    };
+  }
+  // 上一版 4 字段（只有一套卡片/详情共用）：{avatarScale,avatarClip,avatarOffsetX,avatarOffsetY}
+  if ('avatarScale' in p || 'avatarClip' in p || 'avatarOffsetX' in p || 'avatarOffsetY' in p) {
+    var one = {
+      s:  +p.avatarScale || 1,
+      c:  typeof p.avatarClip === 'undefined' ? 1 : (+p.avatarClip ? 1 : 0),
       ox: +p.avatarOffsetX || 0,
       oy: +p.avatarOffsetY || 0
     };
+    return { c: Object.assign({}, one), d: Object.assign({}, one) };
   }
-  var hasOld = ('avatarH' in p) || ('avatarFit' in p) || ('avatarX' in p) || ('avatarY' in p);
-  if (!hasOld) return Object.assign({}, AV_DEFAULTS);
-  // 旧字段 → 新字段 粗略估算（让老用户再微调即可，不会突然样式变怪）
-  var h   = +p.avatarH   || 80;
-  var fit = p.avatarFit  || 'cover';
-  var x   = p.avatarX    || 'center';
-  var y   = p.avatarY    || 'center';
-  var scale = Math.max(0.5, Math.min(2.4, h / 80));
-  var ox = 0, oy = 0;
-  switch (String(x)) {
-    case 'left':  ox = -22; break;
-    case 'right': ox =  22; break;
-    case '25%':   ox = -11; break;
-    case '75%':   ox =  11; break;
-    default:      ox =   0; break;
+  // 最初版 5 字段（avatarH/D/Fit/X/Y）粗略迁移
+  if ('avatarH' in p || 'avatarFit' in p || 'avatarX' in p || 'avatarY' in p) {
+    var h = +p.avatarH || 80;
+    var fit = String(p.avatarFit || 'cover');
+    var x = String(p.avatarX || 'center');
+    var y = String(p.avatarY || 'center');
+    var scale = Math.max(0.4, Math.min(2.4, h / 80));
+    var ox = 0, oy = 0;
+    switch (x) { case 'left': ox=-22; break; case 'right': ox=22; break; case '25%': ox=-11; break; case '75%': ox=11; break; }
+    switch (y) { case 'top': oy=-24; break; case 'bottom': oy=24; break; case '25%': oy=-12; break; case '75%': oy=12; break; }
+    var one2 = { s: scale, c: (fit==='contain'?0:1), ox: ox, oy: oy };
+    return { c: Object.assign({}, one2), d: Object.assign({}, one2) };
   }
-  switch (String(y)) {
-    case 'top':    oy = -24; break;
-    case 'bottom': oy =  24; break;
-    case '25%':    oy = -12; break;
-    case '75%':    oy =  12; break;
-    default:       oy =   0; break;
-  }
-  return {
-    s: scale,
-    c: (fit === 'contain') ? 0 : 1,
-    ox: ox, oy: oy
-  };
+  return JSON.parse(JSON.stringify(AV_DEFAULTS));
 }
-// 把滑块值填进表单 + 更新预览
-function avApplyToForm(vals){
-  var v = Object.assign({}, AV_DEFAULTS, avMigrate(vals));
-  ['s','ox','oy'].forEach(function(k){
-    var el = document.getElementById('av_'+k);
-    if (!el) return;
-    el.value = v[k];
-    var lv = document.getElementById('av_'+k+'Val');
-    if (!lv) return;
-    if (k==='s')  lv.textContent = (+v.s).toFixed(2) + ' ×';
-    else          lv.textContent = (+v[k]) + ' %';
-  });
-  var cEl = document.getElementById('av_c');
-  var cLv = document.getElementById('av_cVal');
-  if (cEl) {
-    cEl.value = (+v.c===1) ? '1' : '0';
-    if (cLv) cLv.textContent = (+v.c===1) ? '开启 · 裁切' : '关闭 · 完整显示';
-  }
-  avApplyPreview();
-}
-// 读取 4 个滑块为 {s,c,ox,oy}
+
+// 读取两列 8 个滑块值 → { c:{s,c,ox,oy}, d:{s,c,ox,oy} }
 function avReadForm(){
   var ge = function(id){ var e = document.getElementById(id); return e ? e.value : null; };
-  return {
-    s:  +(ge('av_s'))  != null && isFinite(+ge('av_s'))  ? +ge('av_s')  : AV_DEFAULTS.s,
-    c:  ge('av_c') === '1' ? 1 : 0,
-    ox: +ge('av_ox') != null && isFinite(+ge('av_ox')) ? +ge('av_ox') : 0,
-    oy: +ge('av_oy') != null && isFinite(+ge('av_oy')) ? +ge('av_oy') : 0
+  var readSide = function(pfx){
+    return {
+      s:  +ge(pfx+'_s')  != null && isFinite(+ge(pfx+'_s'))  ? +ge(pfx+'_s')  : 1,
+      c:  ge(pfx+'_c')  === '1' ? 1 : 0,
+      ox: +ge(pfx+'_ox') != null && isFinite(+ge(pfx+'_ox')) ? +ge(pfx+'_ox') : 0,
+      oy: +ge(pfx+'_oy') != null && isFinite(+ge(pfx+'_oy')) ? +ge(pfx+'_oy') : 0
+    };
   };
+  return { c: readSide('av_c'), d: readSide('av_d') };
 }
-// 把滑块值实时应用到两个预览图（头像框不动）
+
+// 把 {c:{...},d:{...}} 填回表单 + 更新数值标签 + 更新预览
+function avApplyToForm(vals){
+  var src = avMigrate(vals);
+  ['c','d'].forEach(function(side){
+    ['s','ox','oy'].forEach(function(k){
+      var el = document.getElementById('av_'+side+'_'+k);
+      if (!el) return;
+      el.value = src[side][k];
+      var lv = document.getElementById('av_'+side+'_'+k+'Val');
+      if (!lv) return;
+      lv.textContent = (k==='s') ? (+src[side][k]).toFixed(2) + ' ×' : (+src[side][k]) + ' %';
+    });
+    var cEl = document.getElementById('av_'+side+'_c');
+    var cLv = document.getElementById('av_'+side+'_cVal');
+    if (cEl) {
+      cEl.value = (+src[side].c===1) ? '1' : '0';
+      if (cLv) cLv.textContent = (+src[side].c===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+    }
+  });
+  avApplyPreview();
+}
+
+// 实时更新预览图（头像框永远固定不动）
 function avApplyPreview(){
   var r = avReadForm();
-  var tr    = avTransform(r);
-  var fit   = avObjectFit(r);
-  var clip  = (+r.c === 1) ? 'hidden' : 'visible';
+  // —— 卡片预览（左边蓝列）
   var cImg = document.getElementById('av_prevCardImg');
-  var dImg = document.getElementById('av_prevDetail');
   var cBox = document.getElementById('av_prevCardClip');
+  if (cImg) { cImg.style.transform = avTransform(r.c); cImg.style.objectFit = avObjectFit(r.c); }
+  if (cBox) cBox.style.overflow = (+r.c.c === 1) ? 'hidden' : 'visible';
+  // —— 详情预览（右边黄列）
+  var dImg = document.getElementById('av_prevDetail');
   var dBox = document.getElementById('av_prevDetailClip');
-  if (cImg) { cImg.style.transform = tr; cImg.style.objectFit = fit; }
-  if (dImg) { dImg.style.transform = tr; dImg.style.objectFit = fit; }
-  // 头像框固定不动；裁切开关：关闭时让超出的部分也能看，避免"小头像被框盖住"
-  if (cBox) cBox.style.overflow = clip;
-  if (dBox) dBox.style.overflow = clip;
+  if (dImg) { dImg.style.transform = avTransform(r.d); dImg.style.objectFit = avObjectFit(r.d); }
+  // 🔴 详情永远 overflow:hidden 裁切，防止缺角（滑块上的详情裁切仅供预览参考，真实页面详情永远裁切）
+  if (dBox) dBox.style.overflow = 'hidden';
+  // 名字同步
   var title = document.getElementById('av_prevName');
   if (title) {
     var name = (document.getElementById('p_name') && document.getElementById('p_name').value.trim()) || '👮 预览';
     title.textContent = name;
   }
 }
-// 页面加载时绑定所有滑块/预设事件
+
+// 判断联动开关是否勾选
+function avLinked(){
+  var cb = document.getElementById('av_link');
+  return !!(cb && cb.checked);
+}
+
+// 页面加载：绑定所有滑块事件 + 联动 + 预设按钮 + 头像源同步
 function avBindTuner(){
-  // 三个数值滑块 + 裁切开关滑块（都是 input，全是拖动）
-  ['s','ox','oy'].forEach(function(k){
-    var el = document.getElementById('av_'+k);
-    if (!el) return;
-    el.addEventListener('input', function(){
-      var lv = document.getElementById('av_'+k+'Val');
-      if (lv) {
-        if (k==='s') lv.textContent = (+this.value).toFixed(2) + ' ×';
-        else         lv.textContent = (+this.value) + ' %';
-      }
-      avApplyPreview();
+  var SIDES = ['c','d'];
+  var KEYS  = ['s','ox','oy','c'];
+
+  // 每一边的每个滑块
+  SIDES.forEach(function(side){
+    KEYS.forEach(function(key){
+      var el = document.getElementById('av_'+side+'_'+key);
+      if (!el) return;
+      el.addEventListener('input', function(){
+        // 1) 更新自己的 label
+        var lv = document.getElementById('av_'+side+'_'+key+'Val');
+        if (lv) {
+          if (key==='s')      lv.textContent = (+this.value).toFixed(2) + ' ×';
+          else if (key==='c') lv.textContent = (+this.value===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+          else                lv.textContent = (+this.value) + ' %';
+        }
+        // 2) 联动：勾了就把同样的值同步到另一边
+        if (avLinked()) {
+          var otherSide = (side==='c') ? 'd' : 'c';
+          var oEl = document.getElementById('av_'+otherSide+'_'+key);
+          if (oEl && String(oEl.value) !== String(this.value)) {
+            oEl.value = this.value;
+            var oLv = document.getElementById('av_'+otherSide+'_'+key+'Val');
+            if (oLv) {
+              if (key==='s')      oLv.textContent = (+this.value).toFixed(2) + ' ×';
+              else if (key==='c') oLv.textContent = (+this.value===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+              else                oLv.textContent = (+this.value) + ' %';
+            }
+          }
+        }
+        // 3) 更新预览
+        avApplyPreview();
+      });
     });
   });
-  var cEl = document.getElementById('av_c');
-  if (cEl) {
-    cEl.addEventListener('input', function(){
-      var lv = document.getElementById('av_cVal');
-      if (lv) lv.textContent = (+this.value===1) ? '开启 · 裁切' : '关闭 · 完整显示';
-      avApplyPreview();
-    });
-  }
-  // 预设按钮（点一下自动填 4 个滑块）
+
+  // 预设按钮：两边一起填
   var btns = document.querySelectorAll('[data-avpreset]');
   btns.forEach(function(b){
     b.addEventListener('click', function(){
       var key = this.getAttribute('data-avpreset') || 'default';
-      avApplyToForm(AV_PRESETS[key] || AV_PRESETS['default']);
+      var pr = AV_PRESETS[key] || AV_PRESETS['default'];
+      avApplyToForm({
+        c: pr.c, d: pr.d,
+        // 带上字段前缀，让 avMigrate 走新字段直接读取
+        cAvatarScale: pr.c.s, cAvatarClip: pr.c.c, cAvatarOffsetX: pr.c.ox, cAvatarOffsetY: pr.c.oy,
+        dAvatarScale: pr.d.s, dAvatarClip: pr.d.c, dAvatarOffsetX: pr.d.ox, dAvatarOffsetY: pr.d.oy
+      });
     });
   });
-  // 姓名框改了，预览里的卡片标题也实时变
+
+  // 姓名框同步预览标题
   var pn = document.getElementById('p_name');
   if (pn) pn.addEventListener('input', avApplyPreview);
-  // 头像来源同步：填了已有文件名、上传本地图、点「用此QQ做头像」——预览图立刻同步
+
+  // 头像来源同步：填文件名 / 上传本地 / 用此QQ做头像 —— 预览图立刻跟着变
   var avName = document.getElementById('avatarName');
   if (avName) avName.addEventListener('input', function(){
     var u = resolveAvatar(this.value || '') || '';
@@ -1092,7 +1179,8 @@ function avBindTuner(){
       if (d) d.src = orig.src;
     }, 200);
   });
-  // 初始化
+
+  // 初始化默认
   avApplyToForm(AV_DEFAULTS);
 }
 document.addEventListener('DOMContentLoaded', avBindTuner);
@@ -1739,14 +1827,20 @@ function savePersonForm(){
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
     qqcontact: document.getElementById('p_qq').value.trim(),
-    // 头像调节（新）：4 个字段；头像框永远固定，只动图片
-    avatarScale:    av.s,
-    avatarClip:     av.c,
-    avatarOffsetX:  av.ox,
-    avatarOffsetY:  av.oy
+    // 头像调节：卡片4 + 详情4，共 8 个独立字段（头像框永远固定，只动图片）
+    cAvatarScale:   av.c.s,
+    cAvatarClip:    av.c.c,
+    cAvatarOffsetX: av.c.ox,
+    cAvatarOffsetY: av.c.oy,
+    dAvatarScale:   av.d.s,
+    dAvatarClip:    av.d.c,
+    dAvatarOffsetX: av.d.ox,
+    dAvatarOffsetY: av.d.oy
   };
-  // 清掉旧版 5 个字段，避免 data.json 里冗余（如果有编辑过老成员，就不会保留两套字段）
-  ['avatarH','avatarD','avatarFit','avatarX','avatarY'].forEach(function(k){ delete obj[k]; });
+  // 清掉旧版字段（两套：avatarH/D/Fit/X/Y 老下拉；avatarScale/Clip/OffsetX/Y 上一版 4字段）
+  [ 'avatarH','avatarD','avatarFit','avatarX','avatarY',
+    'avatarScale','avatarClip','avatarOffsetX','avatarOffsetY'
+  ].forEach(function(k){ delete obj[k]; });
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
     if (idx >= 0) {

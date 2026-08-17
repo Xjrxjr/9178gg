@@ -1110,62 +1110,104 @@
     }).join('');
   }
 
-  // 头像调节：默认值（和 admin.html 的 AV_DEFAULTS 严格保持一致）
-  //   头像框永远固定：卡片高 80px、详情大圆 120×120。只对 img 做 transform 缩放+平移。
-  const __AV_DEF = { s: 1.0, c: 1, ox: 0, oy: 0 };
-  function __avNum(v, fallback){ var n = +v; return isFinite(n) ? n : fallback; }
-  // 兼容旧版 5 字段 + 新版 4 字段，返回统一的 {s,c,ox,oy}
+  // 头像调节：每人 8 个独立字段（卡片4 + 详情4），头像框永远固定。
+  // 卡片：cAvatarScale / cAvatarClip / cAvatarOffsetX / cAvatarOffsetY
+  // 详情：dAvatarScale / dAvatarClip / dAvatarOffsetX / dAvatarOffsetY
+  // 兼容：上一版4字段共用（avatarScale/Clip/OffsetX/Y）+ 最初版5字段（H/D/Fit/X/Y）
+  const __AV_DEF = {
+    c: { s: 1.0, c: 1, ox: 0, oy: 0 },
+    d: { s: 1.0, c: 1, ox: 0, oy: 0 }
+  };
+  function __avNum(v, fb){ var n = +v; return isFinite(n) ? n : fb; }
+  // 旧字段 → 新字段统一返回 {c,d}
   function __avResolve(p){
-    if (!p) return Object.assign({}, __AV_DEF);
-    var hasNew = ('avatarScale' in p) || ('avatarClip' in p) || ('avatarOffsetX' in p) || ('avatarOffsetY' in p);
-    if (hasNew) {
+    if (!p) return JSON.parse(JSON.stringify(__AV_DEF));
+    var hasC = ('cAvatarScale' in p) || ('cAvatarClip' in p) || ('cAvatarOffsetX' in p) || ('cAvatarOffsetY' in p);
+    var hasD = ('dAvatarScale' in p) || ('dAvatarClip' in p) || ('dAvatarOffsetX' in p) || ('dAvatarOffsetY' in p);
+    var build = function(pfx){
       return {
-        s:  __avNum(p.avatarScale, __AV_DEF.s),
-        c:  typeof p.avatarClip === 'undefined' ? __AV_DEF.c : (+p.avatarClip ? 1 : 0),
+        s:  __avNum(p[pfx+'Scale'],   __AV_DEF.c.s),
+        c:  typeof p[pfx+'Clip']   === 'undefined' ? __AV_DEF.c.c : (+p[pfx+'Clip'] ? 1 : 0),
+        ox: __avNum(p[pfx+'OffsetX'], 0),
+        oy: __avNum(p[pfx+'OffsetY'], 0)
+      };
+    };
+    if (hasC || hasD) return { c: build('cAvatar'), d: build('dAvatar') };
+    // 上一版 4 字段：卡片/详情共用
+    if ('avatarScale' in p || 'avatarClip' in p || 'avatarOffsetX' in p || 'avatarOffsetY' in p) {
+      var one = {
+        s:  __avNum(p.avatarScale, 1),
+        c:  typeof p.avatarClip === 'undefined' ? 1 : (+p.avatarClip ? 1 : 0),
         ox: __avNum(p.avatarOffsetX, 0),
         oy: __avNum(p.avatarOffsetY, 0)
       };
+      return { c: Object.assign({}, one), d: Object.assign({}, one) };
     }
-    var hasOld = ('avatarH' in p) || ('avatarD' in p) || ('avatarFit' in p) || ('avatarX' in p) || ('avatarY' in p);
-    if (!hasOld) return Object.assign({}, __AV_DEF);
-    var h   = __avNum(p.avatarH, 80);
-    var fit = String(p.avatarFit || 'cover');
-    var x   = String(p.avatarX   || 'center');
-    var y   = String(p.avatarY   || 'center');
-    var scale = Math.max(0.4, Math.min(2.4, h / 80));
-    var ox = 0, oy = 0;
-    switch (x) { case 'left': ox=-22; break; case 'right': ox=22; break; case '25%': ox=-11; break; case '75%': ox=11; break; }
-    switch (y) { case 'top': oy=-24; break; case 'bottom': oy=24; break; case '25%': oy=-12; break; case '75%': oy=12; break; }
-    return { s: scale, c: (fit==='contain'?0:1), ox: ox, oy: oy };
+    // 最初版 5 字段粗略迁移
+    if ('avatarH' in p || 'avatarFit' in p || 'avatarX' in p || 'avatarY' in p) {
+      var h = __avNum(p.avatarH, 80);
+      var fit = String(p.avatarFit || 'cover');
+      var x = String(p.avatarX || 'center');
+      var y = String(p.avatarY || 'center');
+      var scale = Math.max(0.4, Math.min(2.4, h / 80));
+      var ox = 0, oy = 0;
+      switch (x) { case 'left': ox=-22; break; case 'right': ox=22; break; case '25%': ox=-11; break; case '75%': ox=11; break; }
+      switch (y) { case 'top': oy=-24; break; case 'bottom': oy=24; break; case '25%': oy=-12; break; case '75%': oy=12; break; }
+      var one2 = { s: scale, c: (fit==='contain'?0:1), ox: ox, oy: oy };
+      return { c: Object.assign({}, one2), d: Object.assign({}, one2) };
+    }
+    return JSON.parse(JSON.stringify(__AV_DEF));
   }
   function __avTransformStr(v){
     return 'translate(-50%,-50%) scale('+(+v.s).toFixed(3)+') translate('+v.ox+'%,'+v.oy+'%)';
   }
-  function __avObjectFitStr(v){ return (+v.c===1) ? 'cover' : 'contain'; }
+  function __avFitStr(v){ return (+v.c===1) ? 'cover' : 'contain'; }
 
-  // 卡片头像：外面一层固定高 80px 的头像框（永远不动），里面 img transform。
-  // 返回 { clipBoxStyle, imgStyle, overflow }
+  // 卡片头像：外层 clip 永远高 80px（头像框本体）；img 做 transform 缩放平移。
   function __cardAvatarStyles(p){
-    var v = __avResolve(p);
-    var overflow = (+v.c === 1) ? 'hidden' : 'visible';
-    var clipBoxStyle = 'width:100%;height:80px;background:#f0f0f0;display:block;position:relative;overflow:'+overflow+';';
+    var r = __avResolve(p).c;
+    var overflow = (+r.c===1) ? 'hidden' : 'visible';
+    var clipBoxStyle =
+      'width:100%;height:80px;background:#f0f0f0;display:block;position:relative;overflow:'+overflow+';';
     var imgStyle =
-      'position:absolute;left:50%;top:50%;'+
-      'width:100%;height:100%;'+
-      'transform:'+__avTransformStr(v)+';'+
+      'position:absolute;left:50%;top:50%;width:100%;height:100%;'+
+      'transform:'+__avTransformStr(r)+';'+
       'transform-origin:center center;'+
-      'object-fit:'+__avObjectFitStr(v)+';'+
-      'display:block;pointer-events:none;';
+      'object-fit:'+__avFitStr(r)+';'+
+      'display:block;pointer-events:none;'+
+      'border:0;padding:0;margin:0;';
     return { clipBoxStyle: clipBoxStyle, imgStyle: imgStyle };
   }
-  // 详情弹窗的外框尺寸永远 120×120，img 上做 transform（头像框不动）
-  function __applyDetailAvatarStyles(detImg, clipBox, p){
-    var v = __avResolve(p);
-    if (clipBox) {
-      clipBox.style.width    = '120px';
-      clipBox.style.height   = '120px';
-      clipBox.style.overflow = (+v.c === 1) ? 'hidden' : 'visible';
-      clipBox.style.position = 'relative';
+
+  // 详情大圆头像：外层 clip 永远 120×120 + overflow:hidden 强制裁切（根治"缺角"）；
+  // 加 box-sizing:border-box 避免边框导致尺寸计算偏差；img 的 overflow 全在 clip 层消化。
+  function __ensureDetailClipBox(){
+    var detImg = document.getElementById('detailImg');
+    if (!detImg) return null;
+    var clip = document.getElementById('detailImgClip');
+    if (clip) return clip;
+    clip = document.createElement('div');
+    clip.id = 'detailImgClip';
+    // 🔴 关键治缺角：框 size 固定、border-box、border-radius:50%、overflow:hidden 永远强制。
+    clip.style.cssText = [
+      'width:120px','height:120px','box-sizing:border-box',
+      'border-radius:50%','border:4px solid rgba(255,255,255,0.4)',
+      'background:white','flex-shrink:0',
+      'overflow:hidden','position:relative','isolation:isolate',
+      'padding:0','margin:0','display:block'
+    ].join(';') + ';';
+    detImg.parentNode.insertBefore(clip, detImg);
+    clip.appendChild(detImg);
+    return clip;
+  }
+  function __applyDetailAvatarStyles(p){
+    var r = __avResolve(p).d;
+    var clip = __ensureDetailClipBox();
+    var detImg = document.getElementById('detailImg');
+    if (clip) {
+      // 🔴 详情永远 overflow:hidden（无论裁切开关为何，圆形头像绝不缺角）
+      clip.style.overflow = 'hidden';
+      clip.style.position = 'relative';
     }
     if (detImg) {
       detImg.style.position       = 'absolute';
@@ -1173,10 +1215,15 @@
       detImg.style.top            = '50%';
       detImg.style.width          = '100%';
       detImg.style.height         = '100%';
-      detImg.style.transform      = __avTransformStr(v);
+      detImg.style.transform      = __avTransformStr(r);
       detImg.style.transformOrigin= 'center center';
-      detImg.style.objectFit      = __avObjectFitStr(v);
+      detImg.style.objectFit      = __avFitStr(r);
       detImg.style.display        = 'block';
+      detImg.style.borderRadius   = '0';
+      detImg.style.border         = 'none';
+      detImg.style.padding        = '0';
+      detImg.style.margin         = '0';
+      detImg.style.background     = 'transparent';
     }
   }
 
@@ -1249,26 +1296,13 @@
     currentDetailId = id;
 
     const imgSrc = getImgSrc(p.image);
-    const detImg = document.getElementById('detailImg');
-    // 确保已经包好外框（只包一次，120×120 固定不动，是头像框本体：带圆框+白边+圆角50%）
-    let clipBox = document.getElementById('detailImgClip');
-    if (!clipBox) {
-      clipBox = document.createElement('div');
-      clipBox.id = 'detailImgClip';
-      clipBox.style.cssText = [
-        'width:120px','height:120px','box-sizing:content-box',
-        'border-radius:50%','border:4px solid rgba(255,255,255,0.4)',
-        'background:white','flex-shrink:0','overflow:hidden',
-        'position:relative'
-      ].join(';') + ';';
-      detImg.parentNode.insertBefore(clipBox, detImg);
-      clipBox.appendChild(detImg);
-    }
-    // 头像框尺寸永远 120×120 不动；只改里面 img 的 transform
-    __applyDetailAvatarStyles(detImg, clipBox, p);
-    detImg.style.cssText += ''; // no-op, ensure sync
+    // 确保外框已包好（只包一次，120×120 永远不动 + overflow:hidden 永远强制根治缺角）
+    __ensureDetailClipBox();
+    // 只改 img 的 transform（用详情组的 4 个独立字段：dAvatar*）
+    __applyDetailAvatarStyles(p);
+    var detImg = document.getElementById('detailImg');
     detImg.src = imgSrc;
-    document.getElementById('detailImg').onerror = function() {
+    detImg.onerror = function() {
       this.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>';
     };
     document.getElementById('detailName').textContent = p.name || '';
