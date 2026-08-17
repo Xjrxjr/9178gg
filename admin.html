@@ -1028,38 +1028,75 @@ function avMigrate(p){
 }
 
 // 读取两列 8 个滑块值 → { c:{s,c,ox,oy}, d:{s,c,ox,oy} }
+// 严格兜底：任何滑块读不到（undefined/null/NaN/空）都用默认值，绝不把脏值写进 data.json
 function avReadForm(){
-  var ge = function(id){ var e = document.getElementById(id); return e ? e.value : null; };
+  var getEl = function(id){ return document.getElementById(id); };
+  var num = function(v, min, max, fb){
+    if (v === null || v === undefined) return fb;
+    var s = String(v).trim();
+    if (s === '') return fb;
+    var n = +s;
+    if (!isFinite(n)) return fb;
+    if (isFinite(min) && n < min) n = min;
+    if (isFinite(max) && n > max) n = max;
+    return n;
+  };
   var readSide = function(pfx){
+    var sEl  = getEl(pfx+'_s');
+    var cEl  = getEl(pfx+'_c');
+    var oxEl = getEl(pfx+'_ox');
+    var oyEl = getEl(pfx+'_oy');
     return {
-      s:  +ge(pfx+'_s')  != null && isFinite(+ge(pfx+'_s'))  ? +ge(pfx+'_s')  : 1,
-      c:  ge(pfx+'_c')  === '1' ? 1 : 0,
-      ox: +ge(pfx+'_ox') != null && isFinite(+ge(pfx+'_ox')) ? +ge(pfx+'_ox') : 0,
-      oy: +ge(pfx+'_oy') != null && isFinite(+ge(pfx+'_oy')) ? +ge(pfx+'_oy') : 0
+      s:  num(sEl  ? sEl.value  : null, 0.4, 2.4, 1),
+      c:  (cEl && String(cEl.value) === '1') ? 1 : 0,
+      ox: num(oxEl ? oxEl.value : null, -50, 50, 0),
+      oy: num(oyEl ? oyEl.value : null, -50, 50, 0)
     };
   };
-  return { c: readSide('av_c'), d: readSide('av_d') };
+  var r = { c: readSide('av_c'), d: readSide('av_d') };
+  try { console.log('[avReadForm] 读到的8个滑块值', JSON.stringify(r)); } catch(_) {}
+  return r;
 }
 
 // 把 {c:{...},d:{...}} 填回表单 + 更新数值标签 + 更新预览
 function avApplyToForm(vals){
   var src = avMigrate(vals);
+  var warn = [];
   ['c','d'].forEach(function(side){
     ['s','ox','oy'].forEach(function(k){
       var el = document.getElementById('av_'+side+'_'+k);
       if (!el) return;
-      el.value = src[side][k];
+      var want = String(+src[side][k]);
+      el.value = want;
+      // 回读确认：防止 range 的 min/max/step 把 value 夹到别的值
+      if (String(el.value) !== want) {
+        // 浏览器根据 step/范围夹过了，就强制用回读后的值再做一次规范化
+        try { el.value = (+el.value).toString(); } catch(_) {}
+      }
       var lv = document.getElementById('av_'+side+'_'+k+'Val');
       if (!lv) return;
-      lv.textContent = (k==='s') ? (+src[side][k]).toFixed(2) + ' ×' : (+src[side][k]) + ' %';
+      var finalVal = isFinite(+el.value) ? +el.value : src[side][k];
+      lv.textContent = (k==='s') ? (+finalVal).toFixed(2) + ' ×' : (+finalVal) + ' %';
+      if (Math.abs(+finalVal - +src[side][k]) > 0.05) {
+        warn.push(side+'/'+k+': 目标'+src[side][k]+' → 实际'+finalVal+'（被 step/min/max 夹了）');
+      }
     });
     var cEl = document.getElementById('av_'+side+'_c');
     var cLv = document.getElementById('av_'+side+'_cVal');
     if (cEl) {
-      cEl.value = (+src[side].c===1) ? '1' : '0';
-      if (cLv) cLv.textContent = (+src[side].c===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+      var wantC = (+src[side].c===1) ? '1' : '0';
+      cEl.value = wantC;
+      if (String(cEl.value) !== wantC) cEl.value = wantC;
+      var finalC = (String(cEl.value)==='1') ? 1 : 0;
+      if (cLv) cLv.textContent = (finalC===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+      if (finalC !== (+src[side].c===1 ? 1 : 0)) {
+        warn.push(side+'/c: 目标'+(+src[side].c)+' → 实际'+finalC);
+      }
     }
   });
+  if (warn.length) {
+    try { console.warn('[avApplyToForm] 存在规范化', warn.join('; ')); } catch(_) {}
+  }
   avApplyPreview();
 }
 
@@ -1741,8 +1778,21 @@ function renderPeople(){
     var item = document.createElement('div');
     item.className = 'p-item';
     var imgSrc = resolveAvatar(p.image);
+    // 后台人员列表卡片也套 cAvatar* 组的 transform + clip（头像框永远 80px 固定不动）
+    var av = avMigrate(p).c;
+    var clipOverflow = (+av.c===1) ? 'hidden' : 'visible';
+    var clipStyle = 'width:80px;height:80px;flex-shrink:0;position:relative;overflow:'+clipOverflow+';display:block;background:#f0f0f0;border-radius:6px;';
+    var imgStyle = [
+      'position:absolute','left:50%','top:50%','width:100%','height:100%',
+      'transform:translate(-50%,-50%) scale('+(+av.s).toFixed(3)+') translate('+av.ox+'%,'+av.oy+'%)',
+      'transform-origin:center center',
+      'object-fit:' + ((+av.c===1)?'cover':'contain'),
+      'display:block','border:0','padding:0','margin:0'
+    ].join(';')+';';
     item.innerHTML =
-      '<img src="'+imgSrc+'" alt="头像" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect width=%2280%22 height=%2280%22 fill=%22%23e0e0e0%22/><text x=%2240%22 y=%2245%22 font-size=%2230%22 text-anchor=%22middle%22 fill=%22%23aaa%22>👤</text></svg>\'">' +
+      '<div style="'+clipStyle+'">' +
+        '<img src="'+imgSrc+'" alt="头像" style="'+imgStyle+'" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect width=%2280%22 height=%2280%22 fill=%22%23e0e0e0%22/><text x=%2240%22 y=%2245%22 font-size=%2230%22 text-anchor=%22middle%22 fill=%22%23aaa%22>👤</text></svg>\'">' +
+      '</div>' +
       '<div class="p-info">' +
         '<div class="p-name">'+(p.name||'(无姓名)')+'</div>' +
         '<div class="p-meta">' +
@@ -1874,6 +1924,18 @@ function savePersonForm(){
   if (!team) { alert('请选择所属团队'); return; }
   var img  = document.getElementById('avatarName').value.trim();
   var av   = avReadForm();
+
+  // 若联动开关勾选 + 卡片/详情不一致 → 自动用当前滑块读到的值做最后一次同步
+  if (avLinked()) {
+    try {
+      ['s','c','ox','oy'].forEach(function(k){
+        if (String(av.c[k]) !== String(av.d[k])) {
+          av.d[k] = av.c[k];
+        }
+      });
+    } catch(_) {}
+  }
+
   var obj  = {
     name: name,
     team: team,
@@ -1898,18 +1960,51 @@ function savePersonForm(){
   [ 'avatarH','avatarD','avatarFit','avatarX','avatarY',
     'avatarScale','avatarClip','avatarOffsetX','avatarOffsetY'
   ].forEach(function(k){ delete obj[k]; });
+
+  var writtenId = null;
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
     if (idx >= 0) {
       obj.id = PEOPLE[idx].id;
       PEOPLE[idx] = obj;
+      writtenId = PEOPLE[idx].id;
     }
   } else {
     obj.id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     PEOPLE.push(obj);
+    writtenId = obj.id;
   }
+
+  // ✅ 自校验：刚写进 PEOPLE，立刻读出来对比，不一致立即给出明确警告（帮助定位"保存回默认"）
+  var warnings = [];
+  try {
+    var back = PEOPLE.find(function(x){ return String(x.id) === String(writtenId); });
+    if (!back) warnings.push('ERROR：写入后找不到该人员（'+writtenId+'）');
+    else {
+      var got = avMigrate(back);
+      ['s','c','ox','oy'].forEach(function(k){
+        if (String(got.c[k]) !== String(av.c[k])) warnings.push('卡片 '+k+' 不一致：写入='+av.c[k]+'，读出='+got.c[k]);
+        if (String(got.d[k]) !== String(av.d[k])) warnings.push('详情 '+k+' 不一致：写入='+av.d[k]+'，读出='+got.d[k]);
+      });
+      try { console.log('[savePersonForm] 写入字段', JSON.stringify({
+        c: { s: back.cAvatarScale, c: back.cAvatarClip, ox: back.cAvatarOffsetX, oy: back.cAvatarOffsetY },
+        d: { s: back.dAvatarScale, c: back.dAvatarClip, ox: back.dAvatarOffsetX, oy: back.dAvatarOffsetY }
+      })); } catch(_) {}
+    }
+  } catch (e) {
+    warnings.push('自校验异常：' + (e.message || String(e)));
+  }
+
   DIRTY_PEOPLE = true;
-  showStatus('saveStatus','人员已保存到草稿。修改完后点右下角「🚀 保存所有改动」上传到网站。','ok');
+  var tipMsg = '✅ 人员已保存到草稿。修改完后点右下角「🚀 保存所有改动」上传到网站。\n\n' +
+    '【本次写入的 8 个头像调节值】\n' +
+    '卡片组：大小 '+obj.cAvatarScale.toFixed(2)+'× / 裁切 '+(obj.cAvatarClip?'开':'关')+' / 左右 '+obj.cAvatarOffsetX+'% / 上下 '+obj.cAvatarOffsetY+'%\n' +
+    '详情组：大小 '+obj.dAvatarScale.toFixed(2)+'× / 裁切 '+(obj.dAvatarClip?'开':'关')+' / 左右 '+obj.dAvatarOffsetX+'% / 上下 '+obj.dAvatarOffsetY+'%' +
+    (warnings.length ? '\n\n⚠️ 警告：\n' + warnings.join('\n') : '');
+  showStatus('saveStatus', tipMsg, warnings.length ? 'err' : 'ok');
+  if (warnings.length) {
+    alert('保存头像时出现异常，请把下面内容复制给开发者：\n\n' + warnings.join('\n') + '\n\n' + tipMsg);
+  }
   renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
   resetPersonForm();
   try { refreshJsonPanel(); } catch(e){}
