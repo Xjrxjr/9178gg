@@ -339,12 +339,16 @@
     position: relative;
   }
   .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+  /* 卡片头像显示由两层控制（头像框不动，只动图片）：
+     外层 .card-avatar-clip 固定宽高 100% × 80px（头像框本体）
+     内层 img 用 width:100%;height:100% 撑满框，再用 transform scale/translate 在框内缩放+平移。
+     不再在 .card img 上固定 height:80px，避免和个人设置冲突 */
   .card img {
     width: 100%;
-    height: 80px;
+    height: 100%;
     object-fit: cover;
-    background: #f0f0f0;
     display: block;
+    background: transparent;
   }
   .card .info {
     padding: 6px;
@@ -443,13 +447,16 @@
     align-items: center;
   }
   .detail-header img {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 4px solid rgba(255,255,255,0.4);
+    /* 宽度/高度/圆框/白边 都放到外层 #detailImgClip（头像框本体，永远固定120×120不动），
+       这里只保留 img 的显示规则，让 transform 平移缩放生效 */
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    background: transparent;
     object-fit: cover;
-    background: white;
     flex-shrink: 0;
+    display: block;
   }
   .detail-header-info {
     flex: 1;
@@ -1104,16 +1111,73 @@
   }
 
   // 头像调节：默认值（和 admin.html 的 AV_DEFAULTS 严格保持一致）
-  const __AV_DEF = { h: 80, d: 120, fit: 'cover', x: 'center', y: 'center' };
-  function __avNum(v, fallback){ var n = +v; return isFinite(n) && n>0 ? n : fallback; }
-  function __avStr(v, fallback){ return (typeof v==='string' && v.trim()) ? v.trim() : fallback; }
-  // 生成卡片头像 style 字符串（含兜底）
-  function __cardImgStyle(p){
-    var h   = __avNum(p && p.avatarH, __AV_DEF.h);
-    var fit = __avStr(p && p.avatarFit, __AV_DEF.fit);
-    var x   = __avStr(p && p.avatarX,   __AV_DEF.x);
-    var y   = __avStr(p && p.avatarY,   __AV_DEF.y);
-    return 'width:100%;height:'+h+'px;object-fit:'+fit+';object-position:'+x+' '+y+';background:#f0f0f0;display:block;';
+  //   头像框永远固定：卡片高 80px、详情大圆 120×120。只对 img 做 transform 缩放+平移。
+  const __AV_DEF = { s: 1.0, c: 1, ox: 0, oy: 0 };
+  function __avNum(v, fallback){ var n = +v; return isFinite(n) ? n : fallback; }
+  // 兼容旧版 5 字段 + 新版 4 字段，返回统一的 {s,c,ox,oy}
+  function __avResolve(p){
+    if (!p) return Object.assign({}, __AV_DEF);
+    var hasNew = ('avatarScale' in p) || ('avatarClip' in p) || ('avatarOffsetX' in p) || ('avatarOffsetY' in p);
+    if (hasNew) {
+      return {
+        s:  __avNum(p.avatarScale, __AV_DEF.s),
+        c:  typeof p.avatarClip === 'undefined' ? __AV_DEF.c : (+p.avatarClip ? 1 : 0),
+        ox: __avNum(p.avatarOffsetX, 0),
+        oy: __avNum(p.avatarOffsetY, 0)
+      };
+    }
+    var hasOld = ('avatarH' in p) || ('avatarD' in p) || ('avatarFit' in p) || ('avatarX' in p) || ('avatarY' in p);
+    if (!hasOld) return Object.assign({}, __AV_DEF);
+    var h   = __avNum(p.avatarH, 80);
+    var fit = String(p.avatarFit || 'cover');
+    var x   = String(p.avatarX   || 'center');
+    var y   = String(p.avatarY   || 'center');
+    var scale = Math.max(0.4, Math.min(2.4, h / 80));
+    var ox = 0, oy = 0;
+    switch (x) { case 'left': ox=-22; break; case 'right': ox=22; break; case '25%': ox=-11; break; case '75%': ox=11; break; }
+    switch (y) { case 'top': oy=-24; break; case 'bottom': oy=24; break; case '25%': oy=-12; break; case '75%': oy=12; break; }
+    return { s: scale, c: (fit==='contain'?0:1), ox: ox, oy: oy };
+  }
+  function __avTransformStr(v){
+    return 'translate(-50%,-50%) scale('+(+v.s).toFixed(3)+') translate('+v.ox+'%,'+v.oy+'%)';
+  }
+  function __avObjectFitStr(v){ return (+v.c===1) ? 'cover' : 'contain'; }
+
+  // 卡片头像：外面一层固定高 80px 的头像框（永远不动），里面 img transform。
+  // 返回 { clipBoxStyle, imgStyle, overflow }
+  function __cardAvatarStyles(p){
+    var v = __avResolve(p);
+    var overflow = (+v.c === 1) ? 'hidden' : 'visible';
+    var clipBoxStyle = 'width:100%;height:80px;background:#f0f0f0;display:block;position:relative;overflow:'+overflow+';';
+    var imgStyle =
+      'position:absolute;left:50%;top:50%;'+
+      'width:100%;height:100%;'+
+      'transform:'+__avTransformStr(v)+';'+
+      'transform-origin:center center;'+
+      'object-fit:'+__avObjectFitStr(v)+';'+
+      'display:block;pointer-events:none;';
+    return { clipBoxStyle: clipBoxStyle, imgStyle: imgStyle };
+  }
+  // 详情弹窗的外框尺寸永远 120×120，img 上做 transform（头像框不动）
+  function __applyDetailAvatarStyles(detImg, clipBox, p){
+    var v = __avResolve(p);
+    if (clipBox) {
+      clipBox.style.width    = '120px';
+      clipBox.style.height   = '120px';
+      clipBox.style.overflow = (+v.c === 1) ? 'hidden' : 'visible';
+      clipBox.style.position = 'relative';
+    }
+    if (detImg) {
+      detImg.style.position       = 'absolute';
+      detImg.style.left           = '50%';
+      detImg.style.top            = '50%';
+      detImg.style.width          = '100%';
+      detImg.style.height         = '100%';
+      detImg.style.transform      = __avTransformStr(v);
+      detImg.style.transformOrigin= 'center center';
+      detImg.style.objectFit      = __avObjectFitStr(v);
+      detImg.style.display        = 'block';
+    }
   }
 
   // 渲染人员列表（按 CURRENT_TEAM 过滤）
@@ -1133,11 +1197,22 @@
 
     grid.innerHTML = data.map(p => {
       const imgSrc = getImgSrc(p.image);
-      const imgStyle = __cardImgStyle(p);
+      const st = __cardAvatarStyles(p);
+      const fallbackClip = __cardAvatarStyles(null);
       return `
       <div class="card">
         <div class="detail-click" onclick="openDetail('${p.id}')">
-          <img src="${escapeHtml(imgSrc)}" style="${imgStyle}" alt="${escapeHtml(p.name)}" onerror="this.style.cssText='${__cardImgStyle(null)}';this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>'">
+          <div class="card-avatar-clip" style="${st.clipBoxStyle}">
+            <img src="${escapeHtml(imgSrc)}"
+              style="${st.imgStyle}"
+              alt="${escapeHtml(p.name)}"
+              onerror="
+                var clip=this.parentNode;
+                if (clip) { clip.style.cssText='${fallbackClip.clipBoxStyle}'; }
+                this.style.cssText='${fallbackClip.imgStyle}';
+                this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>';
+              ">
+          </div>
           <div class="info">
             <div class="name">${escapeHtml(p.name)}</div>
             ${p.desc ? `<div class="desc">${escapeHtml(p.desc)}</div>` : ''}
@@ -1174,15 +1249,24 @@
     currentDetailId = id;
 
     const imgSrc = getImgSrc(p.image);
-    const dim    = __avNum(p.avatarD, __AV_DEF.d);
-    const fit    = __avStr(p.avatarFit, __AV_DEF.fit);
-    const x      = __avStr(p.avatarX,   __AV_DEF.x);
-    const y      = __avStr(p.avatarY,   __AV_DEF.y);
     const detImg = document.getElementById('detailImg');
-    detImg.style.width          = dim + 'px';
-    detImg.style.height         = dim + 'px';
-    detImg.style.objectFit      = fit;
-    detImg.style.objectPosition = x + ' ' + y;
+    // 确保已经包好外框（只包一次，120×120 固定不动，是头像框本体：带圆框+白边+圆角50%）
+    let clipBox = document.getElementById('detailImgClip');
+    if (!clipBox) {
+      clipBox = document.createElement('div');
+      clipBox.id = 'detailImgClip';
+      clipBox.style.cssText = [
+        'width:120px','height:120px','box-sizing:content-box',
+        'border-radius:50%','border:4px solid rgba(255,255,255,0.4)',
+        'background:white','flex-shrink:0','overflow:hidden',
+        'position:relative'
+      ].join(';') + ';';
+      detImg.parentNode.insertBefore(clipBox, detImg);
+      clipBox.appendChild(detImg);
+    }
+    // 头像框尺寸永远 120×120 不动；只改里面 img 的 transform
+    __applyDetailAvatarStyles(detImg, clipBox, p);
+    detImg.style.cssText += ''; // no-op, ensure sync
     detImg.src = imgSrc;
     document.getElementById('detailImg').onerror = function() {
       this.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 110 80%22><rect width=%22110%22 height=%2280%22 rx=%228%22 fill=%22%231565c0%22/><path d=%22M55 8 L72 16 L72 32 Q72 50 55 64 Q38 50 38 32 L38 16 Z%22 fill=%22%230d47a1%22 stroke=%22%23ffd700%22 stroke-width=%222%22/><polygon points=%2255,20 58,28 55,36 52,28%22 fill=%22%23ffd700%22/><text x=%2255%22 y=%2276%22 text-anchor=%22middle%22 fill=%22%23ffd700%22 font-size=%229%22 font-family=%22Arial%22 font-weight=%22bold%22 letter-spacing=%221%22>LSPD</text></svg>';

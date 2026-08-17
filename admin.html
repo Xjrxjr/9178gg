@@ -413,80 +413,68 @@
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
         </div>
 
-        <!-- ====== 头像大小/裁剪调节（每个人单独设置，存进 data.json） ====== -->
+        <!-- ====== 头像大小/位置调节（每个人单独设置，头像框不动，只移动图片） ====== -->
         <div id="avatarTunerBox" style="margin-top: 14px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 16px; background: #fff;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-weight:bold;">🖼️ 头像显示调节</div>
+            <div style="font-weight:bold;">🖼️ 头像显示调节 <span style="font-weight:normal;color:#757575;font-size:12px;">（头像框不动，只在框内缩放/平移图片）</span></div>
             <div style="display:flex;gap:6px;">
-              <button type="button" class="btn-secondary" data-avpreset="tiny"  style="padding:6px 10px;font-size:12px;">🔽 极小</button>
-              <button type="button" class="btn-secondary" data-avpreset="small" style="padding:6px 10px;font-size:12px;">⬇️ 小</button>
-              <button type="button" class="btn-secondary" data-avpreset="default" style="padding:6px 10px;font-size:12px;">↩️ 默认</button>
-              <button type="button" class="btn-secondary" data-avpreset="big"   style="padding:6px 10px;font-size:12px;">⬆️ 大</button>
-              <button type="button" class="btn-secondary" data-avpreset="huge"  style="padding:6px 10px;font-size:12px;">🔼 超大</button>
+              <button type="button" class="btn-secondary" data-avpreset="small"   style="padding:6px 10px;font-size:12px;">⬇️ 头像小</button>
+              <button type="button" class="btn-secondary" data-avpreset="default" style="padding:6px 10px;font-size:12px;">↩️ 默认居中</button>
+              <button type="button" class="btn-secondary" data-avpreset="big"     style="padding:6px 10px;font-size:12px;">⬆️ 头像大</button>
+              <button type="button" class="btn-secondary" data-avpreset="id"      style="padding:6px 10px;font-size:12px;">🪪 证件照（偏上）</button>
+              <button type="button" class="btn-secondary" data-avpreset="bighead" style="padding:6px 10px;font-size:12px;">🧑 大头照（偏下）</button>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+          <!-- 5 个滑块全部可拖 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;">
             <div>
               <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>卡片头像高度</span>
-                <span id="av_hVal" style="color:#1565c0;font-weight:bold;">80 px</span>
+                <span>🔍 头像大小（缩放）</span>
+                <span id="av_sVal" style="color:#1565c0;font-weight:bold;">1.00 ×</span>
               </label>
-              <input type="range" id="av_h" min="30" max="320" step="2" value="80" style="width:100%;">
+              <input type="range" id="av_s" min="0.4" max="2.4" step="0.02" value="1" style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>0.4× 很小</span><span>1.0× 原尺寸</span><span>2.4× 超大</span></div>
             </div>
             <div>
               <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>详情头像直径</span>
-                <span id="av_dVal" style="color:#1565c0;font-weight:bold;">120 px</span>
+                <span>✂️ 是否裁切（超出框外的部分）</span>
+                <span id="av_cVal" style="color:#1565c0;font-weight:bold;">开启 · 裁切</span>
               </label>
-              <input type="range" id="av_d" min="60" max="360" step="2" value="120" style="width:100%;">
+              <input type="range" id="av_c" min="0" max="1" step="1" value="1" style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>0 关闭 · 完整显示</span><span>1 开启 · 裁切铺框（推荐）</span></div>
             </div>
             <div>
-              <label style="display:block;margin-bottom:4px;font-size:13px;">裁切方式</label>
-              <select id="av_fit" style="width:100%;">
-                <option value="cover">🪚 裁切铺满 cover（常用，头像不压扁）</option>
-                <option value="contain">⬜ 完整显示 contain（两边留白）</option>
-                <option value="fill">↔️ 拉伸铺满 fill（会变形）</option>
-                <option value="none">🔳 原始大小 none</option>
-                <option value="scale-down">✂️ 缩到合适 scale-down</option>
-              </select>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>↔️ 头像左右位置（← 左移 &nbsp; 右移 →）</span>
+                <span id="av_oxVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+              </label>
+              <input type="range" id="av_ox" min="-50" max="50" step="1" value="0" style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>-50% 最左</span><span>0 居中</span><span>+50% 最右</span></div>
+            </div>
+            <div>
+              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
+                <span>↕️ 头像上下位置（↑ 上移 &nbsp; 下移 ↓）</span>
+                <span id="av_oyVal" style="color:#1565c0;font-weight:bold;">0 %</span>
+              </label>
+              <input type="range" id="av_oy" min="-50" max="50" step="1" value="0" style="width:100%;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px;"><span>-50% 最上</span><span>0 居中</span><span>+50% 最下</span></div>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>头像左右位置</span>
-                <span id="av_xVal" style="color:#1565c0;font-weight:bold;">center</span>
-              </label>
-              <select id="av_x" style="width:100%;">
-                <option value="left">⬅️ 左对齐 left</option>
-                <option value="center" selected>↔️ 居中 center</option>
-                <option value="right">➡️ 右对齐 right</option>
-                <option value="25%">◀️ 偏左 25%</option>
-                <option value="75%">▶️ 偏右 75%</option>
-              </select>
-            </div>
-            <div>
-              <label style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px;">
-                <span>头像上下位置</span>
-                <span id="av_yVal" style="color:#1565c0;font-weight:bold;">center</span>
-              </label>
-              <select id="av_y" style="width:100%;">
-                <option value="top">⬆️ 顶部 top（截下巴，适合大头照）</option>
-                <option value="25%">🔝 上 25%（截额头，适合证件照）</option>
-                <option value="center" selected>↕️ 居中 center（默认）</option>
-                <option value="75%">🔽 下 75%（截头顶，偏下巴）</option>
-                <option value="bottom">⬇️ 底部 bottom（截头顶）</option>
-              </select>
-            </div>
-          </div>
-          <!-- 实时预览：和主站卡片 + 详情弹窗完全同效果 -->
+          <!-- 实时预览：头像框尺寸固定不动，只有图片在里面缩放/平移 -->
           <div style="margin-top:14px;border:1.5px dashed #ccc;border-radius:10px;padding:12px;background:#fafafa;">
-            <div style="font-size:12px;color:#666;margin-bottom:8px;"><b>实时预览</b>（拖动滑块立刻看效果，和主站渲染一致）</div>
-            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+            <div style="font-size:12px;color:#666;margin-bottom:8px;"><b>实时预览</b>（两个头像框大小永远固定，只移动里面的图片，和主站一致）</div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
               <div style="width:220px;flex:0 0 220px;">
-                <div style="font-size:12px;color:#555;margin-bottom:4px;">① 人员卡片</div>
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">① 人员卡片（卡片头像框永远 <b>高 80 px 不变</b>）</div>
                 <div class="card" id="av_prevCard" style="position:relative;background:white;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.15);width:220px;">
-                  <img id="av_prevCardImg" src="" alt="" style="width:100%;height:80px;object-fit:cover;object-position:center center;background:#eee;display:block;">
+                  <!-- 外层框高度固定 80px：头像框不动；里面 img 用 transform 平移缩放；裁切开关控制 overflow -->
+                  <div id="av_prevCardClip" style="width:100%;height:80px;overflow:hidden;background:#eee;display:block;position:relative;">
+                    <img id="av_prevCardImg" src="" alt=""
+                      style="position:absolute;left:50%;top:50%;width:100%;height:100%;
+                             transform:translate(-50%,-50%) scale(1) translate(0%,0%);
+                             transform-origin:center center;
+                             object-fit:cover;display:block;pointer-events:none;">
+                  </div>
                   <div style="padding:8px 10px;">
                     <div id="av_prevName" style="font-weight:bold;">👮 预览</div>
                     <div style="font-size:12px;color:#666;">警号：示例 001</div>
@@ -494,10 +482,17 @@
                 </div>
               </div>
               <div style="width:220px;flex:0 0 220px;">
-                <div style="font-size:12px;color:#555;margin-bottom:4px;">② 详情弹窗大圆头像</div>
+                <div style="font-size:12px;color:#555;margin-bottom:4px;">② 详情弹窗大圆头像（外框永远 <b>120×120 不变</b>）</div>
                 <div style="background:linear-gradient(135deg,#1565c0 0%,#0d47a1 100%);border-radius:10px;color:white;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;">
-                  <img id="av_prevDetail" src="" alt="" style="width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,.35);object-fit:cover;object-position:center center;background:white;">
-                  <div style="font-weight:bold;">头像位置可单独设置</div>
+                  <!-- 外层框尺寸永远 120px：头像框不动；img 在里面做 transform -->
+                  <div id="av_prevDetailClip" style="width:120px;height:120px;border-radius:50%;border:4px solid rgba(255,255,255,.35);overflow:hidden;background:white;position:relative;box-sizing:content-box;">
+                    <img id="av_prevDetail" src="" alt=""
+                      style="position:absolute;left:50%;top:50%;width:100%;height:100%;
+                             transform:translate(-50%,-50%) scale(1) translate(0%,0%);
+                             transform-origin:center center;
+                             object-fit:cover;display:block;pointer-events:none;">
+                  </div>
+                  <div style="font-weight:bold;">头像在框里自由缩放 + 上下左右平移</div>
                 </div>
               </div>
             </div>
@@ -913,77 +908,149 @@ var DIRTY_RECRUIT = false;
 var PENDING_IMAGES = [];  // 待上传的图片 [{name, base64}]
 var filterTeamId = 'all';
 
-// ========== 头像调节：默认值 + 预设（每个人单独存进 data.json 的 5 个字段） ==========
-var AV_DEFAULTS = { h: 80, d: 120, fit: 'cover', x: 'center', y: 'center' };
+// ========== 头像调节：默认值 + 预设（每个人单独存进 data.json，4 个字段）
+//   头像框永远固定：卡片高 80px、详情大圆 120×120。
+//   只对 img 做 transform：scale(缩放) + translate(平移) + 父级 overflow(裁切)
+var AV_DEFAULTS = { s: 1.0, c: 1, ox: 0, oy: 0 };
+// 预设：一键填 4 个滑块值
 var AV_PRESETS  = {
-  tiny:    { h: 46,  d: 76,  fit: 'cover',   x: 'center', y: 'top' },
-  small:   { h: 62,  d: 96,  fit: 'cover',   x: 'center', y: '25%' },
-  default: { h: 80,  d: 120, fit: 'cover',   x: 'center', y: 'center' },
-  big:     { h: 120, d: 170, fit: 'cover',   x: 'center', y: 'center' },
-  huge:    { h: 200, d: 260, fit: 'cover',   x: 'center', y: '25%' }
+  small:   { s: 0.78, c: 1, ox: 0,   oy: 0   },   // 头像显小（人物缩小，留白更多）
+  default: { s: 1.00, c: 1, ox: 0,   oy: 0   },   // 默认居中
+  big:     { s: 1.40, c: 1, ox: 0,   oy: 0   },   // 头像放大
+  id:      { s: 1.25, c: 1, ox: 0,   oy: -18 },   // 🪪 证件照（把人物往上挪，不截额头）
+  bighead: { s: 1.55, c: 1, ox: 0,   oy:  12 }    // 🧑 大头照（放大 + 往下一点，不截下巴）
 };
+
+// 生成给 img 用的 transform 字符串
+function avTransform(v){
+  var s  = (v && typeof v.s==='number')  ? v.s  : AV_DEFAULTS.s;
+  var ox = (v && typeof v.ox==='number') ? v.ox : AV_DEFAULTS.ox;
+  var oy = (v && typeof v.oy==='number') ? v.oy : AV_DEFAULTS.oy;
+  // 先 translate(-50%,-50%) 锚定到父级中心，再 scale 缩放，最后 translate(ox%,oy%) 做偏移
+  return 'translate(-50%,-50%) scale('+s.toFixed(3)+') translate('+ox+'%,'+oy+'%)';
+}
+// 生成 object-fit（裁切开关：1 用 cover 铺满裁切；0 用 contain 完整显示留白）
+function avObjectFit(v){
+  var c = (v && typeof v.c==='number') ? v.c : AV_DEFAULTS.c;
+  return (+c === 1) ? 'cover' : 'contain';
+}
+// 兼容旧版 5 字段（avatarH/avatarD/avatarFit/avatarX/avatarY）→ 自动迁移到新版 4 字段
+// 没有旧字段、也没有新字段，就返回默认值
+function avMigrate(p){
+  if (!p) return Object.assign({}, AV_DEFAULTS);
+  var hasNew = ('avatarScale' in p) || ('avatarClip' in p) || ('avatarOffsetX' in p) || ('avatarOffsetY' in p);
+  if (hasNew) {
+    return {
+      s:  +p.avatarScale || AV_DEFAULTS.s,
+      c:  typeof p.avatarClip === 'undefined' ? AV_DEFAULTS.c : (+p.avatarClip ? 1 : 0),
+      ox: +p.avatarOffsetX || 0,
+      oy: +p.avatarOffsetY || 0
+    };
+  }
+  var hasOld = ('avatarH' in p) || ('avatarFit' in p) || ('avatarX' in p) || ('avatarY' in p);
+  if (!hasOld) return Object.assign({}, AV_DEFAULTS);
+  // 旧字段 → 新字段 粗略估算（让老用户再微调即可，不会突然样式变怪）
+  var h   = +p.avatarH   || 80;
+  var fit = p.avatarFit  || 'cover';
+  var x   = p.avatarX    || 'center';
+  var y   = p.avatarY    || 'center';
+  var scale = Math.max(0.5, Math.min(2.4, h / 80));
+  var ox = 0, oy = 0;
+  switch (String(x)) {
+    case 'left':  ox = -22; break;
+    case 'right': ox =  22; break;
+    case '25%':   ox = -11; break;
+    case '75%':   ox =  11; break;
+    default:      ox =   0; break;
+  }
+  switch (String(y)) {
+    case 'top':    oy = -24; break;
+    case 'bottom': oy =  24; break;
+    case '25%':    oy = -12; break;
+    case '75%':    oy =  12; break;
+    default:       oy =   0; break;
+  }
+  return {
+    s: scale,
+    c: (fit === 'contain') ? 0 : 1,
+    ox: ox, oy: oy
+  };
+}
+// 把滑块值填进表单 + 更新预览
 function avApplyToForm(vals){
-  var v = Object.assign({}, AV_DEFAULTS, vals||{});
-  ['h','d','fit','x','y'].forEach(function(k){
+  var v = Object.assign({}, AV_DEFAULTS, avMigrate(vals));
+  ['s','ox','oy'].forEach(function(k){
     var el = document.getElementById('av_'+k);
     if (!el) return;
     el.value = v[k];
     var lv = document.getElementById('av_'+k+'Val');
-    if (lv) lv.textContent = (k==='h'||k==='d') ? (v[k]+' px') : v[k];
+    if (!lv) return;
+    if (k==='s')  lv.textContent = (+v.s).toFixed(2) + ' ×';
+    else          lv.textContent = (+v[k]) + ' %';
   });
+  var cEl = document.getElementById('av_c');
+  var cLv = document.getElementById('av_cVal');
+  if (cEl) {
+    cEl.value = (+v.c===1) ? '1' : '0';
+    if (cLv) cLv.textContent = (+v.c===1) ? '开启 · 裁切' : '关闭 · 完整显示';
+  }
   avApplyPreview();
 }
+// 读取 4 个滑块为 {s,c,ox,oy}
 function avReadForm(){
-  var r = {
-    h:   +(document.getElementById('av_h') && document.getElementById('av_h').value) || AV_DEFAULTS.h,
-    d:   +(document.getElementById('av_d') && document.getElementById('av_d').value) || AV_DEFAULTS.d,
-    fit: (document.getElementById('av_fit') && document.getElementById('av_fit').value) || AV_DEFAULTS.fit,
-    x:   (document.getElementById('av_x')   && document.getElementById('av_x').value)   || AV_DEFAULTS.x,
-    y:   (document.getElementById('av_y')   && document.getElementById('av_y').value)   || AV_DEFAULTS.y
+  var ge = function(id){ var e = document.getElementById(id); return e ? e.value : null; };
+  return {
+    s:  +(ge('av_s'))  != null && isFinite(+ge('av_s'))  ? +ge('av_s')  : AV_DEFAULTS.s,
+    c:  ge('av_c') === '1' ? 1 : 0,
+    ox: +ge('av_ox') != null && isFinite(+ge('av_ox')) ? +ge('av_ox') : 0,
+    oy: +ge('av_oy') != null && isFinite(+ge('av_oy')) ? +ge('av_oy') : 0
   };
-  return r;
 }
+// 把滑块值实时应用到两个预览图（头像框不动）
 function avApplyPreview(){
   var r = avReadForm();
-  var cardImg = document.getElementById('av_prevCardImg');
-  var detImg  = document.getElementById('av_prevDetail');
-  if (cardImg) {
-    cardImg.style.height      = r.h + 'px';
-    cardImg.style.objectFit   = r.fit;
-    cardImg.style.objectPosition = r.x + ' ' + r.y;
-  }
-  if (detImg) {
-    detImg.style.width          = r.d + 'px';
-    detImg.style.height         = r.d + 'px';
-    detImg.style.objectFit      = r.fit;
-    detImg.style.objectPosition = r.x + ' ' + r.y;
-  }
+  var tr    = avTransform(r);
+  var fit   = avObjectFit(r);
+  var clip  = (+r.c === 1) ? 'hidden' : 'visible';
+  var cImg = document.getElementById('av_prevCardImg');
+  var dImg = document.getElementById('av_prevDetail');
+  var cBox = document.getElementById('av_prevCardClip');
+  var dBox = document.getElementById('av_prevDetailClip');
+  if (cImg) { cImg.style.transform = tr; cImg.style.objectFit = fit; }
+  if (dImg) { dImg.style.transform = tr; dImg.style.objectFit = fit; }
+  // 头像框固定不动；裁切开关：关闭时让超出的部分也能看，避免"小头像被框盖住"
+  if (cBox) cBox.style.overflow = clip;
+  if (dBox) dBox.style.overflow = clip;
   var title = document.getElementById('av_prevName');
   if (title) {
     var name = (document.getElementById('p_name') && document.getElementById('p_name').value.trim()) || '👮 预览';
     title.textContent = name;
   }
 }
-// 页面加载时绑定头像调节事件（等 DOM 一存在就绑）
+// 页面加载时绑定所有滑块/预设事件
 function avBindTuner(){
-  ['h','d'].forEach(function(k){
+  // 三个数值滑块 + 裁切开关滑块（都是 input，全是拖动）
+  ['s','ox','oy'].forEach(function(k){
     var el = document.getElementById('av_'+k);
     if (!el) return;
     el.addEventListener('input', function(){
       var lv = document.getElementById('av_'+k+'Val');
-      if (lv) lv.textContent = this.value + ' px';
+      if (lv) {
+        if (k==='s') lv.textContent = (+this.value).toFixed(2) + ' ×';
+        else         lv.textContent = (+this.value) + ' %';
+      }
       avApplyPreview();
     });
   });
-  ['fit','x','y'].forEach(function(k){
-    var el = document.getElementById('av_'+k);
-    if (!el) return;
-    el.addEventListener('change', function(){
-      var lv = document.getElementById('av_'+k+'Val');
-      if (lv) lv.textContent = this.value;
+  var cEl = document.getElementById('av_c');
+  if (cEl) {
+    cEl.addEventListener('input', function(){
+      var lv = document.getElementById('av_cVal');
+      if (lv) lv.textContent = (+this.value===1) ? '开启 · 裁切' : '关闭 · 完整显示';
       avApplyPreview();
     });
-  });
+  }
+  // 预设按钮（点一下自动填 4 个滑块）
   var btns = document.querySelectorAll('[data-avpreset]');
   btns.forEach(function(b){
     b.addEventListener('click', function(){
@@ -991,10 +1058,10 @@ function avBindTuner(){
       avApplyToForm(AV_PRESETS[key] || AV_PRESETS['default']);
     });
   });
-  // 名字改了预览也同步
+  // 姓名框改了，预览里的卡片标题也实时变
   var pn = document.getElementById('p_name');
   if (pn) pn.addEventListener('input', avApplyPreview);
-  // 头像预览图也跟着「新增人员」那张头像同步
+  // 头像来源同步：填了已有文件名、上传本地图、点「用此QQ做头像」——预览图立刻同步
   var avName = document.getElementById('avatarName');
   if (avName) avName.addEventListener('input', function(){
     var u = resolveAvatar(this.value || '') || '';
@@ -1025,7 +1092,7 @@ function avBindTuner(){
       if (d) d.src = orig.src;
     }, 200);
   });
-  // 初始化默认
+  // 初始化
   avApplyToForm(AV_DEFAULTS);
 }
 document.addEventListener('DOMContentLoaded', avBindTuner);
@@ -1645,14 +1712,8 @@ function editPerson(p){
   document.getElementById('p_bio').value    = p.bio || '';
   document.getElementById('avatarName').value = p.image || '';
   document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
-  // 头像调节：加载这个人单独存的 5 个字段
-  avApplyToForm({
-    h:   +p.avatarH   || AV_DEFAULTS.h,
-    d:   +p.avatarD   || AV_DEFAULTS.d,
-    fit: p.avatarFit  || AV_DEFAULTS.fit,
-    x:   p.avatarX    || AV_DEFAULTS.x,
-    y:   p.avatarY    || AV_DEFAULTS.y
-  });
+  // 头像调节：加载这个人的设置（自动兼容旧字段）
+  avApplyToForm(avMigrate(p));
   // 预览图同步当前头像
   var pu = resolveAvatar(p.image || '');
   var c = document.getElementById('av_prevCardImg');
@@ -1667,8 +1728,8 @@ function savePersonForm(){
   if (!name) { alert('请填写姓名'); return; }
   if (!team) { alert('请选择所属团队'); return; }
   var img  = document.getElementById('avatarName').value.trim();
-  var av = avReadForm();
-  var obj = {
+  var av   = avReadForm();
+  var obj  = {
     name: name,
     team: team,
     image: img,
@@ -1678,13 +1739,14 @@ function savePersonForm(){
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
     qqcontact: document.getElementById('p_qq').value.trim(),
-    // 头像调节：5 个字段，每个人单独存
-    avatarH:   av.h,
-    avatarD:   av.d,
-    avatarFit: av.fit,
-    avatarX:   av.x,
-    avatarY:   av.y
+    // 头像调节（新）：4 个字段；头像框永远固定，只动图片
+    avatarScale:    av.s,
+    avatarClip:     av.c,
+    avatarOffsetX:  av.ox,
+    avatarOffsetY:  av.oy
   };
+  // 清掉旧版 5 个字段，避免 data.json 里冗余（如果有编辑过老成员，就不会保留两套字段）
+  ['avatarH','avatarD','avatarFit','avatarX','avatarY'].forEach(function(k){ delete obj[k]; });
   if (editingId) {
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
     if (idx >= 0) {
