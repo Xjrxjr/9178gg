@@ -374,13 +374,21 @@
   {
     "name": "网站制作者",
     "team": 3,
-    "image": "p_msxj2vsj_x8vw.webp",
+    "image": "p_msxkafbl_ujzh.webp",
     "desc": "",
     "phone": "",
     "email": "",
     "bio": "",
     "wechat": "",
     "qqcontact": "",
+    "cAvatarScale": 1,
+    "cAvatarClip": 1,
+    "cAvatarOffsetX": 0,
+    "cAvatarOffsetY": 0,
+    "dAvatarScale": 1.34,
+    "dAvatarClip": 0,
+    "dAvatarOffsetX": 9,
+    "dAvatarOffsetY": 0,
     "id": "p_msxj3f94wqyn"
   }
 ]
