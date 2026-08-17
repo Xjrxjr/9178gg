@@ -417,7 +417,12 @@
         <div id="avatarTunerBox" style="margin-top: 14px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 16px; background: #fff;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
             <div style="font-weight:bold;">🖼️ 头像显示调节 <span style="font-weight:normal;color:#757575;font-size:12px;">（卡片 & 详情 各自独立调节；默认 🔗 联动同时变）</span></div>
-            <div style="display:flex;gap:6px;align-items:center;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <button type="button" id="saveAvatarOnlyBtn"
+                style="padding:6px 12px;font-size:13px;font-weight:bold;background:#2e7d32;color:#fff;border:1px solid #1b5e20;border-radius:6px;cursor:pointer;box-shadow:0 2px 0 #1b5e20;">
+                💾 保存头像调节（只存 8 项）
+              </button>
+              <span style="display:inline-block;width:1px;height:18px;background:#ddd;"></span>
               <label title="开启后拖任意一边滑块，另一边同时跟着变" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#333;cursor:pointer;">
                 <input type="checkbox" id="av_link" checked style="width:16px;height:16px;vertical-align:middle;">
                 <b>🔗 两边一起联动（推荐）</b>
@@ -1183,7 +1188,14 @@ function avBindTuner(){
 
   // 姓名框同步预览标题
   var pn = document.getElementById('p_name');
-  if (pn) pn.addEventListener('input', avApplyPreview);
+  if (pn) pn.addEventListener('input', function(){
+    try { avApplyPreview(); } catch(_) {}
+    try { updateSaveAvatarBtnLabel(); } catch(_) {}
+  });
+
+  // 💾 只保存头像调节 独立按钮
+  var savBtn = document.getElementById('saveAvatarOnlyBtn');
+  if (savBtn) savBtn.addEventListener('click', saveAvatarOnly);
 
   // 头像来源同步：填文件名 / 上传本地 / 用此QQ做头像 —— 预览图立刻跟着变
   var avName = document.getElementById('avatarName');
@@ -1219,6 +1231,7 @@ function avBindTuner(){
 
   // 初始化默认
   avApplyToForm(AV_DEFAULTS);
+  try { updateSaveAvatarBtnLabel(); } catch(_) {}
 }
 document.addEventListener('DOMContentLoaded', avBindTuner);
 var editingId = null;
@@ -1886,6 +1899,7 @@ function resetPersonForm(){
   var d = document.getElementById('av_prevDetail');
   if (c) c.src = '';
   if (d) d.src = '';
+  updateSaveAvatarBtnLabel();
 }
 function editPerson(p){
   editingId = String(p.id);
@@ -1915,7 +1929,97 @@ function editPerson(p){
   var d = document.getElementById('av_prevDetail');
   if (c) c.src = pu;
   if (d) d.src = pu;
+  updateSaveAvatarBtnLabel();
   window.scrollTo({top: document.getElementById('addPersonBox').offsetTop - 20, behavior:'smooth'});
+}
+// 💾 只保存头像调节（独立按钮）—— 只改 8 个头像字段，绝不覆盖姓名/团队/手机等其他字段
+function updateSaveAvatarBtnLabel(){
+  var btn = document.getElementById('saveAvatarOnlyBtn');
+  if (!btn) return;
+  var editing = !!(editingId && String(editingId).trim() !== '');
+  btn.disabled = !editing;
+  btn.title = editing ? '把当前 8 个滑块值写到这个人（只改头像，不改其他字段）' : '请先点 ✏️ 编辑 一个已存在的人（新建模式先点『添加新人员』）';
+  btn.style.opacity = editing ? '1' : '0.45';
+  btn.style.cursor = editing ? 'pointer' : 'not-allowed';
+  if (!editing) {
+    btn.innerHTML = '⚠️ 先点 ✏️ 编辑 才能保存头像';
+  } else {
+    var nameEl = document.getElementById('p_name');
+    var name = (nameEl && nameEl.value && nameEl.value.trim()) || '';
+    btn.innerHTML = '💾 保存头像调节' + (name ? '（'+name+'）' : '') + ' · 只存 8 项';
+  }
+}
+function saveAvatarOnly(){
+  // 1) 必须是编辑模式（PEOPLE 里已有这个人）
+  if (!editingId || String(editingId).trim() === '') {
+    showStatus('saveStatus',
+      '⚠️ 还不能只保存头像：\n' +
+      '你现在是「新建模式」，这条人员还没加到列表里。\n' +
+      '解决：先填好姓名+团队 → 点下面的「💾 保存这个人」添加成功后，再回来点「保存头像调节」；\n' +
+      '或者点列表里任何一个人旁边的 ✏️ 编辑 进入编辑模式，就可以单独存头像。', 'err');
+    alert('还不能只保存头像：请先点 ✏️ 编辑 一个已存在的人，或先点「💾 保存这个人」把新人加进列表。');
+    return;
+  }
+  var idx = PEOPLE.findIndex(function(x){ return String(x.id) === String(editingId); });
+  if (idx < 0) {
+    showStatus('saveStatus', '⚠️ 找不到正在编辑的人（id='+editingId+'），请先关闭表单重新点 ✏️ 编辑。', 'err');
+    return;
+  }
+  var target = PEOPLE[idx];
+
+  // 2) 读滑块 + 联动一致化
+  var av = avReadForm();
+  if (avLinked()) {
+    ['s','c','ox','oy'].forEach(function(k){
+      if (String(av.c[k]) !== String(av.d[k])) av.d[k] = av.c[k];
+    });
+  }
+
+  // 3) 🔴 只改 8 个头像字段，其他字段一律不动（防止姓名/团队/手机被意外覆盖）
+  target.cAvatarScale   = av.c.s;
+  target.cAvatarClip    = av.c.c;
+  target.cAvatarOffsetX = av.c.ox;
+  target.cAvatarOffsetY = av.c.oy;
+  target.dAvatarScale   = av.d.s;
+  target.dAvatarClip    = av.d.c;
+  target.dAvatarOffsetX = av.d.ox;
+  target.dAvatarOffsetY = av.d.oy;
+  // 把旧两套字段也清掉（避免下次被旧字段优先级抢走；这一步不改其他字段）
+  [ 'avatarH','avatarD','avatarFit','avatarX','avatarY',
+    'avatarScale','avatarClip','avatarOffsetX','avatarOffsetY'
+  ].forEach(function(k){ delete target[k]; });
+
+  // 4) 自校验
+  var warnings = [];
+  try {
+    var back = PEOPLE.find(function(x){ return String(x.id) === String(target.id); });
+    var got = avMigrate(back);
+    ['s','c','ox','oy'].forEach(function(k){
+      if (String(got.c[k]) !== String(av.c[k])) warnings.push('卡片 '+k+' 写入不一致：目标='+av.c[k]+'，实际='+got.c[k]);
+      if (String(got.d[k]) !== String(av.d[k])) warnings.push('详情 '+k+' 写入不一致：目标='+av.d[k]+'，实际='+got.d[k]);
+    });
+    try { console.log('[saveAvatarOnly] 写入后 8 字段', JSON.stringify({
+      c: { s: back.cAvatarScale, c: back.cAvatarClip, ox: back.cAvatarOffsetX, oy: back.cAvatarOffsetY },
+      d: { s: back.dAvatarScale, c: back.dAvatarClip, ox: back.dAvatarOffsetX, oy: back.dAvatarOffsetY }
+    })); } catch(_) {}
+  } catch (e) {
+    warnings.push('自校验异常：' + (e.message || String(e)));
+  }
+
+  DIRTY_PEOPLE = true;
+  var tip = '✅ 头像调节已单独保存（仅改 8 个头像字段，没改姓名/团队/手机等其他字段）\n\n' +
+    '【人员】' + (target.name || '(无姓名)') + '（'+teamIcon(+target.team)+' '+teamName(+target.team)+'）\n' +
+    '【卡片组】大小 '+target.cAvatarScale.toFixed(2)+'× / 裁切 '+(target.cAvatarClip?'开':'关')+' / 左右 '+target.cAvatarOffsetX+'% / 上下 '+target.cAvatarOffsetY+'%\n' +
+    '【详情组】大小 '+target.dAvatarScale.toFixed(2)+'× / 裁切 '+(target.dAvatarClip?'开':'关')+' / 左右 '+target.dAvatarOffsetX+'% / 上下 '+target.dAvatarOffsetY+'%' +
+    (warnings.length ? '\n\n⚠️ 警告：\n' + warnings.join('\n') : '') +
+    '\n\n下一步：右下角「🚀 保存所有改动」上传到仓库（只是草稿，没 push 前主网站看不到）。';
+  showStatus('saveStatus', tip, warnings.length ? 'err' : 'ok');
+  if (warnings.length) alert('保存头像时异常：\n\n' + warnings.join('\n'));
+  renderPeople(); updateTotalCount();
+  try { renderTeamFilter(); } catch(_) {}
+  try { renderRecruitPanel(); } catch(_) {}
+  try { refreshJsonPanel(); } catch(_) {}
+  updateSaveAvatarBtnLabel();
 }
 function savePersonForm(){
   var name = document.getElementById('p_name').value.trim();
