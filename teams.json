@@ -1,13 +1,5 @@
 [
   {
-    "id": 3,
-    "name": "网站维护",
-    "icon": "⬜",
-    "color": "#141010",
-    "en": "",
-    "enabled": true
-  },
-  {
     "id": 1,
     "name": "LSPD",
     "icon": "🚓",
@@ -62,5 +54,13 @@
     "color": "#9e9e9e",
     "en": "",
     "enabled": false
+  },
+  {
+    "id": 3,
+    "name": "网站维护",
+    "icon": "⬜",
+    "color": "#141010",
+    "en": "",
+    "enabled": true
   }
 ]
