@@ -369,6 +369,10 @@
           <span id="pendingStatus" style="font-size:13px;color:#666;"></span>
         </div>
         <div id="pendingList"></div>
+        <div id="processedJoinWrap" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #e0e0e0;">
+          <div style="font-size:14px;font-weight:bold;color:#444;margin-bottom:8px;">最近处理记录</div>
+          <div id="processedJoinList"></div>
+        </div>
       </div>
     </div>
 
@@ -2337,7 +2341,7 @@ async function fetchPendingFromIssues(){
       added++;
     });
     _pWrite(arr);
-    renderPendingList(arr.filter(function(item){ return item.status === 'pending'; }));
+    refreshPendingAll();
     showStatus(
       'pendingStatus',
       added ? ('✅ 已从 GitHub 拉取 '+added+' 条新申请。') : '已完成拉取，没有新的异地申请。',
@@ -2354,14 +2358,15 @@ async function closeJoinIssue(item, approved, personId){
   if (!item || !item.issueNumber || !PAT) return false;
   var base = 'https://api.github.com/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
   var comment = approved
-    ? '✅ 申请已通过，人员资料已部署到主站。人员 ID：'+(personId || '')+'。'
-    : '❌ 该入队申请未通过。如有疑问，请联系管理员。';
+    ? '✅ 申请已通过，人员资料已部署到主站。人员 ID：'+(personId || '')+'。\n\n<!-- join-result:approved -->\n<!-- join-person-id:'+(personId || '')+' -->'
+    : '❌ 该入队申请未通过。如有疑问，请联系管理员。\n\n<!-- join-result:rejected -->';
   try {
-    await fetch(base+'/comments', {
+    var commentResponse = await fetch(base+'/comments', {
       method: 'POST',
       headers: ghHeaders({'Content-Type':'application/json'}),
       body: JSON.stringify({body: comment})
     });
+    if (!commentResponse.ok) throw new Error('写入审批结果失败：HTTP '+commentResponse.status);
     var response = await fetch(base, {
       method: 'PATCH',
       headers: ghHeaders({'Content-Type':'application/json'}),
@@ -2371,6 +2376,25 @@ async function closeJoinIssue(item, approved, personId){
   } catch(e) {
     console.warn('关闭入队申请 Issue 失败', e);
     return false;
+  }
+}
+
+async function retryJoinResult(pid){
+  var arr = _pRead();
+  var item = arr.find(function(entry){ return entry._id === pid; });
+  if (!item || item.status === 'pending') {
+    showStatus('pendingStatus','找不到已处理的申请记录。','err');
+    return;
+  }
+  showStatus('pendingStatus','正在重新同步审批结果…','info');
+  var ok = await closeJoinIssue(item, item.status === 'approved', item.personId || '');
+  if (ok) {
+    item.resultSynced = true;
+    _pWrite(arr);
+    refreshPendingAll();
+    showStatus('pendingStatus','✅ 审批结果已同步，申请人刷新页面即可看到。','ok');
+  } else {
+    showStatus('pendingStatus','❌ 审批结果仍未同步，请检查 GitHub PAT 的 Issues 写权限。','err');
   }
 }
 
@@ -2416,20 +2440,18 @@ function importFromUrl(){
 // 刷新：读 URL + 重渲染
 function refreshPendingAll(){
   importFromUrl();
-  var list = _pRead().filter(function(x){ return x.status === 'pending'; });
-  renderPendingList(list);
+  var all = _pRead();
+  renderPendingList(all.filter(function(x){ return x.status === 'pending'; }));
+  renderProcessedJoinList(all.filter(function(x){ return x.status !== 'pending'; }));
 }
 function renderPendingList(list){
   var box = document.getElementById('pendingList');
   var cnt = document.getElementById('pendingCount');
-  var st = document.getElementById('pendingStatus');
   if (cnt) cnt.textContent = list.length;
   if (!list.length){
     if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无待审批申请<br><span style="font-size:12px;">把员工发的申请码粘贴到上面的「导入申请码」框里点导入，或直接点员工发的 admin.html?join=xxx 链接自动加入。</span></div>';
-    if (st) st.textContent = '';
     return;
   }
-  if (st) st.textContent = '共 '+list.length+' 条待审批（本地存储）';
   var html = list.map(function(it){
     var d = it.data || {};
     var avatar = d.image ? resolveAvatar(d.image) : '';
@@ -2460,6 +2482,41 @@ function renderPendingList(list){
     return s.join('');
   }).join('');
   box.innerHTML = html;
+}
+
+function renderProcessedJoinList(list){
+  var wrap = document.getElementById('processedJoinWrap');
+  var box = document.getElementById('processedJoinList');
+  if (!wrap || !box) return;
+  list = (list || []).sort(function(a,b){
+    return Number(b.processedAt || 0) - Number(a.processedAt || 0);
+  }).slice(0, 20);
+  if (!list.length) {
+    wrap.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  wrap.style.display = 'block';
+  box.innerHTML = list.map(function(it){
+    var d = it.data || {};
+    var approved = it.status === 'approved';
+    var color = approved ? '#2e7d32' : '#c62828';
+    var background = approved ? '#f1f8f2' : '#fff5f5';
+    var label = approved ? '已通过' : '未通过';
+    var processed = new Date(it.processedAt || Date.now()).toLocaleString('zh-CN');
+    var issueLink = it.issueUrl
+      ? '<a href="'+joinEsc(it.issueUrl)+'" target="_blank" rel="noopener" style="font-size:12px;">GitHub #'+joinEsc(it.issueNumber)+'</a>'
+      : '';
+    var retryButton = it.issueNumber && it.resultSynced === false
+      ? '<button class="btn-warning" style="padding:6px 10px;font-size:12px;" onclick="retryJoinResult(\''+joinEsc(it._id)+'\')">重试同步</button>'
+      : '';
+    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;'
+      +'padding:10px 12px;margin-bottom:8px;border:1px solid '+color+'33;border-radius:8px;background:'+background+';">'
+      +'<div><b>'+joinEsc(d.name || '(无名)')+'</b> → '+joinEsc(d.teamName || ('团队'+(d.team || '')))
+      +'<div style="font-size:11px;color:#777;margin-top:3px;">'+joinEsc(processed)+'</div></div>'
+      +'<div style="display:flex;gap:10px;align-items:center;"><b style="color:'+color+';">'+label+'</b>'+issueLink+retryButton+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 // 通过：写 data.json + 立即部署 + 标记该申请为 approved
@@ -2509,8 +2566,16 @@ async function approveJoin(pid){
     arr[idx].processedAt = Date.now();
     arr[idx].personId = obj.id;
     _pWrite(arr);
-    await closeJoinIssue(arr[idx], true, obj.id);
-    showStatus('pendingStatus','✅ '+d.name+' 已通过并部署到主站。等 1~2 分钟 Ctrl+F5 强刷主站即可看到欢迎横幅。','ok');
+    var resultSynced = await closeJoinIssue(arr[idx], true, obj.id);
+    arr[idx].resultSynced = resultSynced;
+    _pWrite(arr);
+    showStatus(
+      'pendingStatus',
+      resultSynced
+        ? ('✅ '+d.name+' 已通过并部署到主站。申请人刷新申请页即可看到“已通过”。')
+        : ('⚠️ '+d.name+' 已部署到主站，但审批结果同步失败。请在“最近处理记录”点击“重试同步”。'),
+      resultSynced ? 'ok' : 'err'
+    );
     showStatus('saveStatus','✅ 审批通过 '+d.name+'，data.json 已更新（共 '+PEOPLE.length+' 人）。','ok');
     renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
     try { refreshJsonPanel(); } catch(e){}
@@ -2532,8 +2597,16 @@ async function rejectJoin(pid){
   arr[idx].status = 'rejected';
   arr[idx].processedAt = Date.now();
   _pWrite(arr);
-  await closeJoinIssue(arr[idx], false, null);
-  showStatus('pendingStatus','ℹ️ 已拒绝 '+name+' 的申请；对应 GitHub 申请已关闭。','info');
+  var resultSynced = await closeJoinIssue(arr[idx], false, null);
+  arr[idx].resultSynced = resultSynced;
+  _pWrite(arr);
+  showStatus(
+    'pendingStatus',
+    resultSynced
+      ? ('ℹ️ 已拒绝 '+name+' 的申请；申请人刷新申请页即可看到“未通过”。')
+      : ('⚠️ 已拒绝 '+name+'，但审批结果同步失败。请在“最近处理记录”点击“重试同步”。'),
+    resultSynced ? 'info' : 'err'
+  );
   refreshPendingAll();
 }
 

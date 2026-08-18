@@ -197,6 +197,17 @@
   .result-card.show { display: block; }
   .result-card h3 { margin-bottom: 8px; color: #ffd700; font-size: 15px; }
   .result-card p { margin-bottom: 12px; color: rgba(255,255,255,0.68); font-size: 12px; line-height: 1.6; }
+  .application-state {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  .application-state.pending { background: rgba(25,118,210,0.22); color: #bbdefb; }
+  .application-state.approved { background: rgba(46,125,50,0.24); color: #c8e6c9; }
+  .application-state.rejected, .application-state.closed { background: rgba(198,40,40,0.22); color: #ffcdd2; }
+  .application-state.offline { background: rgba(245,124,0,0.22); color: #ffe0b2; }
   .result-card label { display: block; margin: 10px 0 6px; color: #b3d4ff; font-size: 12px; }
   .result-card textarea {
     width: 100%;
@@ -301,6 +312,10 @@
     <div class="result-card" id="resultCard">
       <h3 id="resultTitle">申请信息</h3>
       <p id="resultDesc"></p>
+      <div class="application-state pending" id="applicationState"></div>
+      <div class="result-actions">
+        <button id="refreshStatusBtn" type="button">刷新审批状态</button>
+      </div>
       <label for="resultLink">申请链接</label>
       <textarea id="resultLink" readonly rows="2"></textarea>
       <div class="result-actions">
@@ -325,6 +340,8 @@
 // 该公开地址由 admin.html 的「部署异地提交通道」功能写入。
 // GitHub PAT 只能保存在 Worker 的 GITHUB_PAT Secret 中，严禁写入本文件。
 var JOIN_API_URL = "https://9178gg-join.3751211611.workers.dev";
+var JOIN_HISTORY_KEY = 'join_application_history_v1';
+var currentApplication = null;
 
 // ===== 工具 =====
 function $(id){ return document.getElementById(id); }
@@ -411,6 +428,118 @@ async function submitToGitHubIssue(data){
   return response.json();
 }
 
+function readApplicationHistory(){
+  try {
+    var value = JSON.parse(localStorage.getItem(JOIN_HISTORY_KEY) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveApplication(record){
+  if (!record) return;
+  var list = readApplicationHistory().filter(function(item){
+    if (record.issueNumber && item.issueNumber) {
+      return String(item.issueNumber) !== String(record.issueNumber);
+    }
+    return item.savedId !== record.savedId;
+  });
+  list.unshift(record);
+  try { localStorage.setItem(JOIN_HISTORY_KEY, JSON.stringify(list.slice(0, 10))); } catch(e){}
+  currentApplication = record;
+}
+
+function applicationMessage(state){
+  if (state === 'approved') {
+    return {
+      title: '申请已通过',
+      desc: '管理员已通过申请，人员资料已经部署到主站。',
+      status: '✅ 你的入队申请已通过。'
+    };
+  }
+  if (state === 'rejected') {
+    return {
+      title: '申请未通过',
+      desc: '管理员已处理该申请。如有疑问，请联系管理员。',
+      status: '❌ 你的入队申请未通过。'
+    };
+  }
+  if (state === 'closed') {
+    return {
+      title: '申请已关闭',
+      desc: '申请已被管理员关闭，但没有识别到明确的审批结果，请联系管理员。',
+      status: '申请已关闭，请联系管理员确认结果。'
+    };
+  }
+  if (state === 'offline') {
+    return {
+      title: '备用申请码待导入',
+      desc: '远程提交未成功，请把下面的申请链接或申请码发给管理员。',
+      status: '尚未进入远程审批，请联系管理员导入申请码。'
+    };
+  }
+  return {
+    title: '申请已提交，等待管理员审批',
+    desc: '申请记录已保存在本机。刷新本页面后仍可查询审批结果。',
+    status: '正在等待管理员审批。'
+  };
+}
+
+function renderApplication(record, announce){
+  if (!record) return;
+  currentApplication = record;
+  var message = applicationMessage(record.state || 'pending');
+  $('resultTitle').textContent = message.title;
+  $('resultDesc').textContent = message.desc;
+  $('resultLink').value = record.issueUrl || record.link || '';
+  $('resultCode').value = record.code || '';
+  $('applicationState').className = 'application-state ' + (record.state || 'pending');
+  $('applicationState').textContent = message.status;
+  $('refreshStatusBtn').style.display =
+    record.issueNumber && record.trackingId && JOIN_API_URL ? '' : 'none';
+  $('resultCard').classList.add('show');
+  if (announce) {
+    showStatus(record.state === 'approved' ? 'ok' :
+      ((record.state === 'rejected' || record.state === 'closed') ? 'err' : 'info'),
+      message.status
+    );
+  }
+}
+
+async function refreshApplicationStatus(manual){
+  var record = currentApplication;
+  if (!record || !record.issueNumber || !record.trackingId || !JOIN_API_URL) return;
+  var btn = $('refreshStatusBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '查询中…'; }
+  try {
+    var query = '?issue=' + encodeURIComponent(record.issueNumber) +
+      '&tracking=' + encodeURIComponent(record.trackingId);
+    var response = await fetch(JOIN_API_URL.replace(/\/+$/, '') + '/status' + query, {
+      cache: 'no-store'
+    });
+    var result = await response.json().catch(function(){ return {}; });
+    if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
+    var previousState = record.state;
+    record.state = result.status || 'pending';
+    record.personId = result.person_id || '';
+    record.updatedAt = result.updated_at || new Date().toISOString();
+    saveApplication(record);
+    renderApplication(record, manual || previousState !== record.state);
+  } catch(e) {
+    if (manual) showStatus('err', '审批状态查询失败：' + (e && e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '刷新审批状态'; }
+  }
+}
+
+function restoreLatestApplication(){
+  var list = readApplicationHistory();
+  if (!list.length) return;
+  renderApplication(list[0], true);
+  refreshApplicationStatus(false);
+}
+
 // ===== 加载团队列表（读公开 teams.json，无需 token） =====
 function loadTeams(){
   var sel = $('team');
@@ -489,11 +618,19 @@ async function submit(){
   if (JOIN_API_URL) {
     try {
       var issue = await submitToGitHubIssue(data);
-      $('resultTitle').textContent = '申请已提交，等待管理员审批';
-      $('resultDesc').textContent = '申请已经直接进入管理员后台，不需要再把申请码发给管理员。';
-      $('resultLink').value = issue.html_url || '';
-      $('resultCode').value = encodeJoinPayload(data);
-      $('resultCard').classList.add('show');
+      var remoteRecord = {
+        savedId: 'issue_' + issue.number,
+        issueNumber: issue.number,
+        issueUrl: issue.html_url || '',
+        trackingId: issue.tracking_id || '',
+        code: encodeJoinPayload(data),
+        name: data.name,
+        teamName: data.teamName,
+        submittedAt: data.submittedAt,
+        state: 'pending'
+      };
+      saveApplication(remoteRecord);
+      renderApplication(remoteRecord, false);
       showStatus('ok',
         '✅ 申请已远程提交成功。\n' +
         '管理员审批通过后，你的名片会出现在「' + teamName + '」团队主页。'
@@ -515,11 +652,17 @@ async function submit(){
     ? adminUrl + '?join=' + encodeURIComponent(code)
     : adminUrl;
 
-  $('resultCode').value = code;
-  $('resultLink').value = link;
-  $('resultTitle').textContent = '已生成备用申请码';
-  $('resultDesc').textContent = '请把申请链接或申请码发给管理员，由管理员导入后台审批。';
-  $('resultCard').classList.add('show');
+  var offlineRecord = {
+    savedId: 'offline_' + Date.now(),
+    code: code,
+    link: link,
+    name: data.name,
+    teamName: data.teamName,
+    submittedAt: data.submittedAt,
+    state: 'offline'
+  };
+  saveApplication(offlineRecord);
+  renderApplication(offlineRecord, false);
   if (!JOIN_API_URL) {
     showStatus('info', '已生成备用申请码，请把下面的申请链接或申请码发给管理员。');
   }
@@ -571,17 +714,24 @@ $('resetBtn').onclick = function(){
   refreshAvatarPreview();
   $('status').className = 'status';
   $('status').textContent = '';
-  $('resultCard').classList.remove('show');
-  $('resultCode').value = '';
-  $('resultLink').value = '';
+  if (!currentApplication) {
+    $('resultCard').classList.remove('show');
+    $('resultCode').value = '';
+    $('resultLink').value = '';
+  }
   $('submitBtn').textContent = JOIN_API_URL ? '🚀 提交申请' : '🚀 生成申请码';
 };
+$('refreshStatusBtn').onclick = function(){ refreshApplicationStatus(true); };
 $('copyLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，直接发给管理员点一下就能在后台导入审批。'); };
 $('copyCodeBtn').onclick = function(){ copyToClip($('resultCode').value, '✅ 申请码已复制，发给管理员让他在后台「导入申请码」粘贴即可。'); };
 $('shareLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，粘贴发给管理员即可。'); };
 
 // 初始化
 loadTeams();
+restoreLatestApplication();
+setInterval(function(){
+  if (!document.hidden) refreshApplicationStatus(false);
+}, 60000);
 if (!JOIN_API_URL) {
   $('warnBanner').classList.add('show');
   $('submitBtn').textContent = '🚀 生成申请码（通道未配置）';
