@@ -5,7 +5,16 @@
     "icon": "🚓",
     "color": "#1976d2",
     "en": "",
-    "enabled": true
+    "enabled": true,
+    "joinOpen": true,
+    "coaches": [
+      {
+        "name": "111",
+        "image": "",
+        "bio": "111",
+        "enabled": true
+      }
+    ]
   },
   {
     "id": 2,
@@ -13,7 +22,9 @@
     "icon": "⬜",
     "color": "#f4b60b",
     "en": "",
-    "enabled": true
+    "enabled": true,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 4,
@@ -21,7 +32,9 @@
     "icon": "🏔️",
     "color": "#2e7d32",
     "en": "",
-    "enabled": true
+    "enabled": true,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 5,
@@ -29,7 +42,9 @@
     "icon": "⬜",
     "color": "#9e9e9e",
     "en": "",
-    "enabled": false
+    "enabled": false,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 6,
@@ -37,7 +52,9 @@
     "icon": "🌍",
     "color": "#9e9e9e",
     "en": "GAY",
-    "enabled": true
+    "enabled": true,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 7,
@@ -45,7 +62,9 @@
     "icon": "⬜",
     "color": "#9e9e9e",
     "en": "",
-    "enabled": false
+    "enabled": false,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 8,
@@ -53,7 +72,9 @@
     "icon": "⬜",
     "color": "#9e9e9e",
     "en": "",
-    "enabled": false
+    "enabled": false,
+    "joinOpen": true,
+    "coaches": []
   },
   {
     "id": 3,
@@ -61,6 +82,8 @@
     "icon": "⬜",
     "color": "#141010",
     "en": "",
-    "enabled": true
+    "enabled": true,
+    "joinOpen": true,
+    "coaches": []
   }
 ]
