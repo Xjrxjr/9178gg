@@ -374,21 +374,21 @@
   {
     "name": "网站制作者",
     "team": 3,
-    "image": "p_msxl5t34_glp4.jpg",
+    "image": "p_msxx0hw0_wdt5.jpg",
     "desc": "",
     "phone": "",
     "email": "",
     "bio": "",
     "wechat": "",
     "qqcontact": "",
-    "cAvatarScale": 0.98,
+    "cAvatarScale": 1,
     "cAvatarClip": 1,
     "cAvatarOffsetX": 0,
     "cAvatarOffsetY": 0,
-    "dAvatarScale": 1.12,
+    "dAvatarScale": 1,
     "dAvatarClip": 0,
-    "dAvatarOffsetX": 3,
-    "dAvatarOffsetY": -1,
+    "dAvatarOffsetX": 0,
+    "dAvatarOffsetY": 0,
     "id": "p_msxj3f94wqyn"
   }
 ]
