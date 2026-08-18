@@ -83,7 +83,7 @@
     "color": "#141010",
     "en": "",
     "enabled": true,
-    "joinOpen": true,
+    "joinOpen": false,
     "coaches": []
   }
 ]
