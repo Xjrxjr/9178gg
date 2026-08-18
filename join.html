@@ -458,19 +458,38 @@ function postJson(url, data){
   var body = JSON.stringify(data);
   if (window.fetch) {
     // text/plain 属于 CORS 简单请求，可避开部分手机内置浏览器拦截 OPTIONS 预检。
-    return fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain;charset=UTF-8'},
-      body: body,
-      credentials: 'omit',
-      cache: 'no-store'
+    var controller = window.AbortController ? new AbortController() : null;
+    return new Promise(function(resolve, reject){
+      var timer = setTimeout(function(){
+        if (controller) controller.abort();
+        reject(new Error('连接异地提交服务超时，请切换网络后重试。'));
+      }, 15000);
+      var options = {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+        body: body,
+        credentials: 'omit',
+        cache: 'no-store'
+      };
+      if (controller) options.signal = controller.signal;
+      fetch(url, options).then(function(response){
+        clearTimeout(timer);
+        resolve(response);
+      }, function(error){
+        clearTimeout(timer);
+        if (error && error.name === 'AbortError') {
+          reject(new Error('连接异地提交服务超时，请切换网络后重试。'));
+          return;
+        }
+        reject(error);
+      });
     });
   }
   return new Promise(function(resolve, reject){
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
-    xhr.timeout = 30000;
+    xhr.timeout = 15000;
     xhr.onload = function(){
       resolve({
         ok: xhr.status >= 200 && xhr.status < 300,
