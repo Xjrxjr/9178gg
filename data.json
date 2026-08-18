@@ -2,13 +2,21 @@
   {
     "name": "局长：卢克肖",
     "team": 1,
-    "image": "qq:4512318",
+    "image": "p_msybb78c_a84f.jpg",
     "desc": "警号：2001",
     "phone": "",
     "email": "",
     "bio": "5000块一小时",
     "wechat": "",
     "qqcontact": "4512318",
+    "cAvatarScale": 1,
+    "cAvatarClip": 1,
+    "cAvatarOffsetX": 0,
+    "cAvatarOffsetY": 0,
+    "dAvatarScale": 1,
+    "dAvatarClip": 1,
+    "dAvatarOffsetX": 0,
+    "dAvatarOffsetY": 0,
     "id": 1
   },
   {
