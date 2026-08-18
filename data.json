@@ -414,26 +414,5 @@
     "dAvatarOffsetX": 0,
     "dAvatarOffsetY": 0,
     "id": "p_msxj3f94wqyn"
-  },
-  {
-    "id": "p_msybki6gnx6t",
-    "name": "VH",
-    "team": 1,
-    "image": "",
-    "desc": "",
-    "phone": "",
-    "email": "",
-    "bio": "",
-    "wechat": "",
-    "qqcontact": "",
-    "joinedAt": 1787036797960,
-    "cAvatarScale": 1,
-    "cAvatarClip": 0,
-    "cAvatarOffsetX": 0,
-    "cAvatarOffsetY": 0,
-    "dAvatarScale": 1,
-    "dAvatarClip": 0,
-    "dAvatarOffsetX": 0,
-    "dAvatarOffsetY": 0
   }
 ]
