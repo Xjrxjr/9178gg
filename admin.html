@@ -207,6 +207,28 @@
   .modal-body { padding: 20px; overflow: auto; flex: 1; }
   .modal-body pre.code-box { max-height: 68vh; }
   .json-empty { color: #8b949e; font-style: italic; padding: 20px; text-align: center; }
+  .join-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 20px;
+  }
+  .join-detail-item {
+    padding: 11px 0;
+    border-bottom: 1px solid #eceff1;
+    min-width: 0;
+  }
+  .join-detail-item.wide { grid-column: 1 / -1; }
+  .join-detail-label { color: #78909c; font-size: 12px; margin-bottom: 4px; }
+  .join-detail-value { color: #263238; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .join-detail-state { display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
+  .join-detail-state.approved { color: #2e7d32; background: #e8f5e9; }
+  .join-detail-state.rejected { color: #c62828; background: #ffebee; }
+  .join-detail-state.pending { color: #1565c0; background: #e3f2fd; }
+  .join-detail-state.closed { color: #616161; background: #eeeeee; }
+  @media (max-width: 620px) {
+    .join-detail-grid { grid-template-columns: 1fr; }
+    .join-detail-item.wide { grid-column: auto; }
+  }
 
   /* ===== 团队管理面板 ===== */
   .t-mgr-list { display: flex; flex-direction: column; gap: 10px; }
@@ -365,7 +387,7 @@
         </div>
         <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <button class="btn-secondary" id="refreshPendingBtn" type="button">🔄 刷新待审批（重读本地）</button>
-          <button class="btn-primary" id="fetchIssuesBtn" type="button" style="padding:8px 16px;">从 GitHub 拉取异地申请</button>
+          <button class="btn-primary" id="fetchIssuesBtn" type="button" style="padding:8px 16px;">同步 GitHub 申请</button>
           <span id="pendingStatus" style="font-size:13px;color:#666;"></span>
         </div>
         <div id="pendingList"></div>
@@ -2311,6 +2333,44 @@ function extractJoinPayloadFromIssue(body){
   return match ? decodeJoinPayload(match[1].trim()) : null;
 }
 
+function joinCoachChoiceFromComments(comments){
+  var list = Array.isArray(comments) ? comments.slice().reverse() : [];
+  for (var i=0;i<list.length;i++) {
+    var body = String(list[i] && list[i].body || '');
+    var match = body.match(/<!--\s*join-coach-choice-base64:([A-Za-z0-9_-]+)\s*-->/);
+    if (!match) continue;
+    try {
+      var choice = JSON.parse(_b64u8(_unUrlSafe(match[1])));
+      if (choice && choice.name) return choice;
+    } catch(e){}
+  }
+  return null;
+}
+
+function joinResultFromComments(comments){
+  var list = Array.isArray(comments) ? comments.slice().reverse() : [];
+  var approved = list.find(function(comment){
+    var body = String(comment && comment.body || '');
+    return body.indexOf('<!-- join-result:approved -->') >= 0 || body.indexOf('申请已通过') >= 0;
+  });
+  var rejected = list.find(function(comment){
+    var body = String(comment && comment.body || '');
+    return body.indexOf('<!-- join-result:rejected -->') >= 0 ||
+      body.indexOf('申请未通过') >= 0 || body.indexOf('未通过') >= 0;
+  });
+  var status = approved ? 'approved' : (rejected ? 'rejected' : 'closed');
+  var personId = '';
+  if (approved) {
+    var match = String(approved.body || '').match(/<!--\s*join-person-id:([A-Za-z0-9_-]+)\s*-->/);
+    personId = match ? match[1] : '';
+  }
+  return {
+    status: status,
+    personId: personId,
+    coachChoice: joinCoachChoiceFromComments(list)
+  };
+}
+
 async function fetchPendingFromIssues(){
   if (!PAT) {
     showStatus('pendingStatus','请先登录后台，再拉取异地申请。','err');
@@ -2318,39 +2378,74 @@ async function fetchPendingFromIssues(){
   }
   var btn = document.getElementById('fetchIssuesBtn');
   if (btn) { btn.disabled = true; btn.textContent = '拉取中…'; }
-  showStatus('pendingStatus','正在从 GitHub 拉取异地申请…','info');
+  showStatus('pendingStatus','正在从 GitHub 拉取申请与处理记录…','info');
   try {
-    var issues = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=open&per_page=100');
+    var issues = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=all&per_page=100');
     var arr = _pRead();
     var added = 0;
-    (issues || []).forEach(function(issue){
-      if (issue.pull_request) return;
+    var synced = 0;
+    var commentErrors = 0;
+    for (var i=0;i<(issues || []).length;i++) {
+      var issue = issues[i];
+      if (issue.pull_request) continue;
       var data = extractJoinPayloadFromIssue(issue.body);
-      if (!data || !data.name || !data.team) return;
-      var exists = arr.some(function(item){ return item.issueNumber === issue.number; });
-      if (exists) return;
-      arr.push({
-        _id: _pid(),
-        status: 'pending',
-        source: 'issue',
-        issueNumber: issue.number,
-        issueUrl: issue.html_url || '',
-        importedAt: Date.now(),
-        data: data
+      if (!data || !data.name || !data.team) continue;
+      var item = arr.find(function(entry){
+        return String(entry.issueNumber || '') === String(issue.number);
       });
-      added++;
-    });
+      if (!item) {
+        item = {
+          _id: _pid(),
+          status: 'pending',
+          source: 'issue',
+          issueNumber: issue.number,
+          importedAt: Date.now(),
+          data: data
+        };
+        arr.push(item);
+        added++;
+      }
+      item.source = 'issue';
+      item.issueNumber = issue.number;
+      item.issueUrl = issue.html_url || item.issueUrl || '';
+      item.issueCreatedAt = issue.created_at || item.issueCreatedAt || '';
+      item.issueUpdatedAt = issue.updated_at || item.issueUpdatedAt || '';
+      item.data = data;
+
+      if (issue.state === 'open') {
+        item.status = 'pending';
+        item.processedAt = null;
+      } else {
+        try {
+          var comments = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues/'+issue.number+'/comments?per_page=100');
+          var result = joinResultFromComments(comments);
+          item.status = result.status;
+          item.personId = result.personId || item.personId || '';
+          item.coachChoice = result.coachChoice;
+          item.resultSynced = result.status !== 'closed';
+        } catch(e) {
+          commentErrors++;
+          if (item.status === 'pending') item.status = 'closed';
+        }
+        item.processedAt = Date.parse(issue.closed_at || issue.updated_at || '') || Date.now();
+      }
+      synced++;
+    }
     _pWrite(arr);
     refreshPendingAll();
+    var message = '✅ 已同步 '+synced+' 条申请';
+    if (added) message += '，新增 '+added+' 条';
+    if (commentErrors) message += '；'+commentErrors+' 条详情读取失败';
+    message += '。';
     showStatus(
       'pendingStatus',
-      added ? ('✅ 已从 GitHub 拉取 '+added+' 条新申请。') : '已完成拉取，没有新的异地申请。',
-      added ? 'ok' : 'info'
+      message,
+      commentErrors ? 'err' : 'ok'
     );
   } catch(e) {
     showStatus('pendingStatus','❌ 拉取失败：'+(e && e.message || e),'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '从 GitHub 拉取异地申请'; }
+    if (btn) { btn.disabled = false; btn.textContent = '同步 GitHub 申请'; }
   }
 }
 
@@ -2444,6 +2539,107 @@ function refreshPendingAll(){
   renderPendingList(all.filter(function(x){ return x.status === 'pending'; }));
   renderProcessedJoinList(all.filter(function(x){ return x.status !== 'pending'; }));
 }
+
+function joinStatusMeta(status){
+  if (status === 'approved') return { label: '已通过', className: 'approved' };
+  if (status === 'rejected') return { label: '未通过', className: 'rejected' };
+  if (status === 'closed') return { label: '已关闭，结果不明确', className: 'closed' };
+  return { label: '待审批', className: 'pending' };
+}
+
+function joinDetailItem(label, value, wide, raw){
+  return '<div class="join-detail-item'+(wide ? ' wide' : '')+'">'
+    +'<div class="join-detail-label">'+joinEsc(label)+'</div>'
+    +'<div class="join-detail-value">'+(raw ? value : joinEsc(value || '未填写'))+'</div>'
+    +'</div>';
+}
+
+function renderJoinDetails(item, loading, errorMessage){
+  var body = document.getElementById('joinDetailBody');
+  var title = document.getElementById('joinDetailTitle');
+  if (!body || !title || !item) return;
+  var d = item.data || {};
+  var meta = joinStatusMeta(item.status);
+  var source = item.source === 'issue' ? 'GitHub 异地申请' :
+    (item.source === 'url' ? '申请链接导入' : '申请码导入');
+  var submitted = d.submittedAt || item.issueCreatedAt || item.importedAt;
+  var processed = item.processedAt ? new Date(item.processedAt).toLocaleString('zh-CN') : '';
+  var coach = item.coachChoice;
+  var issue = item.issueUrl
+    ? '<a href="'+joinEsc(item.issueUrl)+'" target="_blank" rel="noopener">GitHub #'+joinEsc(item.issueNumber)+'</a>'
+    : '无远程 Issue';
+  title.textContent = '申请详情：' + (d.name || '(无名)');
+  var html = '<div class="join-detail-grid">';
+  html += joinDetailItem('审批状态',
+    '<span class="join-detail-state '+meta.className+'">'+joinEsc(meta.label)+'</span>', false, true);
+  html += joinDetailItem('申请来源', source);
+  html += joinDetailItem('姓名 / 游戏ID', d.name);
+  html += joinDetailItem('所属团队', d.teamName || ('团队 '+(d.team || '')));
+  html += joinDetailItem('QQ号', d.qq);
+  html += joinDetailItem('身份 / 警号', d.desc);
+  html += joinDetailItem('个人简介', d.bio, true);
+  html += joinDetailItem('提交时间', submitted ? new Date(submitted).toLocaleString('zh-CN') : '');
+  html += joinDetailItem('处理时间', processed);
+  html += joinDetailItem('申请编号', issue, false, true);
+  html += joinDetailItem('人员 ID', item.personId || '');
+  html += joinDetailItem('申请人选择的教练',
+    coach ? (coach.name + (coach.selected_at ? '\n选择时间：'+new Date(coach.selected_at).toLocaleString('zh-CN') : '')) : '尚未选择',
+    true);
+  html += '</div>';
+  if (loading) html += '<div class="status show info" style="margin-top:14px;">正在从 GitHub 更新申请详情…</div>';
+  if (errorMessage) html += '<div class="status show err" style="margin-top:14px;">详情更新失败：'+joinEsc(errorMessage)+'</div>';
+  body.innerHTML = html;
+}
+
+function closeJoinDetails(){
+  var mask = document.getElementById('joinDetailMask');
+  if (mask) mask.classList.add('hidden');
+}
+
+async function openJoinDetails(pid){
+  var arr = _pRead();
+  var item = arr.find(function(entry){ return entry._id === pid; });
+  if (!item) {
+    showStatus('pendingStatus','找不到该申请详情，请重新拉取。','err');
+    return;
+  }
+  var mask = document.getElementById('joinDetailMask');
+  if (mask) mask.classList.remove('hidden');
+  renderJoinDetails(item, !!(item.issueNumber && PAT), '');
+  if (!item.issueNumber || !PAT) return;
+
+  try {
+    var base = '/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
+    var values = await Promise.all([
+      ghGet(base),
+      ghGet(base+'/comments?per_page=100')
+    ]);
+    var issue = values[0] || {};
+    var comments = values[1] || [];
+    var data = extractJoinPayloadFromIssue(issue.body);
+    if (data) item.data = data;
+    item.issueUrl = issue.html_url || item.issueUrl || '';
+    item.issueCreatedAt = issue.created_at || item.issueCreatedAt || '';
+    item.issueUpdatedAt = issue.updated_at || item.issueUpdatedAt || '';
+    if (issue.state === 'open') {
+      item.status = 'pending';
+      item.processedAt = null;
+    } else {
+      var result = joinResultFromComments(comments);
+      item.status = result.status;
+      item.personId = result.personId || item.personId || '';
+      item.coachChoice = result.coachChoice;
+      item.resultSynced = result.status !== 'closed';
+      item.processedAt = Date.parse(issue.closed_at || issue.updated_at || '') || item.processedAt || Date.now();
+    }
+    _pWrite(arr);
+    refreshPendingAll();
+    renderJoinDetails(item, false, '');
+  } catch(e) {
+    renderJoinDetails(item, false, e && e.message || e);
+  }
+}
+
 function renderPendingList(list){
   var box = document.getElementById('pendingList');
   var cnt = document.getElementById('pendingCount');
@@ -2475,6 +2671,7 @@ function renderPendingList(list){
     }
     s.push('</div>');
     s.push('<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">');
+    s.push('<button class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="openJoinDetails(\''+joinEsc(it._id)+'\')">申请详情</button>');
     s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveJoin(\''+joinEsc(it._id)+'\')">✅ 通过</button>');
     s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectJoin(\''+joinEsc(it._id)+'\')">❌ 拒绝</button>');
     s.push('</div>');
@@ -2500,9 +2697,10 @@ function renderProcessedJoinList(list){
   box.innerHTML = list.map(function(it){
     var d = it.data || {};
     var approved = it.status === 'approved';
-    var color = approved ? '#2e7d32' : '#c62828';
-    var background = approved ? '#f1f8f2' : '#fff5f5';
-    var label = approved ? '已通过' : '未通过';
+    var rejected = it.status === 'rejected';
+    var color = approved ? '#2e7d32' : (rejected ? '#c62828' : '#616161');
+    var background = approved ? '#f1f8f2' : (rejected ? '#fff5f5' : '#f5f5f5');
+    var label = approved ? '已通过' : (rejected ? '未通过' : '已关闭');
     var processed = new Date(it.processedAt || Date.now()).toLocaleString('zh-CN');
     var issueLink = it.issueUrl
       ? '<a href="'+joinEsc(it.issueUrl)+'" target="_blank" rel="noopener" style="font-size:12px;">GitHub #'+joinEsc(it.issueNumber)+'</a>'
@@ -2510,11 +2708,12 @@ function renderProcessedJoinList(list){
     var retryButton = it.issueNumber && it.resultSynced === false
       ? '<button class="btn-warning" style="padding:6px 10px;font-size:12px;" onclick="retryJoinResult(\''+joinEsc(it._id)+'\')">重试同步</button>'
       : '';
+    var detailButton = '<button class="btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="openJoinDetails(\''+joinEsc(it._id)+'\')">申请详情</button>';
     return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;'
       +'padding:10px 12px;margin-bottom:8px;border:1px solid '+color+'33;border-radius:8px;background:'+background+';">'
       +'<div><b>'+joinEsc(d.name || '(无名)')+'</b> → '+joinEsc(d.teamName || ('团队'+(d.team || '')))
       +'<div style="font-size:11px;color:#777;margin-top:3px;">'+joinEsc(processed)+'</div></div>'
-      +'<div style="display:flex;gap:10px;align-items:center;"><b style="color:'+color+';">'+label+'</b>'+issueLink+retryButton+'</div>'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><b style="color:'+color+';">'+label+'</b>'+issueLink+detailButton+retryButton+'</div>'
       +'</div>';
   }).join('');
 }
@@ -2770,7 +2969,21 @@ try {
       refreshPendingAll();
   } catch(e){}
 })();
+document.addEventListener('keydown', function(event){
+  if (event.key === 'Escape') closeJoinDetails();
+});
 </script>
+
+<!-- 入队申请详情 -->
+<div class="modal-mask hidden" id="joinDetailMask" onclick="if(event.target===this)closeJoinDetails()">
+  <div class="modal-box" style="max-width:720px;">
+    <div class="modal-header">
+      <h3 id="joinDetailTitle">申请详情</h3>
+      <button class="modal-close" onclick="closeJoinDetails()" title="关闭">✕</button>
+    </div>
+    <div class="modal-body" id="joinDetailBody"></div>
+  </div>
+</div>
 
 <!-- 通用模态框：查看单条人员 JSON / 单文件大窗口 / 后台源码 -->
 <div class="modal-mask hidden" id="codeModalMask" onclick="if(event.target===this)closeCodeModal()">

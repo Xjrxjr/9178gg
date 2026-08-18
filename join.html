@@ -208,6 +208,39 @@
   .application-state.approved { background: rgba(46,125,50,0.24); color: #c8e6c9; }
   .application-state.rejected, .application-state.closed { background: rgba(198,40,40,0.22); color: #ffcdd2; }
   .application-state.offline { background: rgba(245,124,0,0.22); color: #ffe0b2; }
+  .coach-choice {
+    display: none;
+    margin: 12px 0;
+    padding: 14px;
+    border: 1px solid rgba(255,215,0,0.42);
+    border-radius: 8px;
+    background: rgba(255,215,0,0.08);
+  }
+  .coach-choice.show { display: block; }
+  .coach-choice h4 { margin: 0 0 6px; color: #ffd700; font-size: 14px; }
+  .coach-choice p { margin: 0 0 10px; }
+  .coach-choice-row { display: flex; gap: 8px; align-items: stretch; }
+  .coach-choice select {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 8px;
+    background: #151b4b;
+    color: #fff;
+    font: inherit;
+  }
+  .coach-choice button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: #ffd700;
+    color: #0b0f2a;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .coach-choice button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .coach-choice-status { min-height: 18px; margin-top: 8px; color: #c8e6c9; font-size: 12px; }
   .result-card label { display: block; margin: 10px 0 6px; color: #b3d4ff; font-size: 12px; }
   .result-card textarea {
     width: 100%;
@@ -253,6 +286,7 @@
   @media (max-width: 520px) {
     header h1 { font-size: 24px; }
     .card { padding: 20px 16px; }
+    .coach-choice-row { flex-direction: column; }
   }
 </style>
 </head>
@@ -313,6 +347,15 @@
       <h3 id="resultTitle">申请信息</h3>
       <p id="resultDesc"></p>
       <div class="application-state pending" id="applicationState"></div>
+      <div class="coach-choice" id="coachChoice">
+        <h4>选择你的教练</h4>
+        <p id="coachChoiceHint">请选择所属团队当前开放的教练。</p>
+        <div class="coach-choice-row">
+          <select id="coachSelect" aria-label="选择教练"></select>
+          <button id="saveCoachBtn" type="button">保存选择</button>
+        </div>
+        <div class="coach-choice-status" id="coachChoiceStatus"></div>
+      </div>
       <div class="result-actions">
         <button id="refreshStatusBtn" type="button">刷新审批状态</button>
       </div>
@@ -342,6 +385,7 @@
 var JOIN_API_URL = "https://9178gg-join.3751211611.workers.dev";
 var JOIN_HISTORY_KEY = 'join_application_history_v1';
 var currentApplication = null;
+var availableTeams = [];
 
 // ===== 工具 =====
 function $(id){ return document.getElementById(id); }
@@ -486,6 +530,74 @@ function applicationMessage(state){
   };
 }
 
+function applicationTeamId(record){
+  var direct = Number(record && record.team);
+  if (Number.isInteger(direct) && direct > 0) return direct;
+  var payload = decodeJoinPayload(record && record.code);
+  var fromCode = Number(payload && payload.team);
+  return Number.isInteger(fromCode) && fromCode > 0 ? fromCode : 0;
+}
+
+function renderCoachChoice(record){
+  var box = $('coachChoice');
+  var select = $('coachSelect');
+  var button = $('saveCoachBtn');
+  var hint = $('coachChoiceHint');
+  var status = $('coachChoiceStatus');
+  if (!box || !select || !button || !hint || !status) return;
+  if (!record || record.state !== 'approved') {
+    box.classList.remove('show');
+    return;
+  }
+
+  box.classList.add('show');
+  var teamId = applicationTeamId(record);
+  var team = availableTeams.find(function(item){ return Number(item && item.id) === teamId; });
+  if (!team) {
+    select.innerHTML = '<option value="">正在读取所属团队教练…</option>';
+    select.disabled = true;
+    button.disabled = true;
+    hint.textContent = teamId ? '正在读取教练列表，请稍候。' : '正在读取申请所属团队，请点“刷新审批状态”。';
+    status.textContent = '';
+    return;
+  }
+
+  var choices = (Array.isArray(team.coaches) ? team.coaches : [])
+    .map(function(coach, index){ return { coach: coach, index: index }; })
+    .filter(function(item){
+      return item.coach && item.coach.enabled === true && String(item.coach.name || '').trim();
+    });
+  hint.textContent = '已通过「' + String(team.name || record.teamName || '') + '」申请，可选择该团队教练。';
+  if (!choices.length) {
+    select.innerHTML = '<option value="">该团队暂无开放教练</option>';
+    select.disabled = true;
+    button.disabled = true;
+    status.textContent = '管理员尚未为该团队开放教练。';
+    return;
+  }
+
+  select.innerHTML = '<option value="">请选择教练</option>' + choices.map(function(item){
+    return '<option value="' + item.index + '">' +
+      String(item.coach.name).replace(/[&<>"']/g, function(character){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
+      }) + '</option>';
+  }).join('');
+  select.disabled = false;
+  button.disabled = false;
+  var choice = record.coachChoice;
+  if (choice && Number(choice.team) === teamId) {
+    var matched = choices.find(function(item){
+      return item.index === Number(choice.index) && String(item.coach.name).trim() === String(choice.name || '').trim();
+    });
+    if (matched) select.value = String(matched.index);
+    status.textContent = '当前已选择：' + String(choice.name || '');
+    button.textContent = '更新选择';
+  } else {
+    status.textContent = '';
+    button.textContent = '保存选择';
+  }
+}
+
 function renderApplication(record, announce){
   if (!record) return;
   currentApplication = record;
@@ -499,6 +611,7 @@ function renderApplication(record, announce){
   $('refreshStatusBtn').style.display =
     record.issueNumber && record.trackingId && JOIN_API_URL ? '' : 'none';
   $('resultCard').classList.add('show');
+  renderCoachChoice(record);
   if (announce) {
     showStatus(record.state === 'approved' ? 'ok' :
       ((record.state === 'rejected' || record.state === 'closed') ? 'err' : 'info'),
@@ -523,6 +636,9 @@ async function refreshApplicationStatus(manual){
     var previousState = record.state;
     record.state = result.status || 'pending';
     record.personId = result.person_id || '';
+    record.team = Number(result.team) || applicationTeamId(record) || null;
+    record.teamName = result.team_name || record.teamName || '';
+    record.coachChoice = result.coach_choice || null;
     record.updatedAt = result.updated_at || new Date().toISOString();
     saveApplication(record);
     renderApplication(record, manual || previousState !== record.state);
@@ -530,6 +646,52 @@ async function refreshApplicationStatus(manual){
     if (manual) showStatus('err', '审批状态查询失败：' + (e && e.message || e));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '刷新审批状态'; }
+  }
+}
+
+async function saveCoachSelection(){
+  var record = currentApplication;
+  var select = $('coachSelect');
+  var button = $('saveCoachBtn');
+  var status = $('coachChoiceStatus');
+  if (!record || record.state !== 'approved' || !select || !select.value) {
+    if (status) status.textContent = '请先选择一位教练。';
+    return;
+  }
+  var teamId = applicationTeamId(record);
+  var team = availableTeams.find(function(item){ return Number(item && item.id) === teamId; });
+  var coachIndex = Number(select.value);
+  var coach = team && Array.isArray(team.coaches) ? team.coaches[coachIndex] : null;
+  if (!coach || coach.enabled !== true) {
+    status.textContent = '该教练已不可选，请刷新页面。';
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = '保存中…';
+  status.textContent = '';
+  try {
+    var response = await fetch(JOIN_API_URL.replace(/\/+$/, '') + '/coach', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        issue: record.issueNumber,
+        tracking: record.trackingId,
+        coach_index: coachIndex,
+        coach_name: String(coach.name || '').trim()
+      })
+    });
+    var result = await response.json().catch(function(){ return {}; });
+    if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
+    record.coachChoice = result.coach_choice || null;
+    record.updatedAt = result.updated_at || new Date().toISOString();
+    saveApplication(record);
+    renderCoachChoice(record);
+    showStatus('ok', '✅ 教练选择已保存，管理员可在申请详情中查看。');
+  } catch(e) {
+    status.textContent = '保存失败：' + (e && e.message || e);
+    button.disabled = false;
+    button.textContent = record.coachChoice ? '更新选择' : '保存选择';
   }
 }
 
@@ -549,6 +711,7 @@ function loadTeams(){
     .then(function(r){ if (!r.ok) throw new Error(''+r.status); return r.json(); })
     .then(function(arr){
       sel.innerHTML = '';
+      availableTeams = Array.isArray(arr) ? arr : [];
       var list = (arr || []).filter(function(t){
         // 只显示「启用 + 开放申请（joinOpen !== false）」的团队；
         // 后台把某团队开关关掉（不招人）后，这里就不会出现该团队
@@ -564,9 +727,12 @@ function loadTeams(){
         opt.textContent = (t.icon || '') + ' ' + t.name;
         sel.appendChild(opt);
       });
+      renderCoachChoice(currentApplication);
     })
     .catch(function(){
+      availableTeams = [];
       sel.innerHTML = '<option value="">（团队加载失败）</option>';
+      renderCoachChoice(currentApplication);
     });
 }
 
@@ -625,6 +791,7 @@ async function submit(){
         trackingId: issue.tracking_id || '',
         code: encodeJoinPayload(data),
         name: data.name,
+        team: data.team,
         teamName: data.teamName,
         submittedAt: data.submittedAt,
         state: 'pending'
@@ -657,6 +824,7 @@ async function submit(){
     code: code,
     link: link,
     name: data.name,
+    team: data.team,
     teamName: data.teamName,
     submittedAt: data.submittedAt,
     state: 'offline'
@@ -722,6 +890,7 @@ $('resetBtn').onclick = function(){
   $('submitBtn').textContent = JOIN_API_URL ? '🚀 提交申请' : '🚀 生成申请码';
 };
 $('refreshStatusBtn').onclick = function(){ refreshApplicationStatus(true); };
+$('saveCoachBtn').onclick = saveCoachSelection;
 $('copyLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，直接发给管理员点一下就能在后台导入审批。'); };
 $('copyCodeBtn').onclick = function(){ copyToClip($('resultCode').value, '✅ 申请码已复制，发给管理员让他在后台「导入申请码」粘贴即可。'); };
 $('shareLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，粘贴发给管理员即可。'); };
