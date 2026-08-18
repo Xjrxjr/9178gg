@@ -338,12 +338,34 @@
       </div>
       <div class="card-body" id="card-body-pending">
         <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
-          员工在 <code>join.html</code> 填表后会以 GitHub Issue 形式提交到这里（标题以「入队申请：」开头）。
-          <b>✅ 通过</b>：自动把该员工写入 data.json 并立即部署到主站，团队页顶部显示欢迎横幅（3 天后自动消失），Issue 自动关闭；
-          <b>❌ 拒绝</b>：直接关闭 Issue。
+          <b>异地直接提交</b>：先把仓库里的 <code>join-worker.js</code> 部署到 Cloudflare Workers，
+          并把低权 PAT 保存为 Worker Secret；然后在下方填入 Worker URL。
+          <br><b>✅ 通过</b>：自动写 data.json（含 joinedAt）并立即部署到主站，主站团队页顶部显示欢迎横幅（3 天后自动消失）；
+          <b>❌ 拒绝</b>：关闭对应申请。
         </p>
+        <div style="margin-bottom:10px;padding:10px 12px;background:#fff8e1;border-radius:8px;border:1px solid #ffe082;">
+          <div style="font-size:13px;color:#333;font-weight:bold;margin-bottom:6px;">异地提交通道配置</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
+            <input type="url" id="joinEndpointInput" autocomplete="off" placeholder="https://你的-worker.workers.dev/" style="flex:1;min-width:240px;padding:8px;border:1px solid #d6bd68;border-radius:6px;">
+            <button class="btn-primary" id="deployJoinEndpointBtn" type="button" style="padding:8px 16px;">部署 Worker 地址</button>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#795548;line-height:1.6;">
+            Worker Secret 名必须是 <code>GITHUB_PAT</code>。该 PAT 仅允许仓库
+            <code>Xjrxjr/9178gg</code> 的 <code>Issues: Read and write</code>；PAT 不会写入网页或 Git 仓库。
+          </div>
+        </div>
+        <div style="margin-bottom:10px;padding:10px 12px;background:#f5f8ff;border-radius:8px;border:1px solid #d7e3f7;">
+          <div style="font-size:13px;color:#333;font-weight:bold;margin-bottom:6px;">📥 导入申请码</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
+            <input type="text" id="importJoinCode" placeholder="粘贴员工发的申请码（V1:xxxx）" style="flex:1;min-width:200px;padding:8px;border:1px solid #bdc9e0;border-radius:6px;">
+            <button class="btn-primary" id="importJoinBtn" type="button" style="padding:8px 16px;">导入</button>
+            <button class="btn-secondary" id="clearDonePendingBtn" type="button">🧹 清理已处理记录</button>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#888;">提示：你也可以点员工发来的 admin.html?join=xxx 链接，本页面加载时会自动检测 URL 里的 ?join= 并加入待审批。</div>
+        </div>
         <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button class="btn-secondary" id="refreshPendingBtn" type="button">🔄 刷新待审批列表</button>
+          <button class="btn-secondary" id="refreshPendingBtn" type="button">🔄 刷新待审批（重读本地）</button>
+          <button class="btn-primary" id="fetchIssuesBtn" type="button" style="padding:8px 16px;">从 GitHub 拉取异地申请</button>
           <span id="pendingStatus" style="font-size:13px;color:#666;"></span>
         </div>
         <div id="pendingList"></div>
@@ -1549,7 +1571,8 @@ function loadAll(){
     renderPeople();
     updateTotalCount();
     try { renderCoachPanel(); } catch(e){}
-    try { loadPendingIssues(); } catch(e){}
+    try { refreshPendingAll(); } catch(e){}
+    try { fetchPendingFromIssues(); } catch(e){}
     try { refreshJsonPanel(); } catch(e){}
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
@@ -2201,94 +2224,237 @@ function joinEsc(s){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
-// 从 Issue body 里抽出 ```json ... ``` 块解析成对象
-function parseJoinBody(body){
-  if (!body) return null;
-  var m = body.match(/```json\s*([\s\S]*?)```/i);
-  if (!m) return null;
-  try { return JSON.parse(m[1].trim()); } catch(e){ return null; }
+// ========== 入队申请审批（GitHub Issues 远程模式 + 本地申请码兜底） ==========
+var PENDING_STORAGE_KEY = 'admin_pending_joins_v1';
+function _pRead(){
+  try { var s = localStorage.getItem(PENDING_STORAGE_KEY); return s ? JSON.parse(s) : []; } catch(e){ return []; }
 }
-// PATCH（关闭 Issue 用）
-function ghPatch(path, body){
-  return fetch('https://api.github.com'+path, {
-    method: 'PATCH', headers: ghHeaders({'Content-Type':'application/json'}),
-    body: JSON.stringify(body||{})
-  }).then(function(r){
-    if(r.status===401||r.status===403||r.status===404){
-      return r.text().then(function(t){ throw new Error(explainGhError(r.status)+(t?'\n'+t.slice(0,200):'')); });
-    }
-    if(!r.ok){ return r.json().then(function(e){ throw new Error('GitHub API 错误: '+r.status+' '+(e&&e.message?e.message:'')); }); }
-    return r.json();
-  }).catch(function(err){ throw new Error(explainNetworkError(err)); });
+function _pWrite(arr){
+  try { localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(arr||[])); } catch(e){}
 }
-// POST（给 Issue 评论用）
-function ghPost(path, body){
-  return fetch('https://api.github.com'+path, {
-    method: 'POST', headers: ghHeaders({'Content-Type':'application/json'}),
-    body: JSON.stringify(body||{})
-  }).then(function(r){
-    if(r.status===401||r.status===403||r.status===404){
-      return r.text().then(function(t){ throw new Error(explainGhError(r.status)+(t?'\n'+t.slice(0,200):'')); });
-    }
-    if(!r.ok){ return r.json().then(function(e){ throw new Error('GitHub API 错误: '+r.status+' '+(e&&e.message?e.message:'')); }); }
-    return r.json();
-  }).catch(function(err){ throw new Error(explainNetworkError(err)); });
+function _pFindByData(data){
+  if (!data || !data.name || !data.team) return null;
+  var list = _pRead();
+  for (var i=0;i<list.length;i++){
+    var x = list[i].data || {};
+    if (x.name === data.name && String(x.team) === String(data.team) && x.submittedAt === data.submittedAt) return list[i];
+  }
+  return null;
+}
+function _pid(){ return 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+// Base64 URL-safe 编解码（与 join.html 完全一致）
+function _b64u8(b64){ try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return ''; } }
+function _u8b64(s){ try { return btoa(unescape(encodeURIComponent(s))); } catch(e){ return ''; } }
+function _unUrlSafe(s){ s = String(s||'').replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; return s; }
+function decodeJoinPayload(code){
+  if (!code) return null;
+  var s = String(code).trim();
+  if (s.indexOf('V1:') === 0) s = s.substring(3);
+  try { return JSON.parse(_b64u8(_unUrlSafe(s))); } catch(e){ return null; }
 }
 
-function loadPendingIssues(){
-  var st = document.getElementById('pendingStatus');
-  if (st) st.textContent = '正在读取待审批…';
-  ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=open&per_page=100')
-    .then(function(arr){
-      if (!Array.isArray(arr)) arr = [];
-      var prefix = '入队申请：';
-      var list = arr.filter(function(it){
-        return !it.pull_request && it.title && it.title.indexOf(prefix) === 0;
+async function deployJoinEndpoint(){
+  var input = document.getElementById('joinEndpointInput');
+  var btn = document.getElementById('deployJoinEndpointBtn');
+  var endpoint = input ? String(input.value || '').trim() : '';
+  if (!PAT) {
+    showStatus('pendingStatus','请先登录后台，再部署异地提交通道。','err');
+    return;
+  }
+  try {
+    var parsedEndpoint = new URL(endpoint);
+    if (parsedEndpoint.protocol !== 'https:') throw new Error('protocol');
+    endpoint = parsedEndpoint.toString().replace(/\/+$/, '');
+  } catch(e) {
+    showStatus('pendingStatus','Worker URL 格式不正确，必须是 https:// 开头的完整地址。','err');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '正在部署…'; }
+  try {
+    var probe = await fetch(endpoint, { cache: 'no-store' });
+    var probeData = await probe.json().catch(function(){ return null; });
+    if (!probe.ok || !probeData || probeData.service !== '9178gg-join') {
+      throw new Error('Worker 健康检查失败，请确认部署的是本仓库 join-worker.js，并正确配置 ALLOWED_ORIGIN。');
+    }
+    var current = await getContent('join.html');
+    if (!current || !current.content) throw new Error('仓库中找不到 join.html。');
+    var pattern = /var JOIN_API_URL\s*=\s*['"][^'"]*['"]\s*;/;
+    if (!pattern.test(current.content)) throw new Error('join.html 中缺少 JOIN_API_URL 配置位，请先部署最新版 join.html。');
+    var next = current.content.replace(pattern, 'var JOIN_API_URL = ' + JSON.stringify(endpoint) + ';');
+    await writeFile(
+      'join.html',
+      utf8ToBase64(next),
+      current.sha,
+      '配置员工异地入队 Worker 地址'
+    );
+    if (input) input.value = '';
+    showStatus(
+      'pendingStatus',
+      '✅ Worker 地址已部署。GitHub Pages 通常需要 1~2 分钟更新，之后外地员工刷新 join.html 即可直接提交。',
+      'ok'
+    );
+  } catch(e) {
+    showStatus('pendingStatus','❌ 部署失败：'+(e && e.message || e),'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '部署 Worker 地址'; }
+  }
+}
+
+function extractJoinPayloadFromIssue(body){
+  var match = String(body || '').match(
+    /<!--\s*join-payload-base64\s*-->([\s\S]*?)<!--\s*\/join-payload-base64\s*-->/
+  );
+  return match ? decodeJoinPayload(match[1].trim()) : null;
+}
+
+async function fetchPendingFromIssues(){
+  if (!PAT) {
+    showStatus('pendingStatus','请先登录后台，再拉取异地申请。','err');
+    return;
+  }
+  var btn = document.getElementById('fetchIssuesBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '拉取中…'; }
+  showStatus('pendingStatus','正在从 GitHub 拉取异地申请…','info');
+  try {
+    var issues = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=open&per_page=100');
+    var arr = _pRead();
+    var added = 0;
+    (issues || []).forEach(function(issue){
+      if (issue.pull_request) return;
+      var data = extractJoinPayloadFromIssue(issue.body);
+      if (!data || !data.name || !data.team) return;
+      var exists = arr.some(function(item){ return item.issueNumber === issue.number; });
+      if (exists) return;
+      arr.push({
+        _id: _pid(),
+        status: 'pending',
+        source: 'issue',
+        issueNumber: issue.number,
+        issueUrl: issue.html_url || '',
+        importedAt: Date.now(),
+        data: data
       });
-      renderPendingList(list);
-    })
-    .catch(function(err){
-      var box = document.getElementById('pendingList');
-      if (box) box.innerHTML = '<div style="padding:14px;color:#c62828;">读取待审批失败：'+joinEsc(err.message||err)+'</div>';
-      if (st) st.textContent = '读取失败';
+      added++;
     });
+    _pWrite(arr);
+    renderPendingList(arr.filter(function(item){ return item.status === 'pending'; }));
+    showStatus(
+      'pendingStatus',
+      added ? ('✅ 已从 GitHub 拉取 '+added+' 条新申请。') : '已完成拉取，没有新的异地申请。',
+      added ? 'ok' : 'info'
+    );
+  } catch(e) {
+    showStatus('pendingStatus','❌ 拉取失败：'+(e && e.message || e),'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '从 GitHub 拉取异地申请'; }
+  }
 }
 
+async function closeJoinIssue(item, approved, personId){
+  if (!item || !item.issueNumber || !PAT) return false;
+  var base = 'https://api.github.com/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
+  var comment = approved
+    ? '✅ 申请已通过，人员资料已部署到主站。人员 ID：'+(personId || '')+'。'
+    : '❌ 该入队申请未通过。如有疑问，请联系管理员。';
+  try {
+    await fetch(base+'/comments', {
+      method: 'POST',
+      headers: ghHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({body: comment})
+    });
+    var response = await fetch(base, {
+      method: 'PATCH',
+      headers: ghHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({state:'closed'})
+    });
+    return response.ok;
+  } catch(e) {
+    console.warn('关闭入队申请 Issue 失败', e);
+    return false;
+  }
+}
+
+// 导入一条申请（code = 申请码，source = 来源描述）
+function importJoinCode(code, source){
+  var d = decodeJoinPayload(code);
+  if (!d || !d.name || !d.team) {
+    showStatus('pendingStatus','❌ 申请码无效：解析失败（请检查是否粘完整）。格式应为 "V1:xxxxx…"。','err');
+    return false;
+  }
+  var arr = _pRead();
+  if (_pFindByData(d)){
+    // 已存在 → 若当前是 pending 则不重复加；若曾处理过，恢复成 pending
+    var old = _pFindByData(d);
+    if (old.status === 'pending') {
+      showStatus('pendingStatus','ℹ️ 该申请已在待审批列表（'+d.name+' → '+(d.teamName||'团队'+d.team)+'），无需重复导入。','info');
+      return false;
+    }
+    old.status = 'pending'; old.importedAt = Date.now(); old.source = source || old.source || 'code';
+    _pWrite(arr);
+  } else {
+    arr.push({ _id: _pid(), status: 'pending', source: source || 'code', importedAt: Date.now(), data: d });
+    _pWrite(arr);
+  }
+  showStatus('pendingStatus','✅ 已导入申请：'+d.name+' → '+(d.teamName||('团队'+d.team))+'。','ok');
+  // 导入成功后立刻刷新待审批 UI（即使未登录 PAT，也应立即显示新条目）
+  try { renderPendingList(_pRead().filter(function(x){ return x.status === 'pending'; })); } catch(e){}
+  return true;
+}
+// 从 URL ?join= 导入并清理 URL 参数
+function importFromUrl(){
+  try {
+    var qs = new URL(location.href).searchParams.get('join');
+    if (!qs) return 0;
+    var ok = importJoinCode(qs, 'url');
+    try {
+      var u = new URL(location.href); u.searchParams.delete('join');
+      history.replaceState(null, document.title, u.toString());
+    } catch(e){}
+    return ok ? 1 : 0;
+  } catch(e){ return 0; }
+}
+// 刷新：读 URL + 重渲染
+function refreshPendingAll(){
+  importFromUrl();
+  var list = _pRead().filter(function(x){ return x.status === 'pending'; });
+  renderPendingList(list);
+}
 function renderPendingList(list){
   var box = document.getElementById('pendingList');
   var cnt = document.getElementById('pendingCount');
   var st = document.getElementById('pendingStatus');
   if (cnt) cnt.textContent = list.length;
   if (!list.length){
-    if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无待审批申请</div>';
+    if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无待审批申请<br><span style="font-size:12px;">把员工发的申请码粘贴到上面的「导入申请码」框里点导入，或直接点员工发的 admin.html?join=xxx 链接自动加入。</span></div>';
     if (st) st.textContent = '';
     return;
   }
-  if (st) st.textContent = '共 '+list.length+' 条待审批';
+  if (st) st.textContent = '共 '+list.length+' 条待审批（本地存储）';
   var html = list.map(function(it){
-    var d = parseJoinBody(it.body);
-    if (!d){
-      d = { name: it.title.replace(/^入队申请：/,'').split(' → ')[0] || '(无名)', teamName:'', team:'', qq:'', desc:'', bio:'', _unparsed:true };
-    }
+    var d = it.data || {};
     var avatar = d.image ? resolveAvatar(d.image) : '';
+    var srcLabel = (it.source === 'url') ? '🔗 链接导入' : ((it.source === 'issue') ? '🐙 GitHub Issue' : '📋 申请码导入');
+    var t = new Date(d.submittedAt || it.importedAt || Date.now());
     var s = [];
     s.push('<div style="border:1px solid #d8e2ef;border-radius:10px;padding:12px;margin-bottom:10px;background:#fafcff;">');
     s.push('<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">');
     if (avatar) s.push('<img src="'+joinEsc(avatar)+'" alt="" onerror="this.style.display=\'none\'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#e0e0e0;">');
     s.push('<div style="flex:1;min-width:200px;">');
-    s.push('<div style="font-weight:bold;font-size:15px;color:#222;">'+joinEsc(d.name||'(无名)')+' <span style="font-weight:normal;color:#999;font-size:12px;">#'+it.number+'</span></div>');
+    s.push('<div style="font-weight:bold;font-size:15px;color:#222;">'+joinEsc(d.name||'(无名)')+' <span style="font-weight:normal;color:#999;font-size:11px;">'+joinEsc(srcLabel)+'</span></div>');
     s.push('<div style="font-size:13px;color:#555;margin-top:4px;">');
     if (d.teamName) s.push('<span class="badge badge-team">'+joinEsc(d.teamName)+'</span> ');
     if (d.desc) s.push('· '+joinEsc(d.desc)+' ');
     if (d.qq) s.push('· QQ:'+joinEsc(d.qq)+' ');
     s.push('</div>');
     if (d.bio) s.push('<div style="font-size:12px;color:#666;margin-top:4px;">'+joinEsc(d.bio)+'</div>');
-    if (d._unparsed) s.push('<div style="font-size:11px;color:#c62828;margin-top:4px;">⚠️ 申请数据格式异常（无法自动解析），通过时需手动核对，或让员工重提。</div>');
-    s.push('<div style="font-size:11px;color:#999;margin-top:4px;">提交于 '+joinEsc(new Date(it.created_at).toLocaleString('zh-CN'))+'</div>');
+    s.push('<div style="font-size:11px;color:#999;margin-top:4px;">员工提交于 '+joinEsc(t.toLocaleString('zh-CN'))+'</div>');
+    if (it.issueUrl) {
+      s.push('<div style="font-size:11px;margin-top:4px;"><a href="'+joinEsc(it.issueUrl)+'" target="_blank" rel="noopener">查看 GitHub 申请 #'+joinEsc(it.issueNumber)+'</a></div>');
+    }
     s.push('</div>');
     s.push('<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">');
-    s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveJoin('+it.number+')">✅ 通过</button>');
-    s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectJoin('+it.number+')">❌ 拒绝</button>');
+    s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveJoin(\''+joinEsc(it._id)+'\')">✅ 通过</button>');
+    s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectJoin(\''+joinEsc(it._id)+'\')">❌ 拒绝</button>');
     s.push('</div>');
     s.push('</div></div>');
     return s.join('');
@@ -2296,21 +2462,21 @@ function renderPendingList(list){
   box.innerHTML = html;
 }
 
-// 通过：写入 data.json（joinedAt=现在）+ 关闭 Issue + 评论
-async function approveJoin(issueNumber){
+// 通过：写 data.json + 立即部署 + 标记该申请为 approved
+async function approveJoin(pid){
+  var arr = _pRead();
+  var idx = -1;
+  for (var i=0;i<arr.length;i++) if (arr[i]._id === pid) { idx = i; break; }
+  if (idx < 0) { showStatus('pendingStatus','❌ 找不到该申请（可能已被处理，请刷新）。','err'); return; }
+  var it = arr[idx];
+  var d = it.data || {};
+  if (!d.name || !d.team){
+    alert('该申请缺少姓名或团队，无法自动通过。\n请让员工重提，或在「人员管理」手动新增。');
+    return;
+  }
+  var team = +(d.team);
+  var tname = d.teamName || teamName(team);
   try {
-    var issue = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber);
-    var d = parseJoinBody(issue.body);
-    if (!d || !d.name){
-      alert('该申请无法自动解析（缺姓名或 JSON 块）。\n请去「人员管理」手动新增该员工，然后回来点「拒绝」关闭此 Issue。');
-      return;
-    }
-    var team = +(d.team);
-    var tname = d.teamName || teamName(team);
-    if (!team){
-      alert('该申请缺少团队 id，无法自动通过。\n请让员工重新提交，或在「人员管理」里手动新增后回来关闭此 Issue。');
-      return;
-    }
     var obj = {
       id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
       name: d.name,
@@ -2323,14 +2489,13 @@ async function approveJoin(issueNumber){
       wechat: '',
       qqcontact: d.qq || '',
       joinedAt: Date.now(),
-      // 头像默认：clip 关（完整显示），避免 QQ 头像被裁头；可在「人员管理」里细调
+      // 头像默认 clip 关（完整显示），避免 QQ 头像被裁头；可调
       cAvatarScale: 1, cAvatarClip: 0, cAvatarOffsetX: 0, cAvatarOffsetY: 0,
       dAvatarScale: 1, dAvatarClip: 0, dAvatarOffsetX: 0, dAvatarOffsetY: 0
     };
     PEOPLE.push(obj);
     DIRTY_PEOPLE = true;
-    showStatus('pendingStatus','正在部署 '+d.name+' 到主站…','info');
-
+    showStatus('pendingStatus','正在部署 '+d.name+' 到主站（写 data.json）…','info');
     // 立即写 data.json（立即上线，不等「保存所有改动」）
     var dsha = PEOPLE._sha || null;
     if (!dsha){ try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha; } catch(e){} }
@@ -2339,37 +2504,49 @@ async function approveJoin(issueNumber){
     var dRes = await writeFile('data.json', dataB64, dsha, '审批通过入队: '+d.name+' → '+tname);
     if (dRes && dRes.content && dRes.content.sha) PEOPLE._sha = dRes.content.sha; else PEOPLE._sha = null;
     DIRTY_PEOPLE = false;
-
-    // 评论 + 关闭 Issue
-    try {
-      await ghPost('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber+'/comments',
-        { body: '✅ 已通过审批，欢迎加入「'+tname+'」！\n你的名片已上线主站，团队页顶部会显示欢迎横幅（3 天后自动消失）。' });
-    } catch(e){}
-    await ghPatch('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber, { state: 'closed' });
-
+    // 标记为已通过（保留历史，可「清理已处理记录」删除）
+    arr[idx].status = 'approved';
+    arr[idx].processedAt = Date.now();
+    arr[idx].personId = obj.id;
+    _pWrite(arr);
+    await closeJoinIssue(arr[idx], true, obj.id);
     showStatus('pendingStatus','✅ '+d.name+' 已通过并部署到主站。等 1~2 分钟 Ctrl+F5 强刷主站即可看到欢迎横幅。','ok');
     showStatus('saveStatus','✅ 审批通过 '+d.name+'，data.json 已更新（共 '+PEOPLE.length+' 人）。','ok');
     renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
     try { refreshJsonPanel(); } catch(e){}
-    loadPendingIssues();
+    refreshPendingAll();
   } catch (err) {
     showStatus('pendingStatus','❌ 通过失败：'+(err.message||err),'err');
     showStatus('saveStatus','❌ 通过失败：'+(err.message||err),'err');
   }
 }
 
-// 拒绝：评论 + 关闭 Issue
-async function rejectJoin(issueNumber){
-  if (!confirm('确定拒绝该入队申请并关闭 Issue 吗？')) return;
-  try {
-    try { await ghPost('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber+'/comments',
-      { body: '❌ 抱歉，本次申请未通过审批。如有疑问请联系管理员。' }); } catch(e){}
-    await ghPatch('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber, { state: 'closed' });
-    showStatus('pendingStatus','已拒绝并关闭 Issue #'+issueNumber,'info');
-    loadPendingIssues();
-  } catch (err) {
-    showStatus('pendingStatus','❌ 拒绝失败：'+(err.message||err),'err');
-  }
+// 拒绝：标记为 rejected
+async function rejectJoin(pid){
+  if (!confirm('确定拒绝该入队申请吗？')) return;
+  var arr = _pRead();
+  var idx = -1;
+  for (var i=0;i<arr.length;i++) if (arr[i]._id === pid) { idx = i; break; }
+  if (idx < 0) { showStatus('pendingStatus','❌ 找不到该申请（可能已被处理，请刷新）。','err'); return; }
+  var name = (arr[idx].data && arr[idx].data.name) || '(无名)';
+  arr[idx].status = 'rejected';
+  arr[idx].processedAt = Date.now();
+  _pWrite(arr);
+  await closeJoinIssue(arr[idx], false, null);
+  showStatus('pendingStatus','ℹ️ 已拒绝 '+name+' 的申请；对应 GitHub 申请已关闭。','info');
+  refreshPendingAll();
+}
+
+// 清理已处理记录（approved + rejected）
+function clearDonePending(){
+  var before = _pRead();
+  var left = before.filter(function(x){ return x.status === 'pending'; });
+  var removed = before.length - left.length;
+  if (removed === 0) { showStatus('pendingStatus','没有可清理的已处理记录。','info'); return; }
+  if (!confirm('确定清理 '+removed+' 条已处理记录（通过/拒绝）吗？清理后无法恢复。')) return;
+  _pWrite(left);
+  showStatus('pendingStatus','🧹 已清理 '+removed+' 条已处理记录。','ok');
+  refreshPendingAll();
 }
 
 // ========== 教练管理（每团队可加多位教练，每位独立开关；关掉=不展示=「不招」） ==========
@@ -2485,11 +2662,41 @@ function bindCoachSection(sec, i){
   };
 }
 
-// 绑定「刷新待审批」按钮
+// 绑定「待审批」相关按钮（刷新 / 导入申请码 / 清理已处理）
 try {
   var _rpb = document.getElementById('refreshPendingBtn');
-  if (_rpb) _rpb.onclick = loadPendingIssues;
+  if (_rpb) _rpb.onclick = refreshPendingAll;
+  var _fib = document.getElementById('fetchIssuesBtn');
+  if (_fib) _fib.onclick = fetchPendingFromIssues;
+  var _djpb = document.getElementById('deployJoinEndpointBtn');
+  if (_djpb) _djpb.onclick = deployJoinEndpoint;
+  var _ijb = document.getElementById('importJoinBtn');
+  if (_ijb) _ijb.onclick = function(){
+    var inp = document.getElementById('importJoinCode');
+    var val = inp ? String(inp.value || '').trim() : '';
+    if (!val) { showStatus('pendingStatus','请先粘贴申请码再点导入。','info'); if (inp) inp.focus(); return; }
+    var ok = importJoinCode(val, 'code');
+    if (ok && inp) inp.value = '';
+  };
+  var _cdp = document.getElementById('clearDonePendingBtn');
+  if (_cdp) _cdp.onclick = clearDonePending;
+  // 支持输入框按回车直接导入
+  var _ijc = document.getElementById('importJoinCode');
+  if (_ijc) _ijc.addEventListener('keydown', function(e){
+    if ((e.key === 'Enter' || e.keyCode === 13) && _ijb) _ijb.click();
+  });
 } catch(e){}
+// 【无需 PAT】页面一加载就刷新待审批面板（读 URL ?join= 参数、读 localStorage、渲染 UI）
+// 即使管理员还没填 PAT，也能先看到待审批条目 / 粘贴导入 / URL 导入；
+// 真正审批通过写 GitHub 时才需要 PAT（会报错提示）。
+(function initPendingEarly(){
+  try {
+    if (document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', function(){ try{ refreshPendingAll(); }catch(e){} });
+    else
+      refreshPendingAll();
+  } catch(e){}
+})();
 </script>
 
 <!-- 通用模态框：查看单条人员 JSON / 单文件大窗口 / 后台源码 -->

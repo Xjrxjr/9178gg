@@ -186,6 +186,37 @@
   .status.info  { background: rgba(25,118,210,0.18); border: 1px solid rgba(100,181,246,0.4); color: #bbdefb; }
   .status.ok    { background: rgba(46,125,50,0.20); border: 1px solid rgba(102,187,106,0.5); color: #c8e6c9; }
   .status.err   { background: rgba(211,47,47,0.18); border: 1px solid rgba(239,154,154,0.5); color: #ffcdd2; }
+  .result-card {
+    display: none;
+    margin-top: 18px;
+    padding: 16px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(100,181,246,0.4);
+    border-radius: 12px;
+  }
+  .result-card.show { display: block; }
+  .result-card h3 { margin-bottom: 8px; color: #ffd700; font-size: 15px; }
+  .result-card p { margin-bottom: 12px; color: rgba(255,255,255,0.68); font-size: 12px; line-height: 1.6; }
+  .result-card label { display: block; margin: 10px 0 6px; color: #b3d4ff; font-size: 12px; }
+  .result-card textarea {
+    width: 100%;
+    padding: 10px;
+    resize: vertical;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.35);
+    color: #fff;
+    font: 12px Consolas, monospace;
+  }
+  .result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .result-actions button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: #1976d2;
+    color: #fff;
+    cursor: pointer;
+  }
   .warn-banner {
     margin-bottom: 18px;
     padding: 12px 14px;
@@ -194,10 +225,12 @@
     border-radius: 10px;
     font-size: 13px;
     color: #ffe0b2;
-    line-height: 1.5;
+    line-height: 1.6;
     display: none;
   }
   .warn-banner.show { display: block; }
+  .warn-banner b { color: #ffd700; }
+  .warn-banner code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; color: #ffcc80; font-size: 12px; }
   footer {
     text-align: center;
     margin-top: 22px;
@@ -221,8 +254,8 @@
   </header>
 
   <div class="warn-banner" id="warnBanner">
-    ⚠️ 提交通道尚未配置：管理员还没把「仅 Issue 写权限」的低权 PAT 填进本页面。
-    请联系管理员完成一次配置后再提交。
+    ⚠️ <b>提交通道尚未配置</b>：管理员请先部署 <code>join-worker.js</code>，再打开
+    <code>admin.html</code>，在「异地提交通道配置」中填写 Worker URL。
   </div>
 
   <div class="card">
@@ -264,27 +297,34 @@
     </div>
 
     <div class="status" id="status"></div>
+
+    <div class="result-card" id="resultCard">
+      <h3 id="resultTitle">申请信息</h3>
+      <p id="resultDesc"></p>
+      <label for="resultLink">申请链接</label>
+      <textarea id="resultLink" readonly rows="2"></textarea>
+      <div class="result-actions">
+        <button id="copyLinkBtn" type="button">复制链接</button>
+        <button id="shareLinkBtn" type="button">再次复制</button>
+      </div>
+      <label for="resultCode">备用申请码</label>
+      <textarea id="resultCode" readonly rows="3"></textarea>
+      <div class="result-actions">
+        <button id="copyCodeBtn" type="button">复制申请码</button>
+      </div>
+    </div>
   </div>
 
   <footer>
     提交即代表同意管理员展示你的信息。<br>
-    本表单通过 GitHub Issue 提交，无需登录。有问题联系管理员。
+    本表单通过 GitHub Issue 提交，<b>员工异地即可直接提交</b>（无需登录 GitHub）。有问题联系管理员。
   </footer>
 </div>
 
 <script>
-// ===== 配置区 =====
-var OWNER = 'Xjrxjr';
-var REPO  = '9178gg';
-
-// 🔑 低权 PAT：仅「Issues: Read and write」权限、仅限本仓库的【细粒度 PAT】。
-// 管理员只需配置一次：去 GitHub → Settings → Developer settings → Fine-grained tokens
-//   → Repository access: 仅选 Xjrxjr/9178gg
-//   → Permissions → Repository permissions → Issues: Read and write（其它一律 No access）
-//   → 生成后把整串粘到下面引号里，然后把这个 join.html 推到仓库即可。
-// ⚠️ 这个 token 会被放在公开页面里，所以一定要用【细粒度 + 仅 Issues 权限】的，
-//    千万不要把你后台那个有完整写权限的 PAT 填到这里。
-var JOIN_PAT = 'PASTE_FINEGRAINED_ISSUES_ONLY_PAT_HERE';
+// 该公开地址由 admin.html 的「部署异地提交通道」功能写入。
+// GitHub PAT 只能保存在 Worker 的 GITHUB_PAT Secret 中，严禁写入本文件。
+var JOIN_API_URL = 'https://9178gg-join.3751211611.workers.dev';
 
 // ===== 工具 =====
 function $(id){ return document.getElementById(id); }
@@ -301,12 +341,74 @@ function getImgSrc(src){
   }
   return src;
 }
-function explainErr(status){
-  if (status === 401) return 'PAT 无效（401）：管理员填的 token 过期或拼错了，请联系管理员重新生成。';
-  if (status === 403) return 'PAT 无权限（403）：管理员填的 token 没有 Issues 写权限，或没选这个仓库，请联系管理员。';
-  if (status === 404) return '仓库不存在（404）：目标仓库 ' + OWNER + '/' + REPO + ' 找不到，或 token 对私有仓库无权限。';
-  if (status === 422) return '请求被拒（422）：可能仓库关闭了 Issue 功能，或内容格式不对。请联系管理员开启 Issues。';
-  return 'GitHub 返回状态码：' + status;
+// UTF-8 → Base64（含中文安全）
+function u8ToB64(str){
+  try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return ''; }
+}
+// Base64 → UTF-8（admin 端共用时使用）
+function b64ToU8(b64){
+  try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return ''; }
+}
+// URL 安全 base64（申请链接用）
+function toUrlSafe(b64){ return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function fromUrlSafe(s){
+  s = String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+  while (s.length % 4) s += '=';
+  return s;
+}
+// 编码申请："V1:" + urlSafeB64(JSON)
+function encodeJoinPayload(data){
+  return 'V1:' + toUrlSafe(u8ToB64(JSON.stringify(data)));
+}
+// 解码申请（admin 端会调用）
+function decodeJoinPayload(code){
+  if (!code) return null;
+  var s = String(code).trim();
+  if (s.indexOf('V1:') !== 0) {
+    // 兼容：裸 base64
+    try { return JSON.parse(b64ToU8(fromUrlSafe(s))); } catch(e){ return null; }
+  }
+  s = s.substring(3);
+  try { return JSON.parse(b64ToU8(fromUrlSafe(s))); } catch(e){ return null; }
+}
+
+// 猜测 admin.html 的绝对路径：把当前 URL 的 join.html 替换成 admin.html
+function guessAdminUrl(){
+  try {
+    var u = new URL(location.href);
+    u.search = ''; u.hash = '';
+    u.pathname = u.pathname.replace(/[^/]*$/, '') + 'admin.html';
+    return u.toString();
+  } catch(e){
+    // file:// 环境不支持 URL 构造，退化成相对路径提示
+    return '（后台请打开 admin.html 并在「导入申请码」处粘贴下面的申请码）';
+  }
+}
+
+function explainIssueError(status){
+  if (status === 401) return 'Worker 中的 GitHub PAT 无效或已过期，请联系管理员。';
+  if (status === 403) return 'Worker 拒绝了当前网站来源，或 GitHub PAT 权限不足。';
+  if (status === 404) return 'Worker 地址或目标仓库不存在。';
+  if (status === 503) return 'Worker 尚未配置 GITHUB_PAT Secret。';
+  return '异地提交服务返回 HTTP ' + status + '。';
+}
+
+async function submitToGitHubIssue(data){
+  var response = await fetch(JOIN_API_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    var detail = '';
+    try {
+      var errorData = await response.json();
+      var errorMessage = errorData && (errorData.error || errorData.message);
+      detail = errorMessage ? '（' + errorMessage + '）' : '';
+    } catch(e){}
+    throw new Error(explainIssueError(response.status) + detail);
+  }
+  return response.json();
 }
 
 // ===== 加载团队列表（读公开 teams.json，无需 token） =====
@@ -356,40 +458,8 @@ function refreshAvatarPreview(){
   }
 }
 
-// ===== 提交：创建 GitHub Issue =====
-function buildBody(data){
-  var lines = [];
-  lines.push('### 入队申请');
-  lines.push('');
-  lines.push('| 字段 | 内容 |');
-  lines.push('| --- | --- |');
-  lines.push('| 姓名 | ' + data.name + ' |');
-  lines.push('| 团队 | ' + data.teamName + ' (id=' + data.team + ') |');
-  lines.push('| QQ号 | ' + (data.qq || '(未填)') + ' |');
-  lines.push('| 身份/警号 | ' + (data.desc || '(未填)') + ' |');
-  lines.push('| 简介 | ' + (data.bio || '(未填)') + ' |');
-  lines.push('| 提交时间 | ' + new Date().toLocaleString('zh-CN') + ' |');
-  lines.push('');
-  lines.push('<!-- 后台解析用，请勿修改下面这块 -->');
-  lines.push('```json');
-  lines.push(JSON.stringify(data, null, 2));
-  lines.push('```');
-  return lines.join('\n');
-}
-
-function parseIssueBody(body){
-  // 从 issue body 里抽出 ```json ... ``` 块
-  if (!body) return null;
-  var m = body.match(/```json\s*([\s\S]*?)```/i);
-  if (!m) return null;
-  try { return JSON.parse(m[1].trim()); } catch(e){ return null; }
-}
-
-function submit(){
-  if (!JOIN_PAT || JOIN_PAT.indexOf('PASTE_') === 0) {
-    showStatus('err', '❌ 提交通道尚未配置：管理员还没把低权 PAT 填进 join.html。\n请联系管理员完成配置后再提交。');
-    return;
-  }
+// ===== 远程提交；失败时自动生成申请码兜底 =====
+async function submit(){
   var name = $('name').value.trim();
   var teamVal = $('team').value;
   var teamName = $('team').selectedOptions[0] ? $('team').selectedOptions[0].textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() : '';
@@ -414,64 +484,84 @@ function submit(){
 
   var btn = $('submitBtn');
   btn.disabled = true;
-  var orig = btn.textContent;
-  btn.textContent = '提交中…';
-  showStatus('info', '正在提交申请…');
+  btn.textContent = JOIN_API_URL ? '提交中…' : '生成中…';
 
-  var title = '入队申请：' + name + ' → ' + teamName;
-  var body = buildBody(data);
-
-  fetch('https://api.github.com/repos/' + OWNER + '/' + REPO + '/issues', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/vnd.github+json',
-      'Authorization': 'Bearer ' + JOIN_PAT,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ title: title, body: body })
-  })
-  .then(function(r){
-    if (r.ok) return r.json();
-    // 读出错误信息再抛
-    return r.text().then(function(t){
-      var msg = explainErr(r.status);
-      try { var j = JSON.parse(t); if (j && j.message) msg += '\n详细：' + j.message; } catch(e){}
-      throw new Error(msg);
-    });
-  })
-  .then(function(issue){
-    showStatus('ok',
-      '✅ 申请已提交！\n' +
-      '管理员审批通过后，你的名片就会出现在「' + teamName + '」团队主页顶部，并显示欢迎横幅。\n' +
-      (issue && issue.html_url ? '提交记录：' + issue.html_url : '')
-    );
-    // 清空表单
-    $('name').value = '';
-    $('qq').value = '';
-    $('desc').value = '';
-    $('bio').value = '';
-    refreshAvatarPreview();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  })
-  .catch(function(err){
-    var msg = err && err.message ? err.message : String(err);
-    if (msg.indexOf('Failed to fetch') >= 0 || msg.indexOf('NetworkError') >= 0 || msg.indexOf('load failed') >= 0) {
-      showStatus('err', '❌ 网络请求失败：无法连接 GitHub API。\n请检查网络（尤其是否需要科学上网）后重试。\n\n技术详情：' + msg);
-    } else {
-      showStatus('err', '❌ 提交失败：\n' + msg);
+  if (JOIN_API_URL) {
+    try {
+      var issue = await submitToGitHubIssue(data);
+      $('resultTitle').textContent = '申请已提交，等待管理员审批';
+      $('resultDesc').textContent = '申请已经直接进入管理员后台，不需要再把申请码发给管理员。';
+      $('resultLink').value = issue.html_url || '';
+      $('resultCode').value = encodeJoinPayload(data);
+      $('resultCard').classList.add('show');
+      showStatus('ok',
+        '✅ 申请已远程提交成功。\n' +
+        '管理员审批通过后，你的名片会出现在「' + teamName + '」团队主页。'
+      );
+      btn.disabled = false;
+      btn.textContent = '✅ 已提交';
+      return;
+    } catch(e) {
+      showStatus('err',
+        '⚠️ 远程提交失败：' + (e && e.message || e) + '\n' +
+        '已自动生成备用申请码，请把下面的链接或申请码发给管理员。'
+      );
     }
-  })
-  .then(function(){
-    btn.disabled = false;
-    btn.textContent = orig;
-  });
+  }
+
+  var code = encodeJoinPayload(data);
+  var adminUrl = guessAdminUrl();
+  var link = (adminUrl.indexOf('http') === 0)
+    ? adminUrl + '?join=' + encodeURIComponent(code)
+    : adminUrl;
+
+  $('resultCode').value = code;
+  $('resultLink').value = link;
+  $('resultTitle').textContent = '已生成备用申请码';
+  $('resultDesc').textContent = '请把申请链接或申请码发给管理员，由管理员导入后台审批。';
+  $('resultCard').classList.add('show');
+  if (!JOIN_API_URL) {
+    showStatus('info', '已生成备用申请码，请把下面的申请链接或申请码发给管理员。');
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  btn.disabled = false;
+  btn.textContent = '🔄 重新生成申请';
+}
+
+function copyToClip(text, okMsg){
+  var done = false, errMsg = '';
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ done = true; }, function(e){ errMsg = e && e.message || 'clipboard fail'; });
+    }
+  } catch(e){ errMsg = String(e); }
+  setTimeout(function(){
+    if (done) {
+      showStatus('ok', okMsg || '✅ 已复制到剪贴板');
+      return;
+    }
+    // 兼容回退：用 textarea.select + execCommand
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      showStatus(ok ? 'ok' : 'err', ok
+        ? (okMsg || '✅ 已复制到剪贴板')
+        : '⚠️ 自动复制失败，请手动选中并 Ctrl+C 复制。' + (errMsg ? '（'+errMsg+'）' : '')
+      );
+    } catch(e){
+      showStatus('err', '⚠️ 自动复制失败，请手动选中并 Ctrl+C 复制。');
+    }
+  }, done ? 0 : 500);
 }
 
 // ===== 绑定 =====
 $('useQQBtn').onclick = refreshAvatarPreview;
 $('qq').addEventListener('input', function(){
-  // 输入时如果已经显示过预览，就同步刷新；没显示则不打扰
   if ($('avatarPreview').style.display !== 'none') refreshAvatarPreview();
 });
 $('submitBtn').onclick = submit;
@@ -481,16 +571,24 @@ $('resetBtn').onclick = function(){
   refreshAvatarPreview();
   $('status').className = 'status';
   $('status').textContent = '';
+  $('resultCard').classList.remove('show');
+  $('resultCode').value = '';
+  $('resultLink').value = '';
+  $('submitBtn').textContent = JOIN_API_URL ? '🚀 提交申请' : '🚀 生成申请码';
 };
+$('copyLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，直接发给管理员点一下就能在后台导入审批。'); };
+$('copyCodeBtn').onclick = function(){ copyToClip($('resultCode').value, '✅ 申请码已复制，发给管理员让他在后台「导入申请码」粘贴即可。'); };
+$('shareLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，粘贴发给管理员即可。'); };
 
 // 初始化
-if (!JOIN_PAT || JOIN_PAT.indexOf('PASTE_') === 0) {
-  $('warnBanner').classList.add('show');
-}
 loadTeams();
-// 暴露给 admin 端复用（解析 issue body）
-window.__parseJoinIssueBody = parseIssueBody;
-window.__JOIN_TITLE_PREFIX = '入队申请：';
+if (!JOIN_API_URL) {
+  $('warnBanner').classList.add('show');
+  $('submitBtn').textContent = '🚀 生成申请码（通道未配置）';
+}
+// 暴露编解码函数，方便 admin 端直接导入
+window.__decodeJoinPayload = decodeJoinPayload;
+window.__encodeJoinPayload = encodeJoinPayload;
 </script>
 </body>
 </html>
