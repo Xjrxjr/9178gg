@@ -1,0 +1,66 @@
+[
+  {
+    "id": 3,
+    "name": "网站维护",
+    "icon": "⬜",
+    "color": "#141010",
+    "en": "",
+    "enabled": true
+  },
+  {
+    "id": 1,
+    "name": "LSPD",
+    "icon": "🚓",
+    "color": "#1976d2",
+    "en": "",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "name": "机工",
+    "icon": "⬜",
+    "color": "#f4b60b",
+    "en": "",
+    "enabled": true
+  },
+  {
+    "id": 4,
+    "name": "三合会",
+    "icon": "🏔️",
+    "color": "#2e7d32",
+    "en": "",
+    "enabled": true
+  },
+  {
+    "id": 5,
+    "name": "未启用",
+    "icon": "⬜",
+    "color": "#9e9e9e",
+    "en": "",
+    "enabled": false
+  },
+  {
+    "id": 6,
+    "name": "制作与管理人员",
+    "icon": "🌍",
+    "color": "#9e9e9e",
+    "en": "GAY",
+    "enabled": true
+  },
+  {
+    "id": 7,
+    "name": "",
+    "icon": "⬜",
+    "color": "#9e9e9e",
+    "en": "",
+    "enabled": false
+  },
+  {
+    "id": 8,
+    "name": "",
+    "icon": "⬜",
+    "color": "#9e9e9e",
+    "en": "",
+    "enabled": false
+  }
+]

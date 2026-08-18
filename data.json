@@ -370,5 +370,25 @@
     "wechat": "",
     "qqcontact": "",
     "bio": ""
+  },
+  {
+    "name": "网站制作者",
+    "team": 3,
+    "image": "p_msxyen2y_p9zf.jpg",
+    "desc": "",
+    "phone": "",
+    "email": "",
+    "bio": "",
+    "wechat": "",
+    "qqcontact": "",
+    "cAvatarScale": 0.78,
+    "cAvatarClip": 0,
+    "cAvatarOffsetX": 0,
+    "cAvatarOffsetY": 0,
+    "dAvatarScale": 1,
+    "dAvatarClip": 0,
+    "dAvatarOffsetX": 0,
+    "dAvatarOffsetY": 0,
+    "id": "p_msxj3f94wqyn"
   }
 ]
