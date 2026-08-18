@@ -454,12 +454,41 @@ function explainIssueError(status){
   return '异地提交服务返回 HTTP ' + status + '。';
 }
 
-async function submitToGitHubIssue(data){
-  var response = await fetch(JOIN_API_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
+function postJson(url, data){
+  var body = JSON.stringify(data);
+  if (window.fetch) {
+    // text/plain 属于 CORS 简单请求，可避开部分手机内置浏览器拦截 OPTIONS 预检。
+    return fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+      body: body,
+      credentials: 'omit',
+      cache: 'no-store'
+    });
+  }
+  return new Promise(function(resolve, reject){
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
+    xhr.timeout = 30000;
+    xhr.onload = function(){
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: function(){
+          try { return Promise.resolve(JSON.parse(xhr.responseText || '{}')); }
+          catch(e) { return Promise.resolve({}); }
+        }
+      });
+    };
+    xhr.onerror = function(){ reject(new Error('手机网络无法连接异地提交服务。')); };
+    xhr.ontimeout = function(){ reject(new Error('连接异地提交服务超时，请切换网络后重试。')); };
+    xhr.send(body);
   });
+}
+
+async function submitToGitHubIssue(data){
+  var response = await postJson(JOIN_API_URL, data);
   if (!response.ok) {
     var detail = '';
     try {
@@ -671,15 +700,11 @@ async function saveCoachSelection(){
   button.textContent = '保存中…';
   status.textContent = '';
   try {
-    var response = await fetch(JOIN_API_URL.replace(/\/+$/, '') + '/coach', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        issue: record.issueNumber,
-        tracking: record.trackingId,
-        coach_index: coachIndex,
-        coach_name: String(coach.name || '').trim()
-      })
+    var response = await postJson(JOIN_API_URL.replace(/\/+$/, '') + '/coach', {
+      issue: record.issueNumber,
+      tracking: record.trackingId,
+      coach_index: coachIndex,
+      coach_name: String(coach.name || '').trim()
     });
     var result = await response.json().catch(function(){ return {}; });
     if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
@@ -757,7 +782,10 @@ function refreshAvatarPreview(){
 async function submit(){
   var name = $('name').value.trim();
   var teamVal = $('team').value;
-  var teamName = $('team').selectedOptions[0] ? $('team').selectedOptions[0].textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() : '';
+  var selectedTeam = $('team').options[$('team').selectedIndex];
+  var teamName = selectedTeam
+    ? selectedTeam.textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()
+    : '';
   var qq = $('qq').value.trim();
   var desc = $('desc').value.trim();
   var bio = $('bio').value.trim();
