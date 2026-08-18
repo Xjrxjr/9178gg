@@ -1063,8 +1063,17 @@ function avReadForm(){
 }
 
 // 把 {c:{...},d:{...}} 填回表单 + 更新数值标签 + 更新预览
+// 注意：vals 可能是三种来源 ——
+//   ① editPerson 传入的「已迁移」格式 {c:{s,c,ox,oy}, d:{...}}（来自 avMigrate(p)）
+//   ② 原始 person 对象（带 cAvatar*/avatar*/avatarH 字段）—— 需要走 avMigrate 提取
+//   ③ AV_PRESETS 按钮传入的「混合」对象 {c:..., d:..., cAvatarScale:...} —— 两者都有
+// 修复历史 bug：以前无条件再调 avMigrate(vals)，遇到 ① 格式时 avMigrate 不认识
+//   cAvatar*/avatar* 任何字段，直接回默认 1.0/0%，导致每次点 ✏️ 编辑 滑块被强制重置。
+// 现在：vals 已是 {c,d} 格式就直接用，否则才走 avMigrate。
 function avApplyToForm(vals){
-  var src = avMigrate(vals);
+  var src = (vals && vals.c && vals.d && ('s' in vals.c) && ('s' in vals.d))
+            ? vals
+            : avMigrate(vals);
   var warn = [];
   ['c','d'].forEach(function(side){
     ['s','ox','oy'].forEach(function(k){
