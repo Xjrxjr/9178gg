@@ -330,6 +330,26 @@
       </div>
     </div>
 
+    <!-- 待审批入队申请（来自 join.html 提交的 GitHub Issue） -->
+    <div class="card" data-card="pending" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('pending')">
+        <h2>📨 待审批入队申请 <span class="badge badge-team" id="pendingCount">0</span></h2>
+        <span class="card-toggle" id="card-toggle-pending">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-pending">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
+          员工在 <code>join.html</code> 填表后会以 GitHub Issue 形式提交到这里（标题以「入队申请：」开头）。
+          <b>✅ 通过</b>：自动把该员工写入 data.json 并立即部署到主站，团队页顶部显示欢迎横幅（3 天后自动消失），Issue 自动关闭；
+          <b>❌ 拒绝</b>：直接关闭 Issue。
+        </p>
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="btn-secondary" id="refreshPendingBtn" type="button">🔄 刷新待审批列表</button>
+          <span id="pendingStatus" style="font-size:13px;color:#666;"></span>
+        </div>
+        <div id="pendingList"></div>
+      </div>
+    </div>
+
     <!-- 团队管理面板（新增功能：团队开关+自定义名字/emoji/颜色） -->
     <div class="card" data-card="teams" data-collapsed="false">
       <div class="card-header" onclick="toggleCard('teams')">
@@ -366,8 +386,24 @@
         <span class="card-toggle" id="card-toggle-recruit">▼ 折叠</span>
       </div>
       <div class="card-body" id="card-body-recruit">
-        <p style="font-size:13px;color:#555;margin:4px 0 12px;">点击团队徽章右边的「招募按钮」可切换状态：🟢 招募中 → 🔴 暂停招募 → ⚪ 未定</p>
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">点击「招募按钮」切换主站展示的招募状态：🟢 招募中 → 🔴 暂停招募 → ⚪ 未定。<br>另有一个「📝 接受申请 / 🚫 不招人」开关：控制该团队是否出现在员工申请表 <code>join.html</code> 里（<b>不招人=关闭申请</b>，员工在 join.html 选不到该团队）。两个开关互不影响。</p>
         <div id="recruitPanel" class="teams-bar"></div>
+      </div>
+    </div>
+
+    <!-- 教练管理（每团队可加多位教练 · 每位独立开关） -->
+    <div class="card" data-card="coach" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('coach')">
+        <h2>🧑‍🏫 教练管理（每团队可加多位教练 · 每位独立开关）</h2>
+        <span class="card-toggle" id="card-toggle-coach">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-coach">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
+          每个启用团队可在主页顶部展示若干位「教练」（独立于普通成员卡片，配合欢迎横幅一起显示）。
+          点「<b>➕ 增加教练</b>」可加多位；每位有独立开关 <b>🟢 展示中 / ⚫ 已隐藏</b>（关掉=该教练不在主站显示=「不招」）。
+          头像可填 <code>qq:QQ号</code> 或图片文件名 / URL。改完点右下角「<b>☁️ 保存所有改动</b>」同步到仓库（写入 teams.json）。
+        </p>
+        <div id="coachList"></div>
       </div>
     </div>
 
@@ -714,7 +750,15 @@ function teamsDeepClone(arr){
       icon: (t && t.icon) || '⬜',
       color: (t && t.color) || '#9e9e9e',
       en: (t && t.en) || '',
-      enabled: (t && t.enabled === true) ? true : false
+      enabled: (t && t.enabled === true) ? true : false,
+      joinOpen: (t && typeof t.joinOpen === 'boolean') ? t.joinOpen : true,
+      coaches: (function(){
+        if (t && Array.isArray(t.coaches))
+          return t.coaches.map(function(c){ return { name:(c&&c.name)||'', image:(c&&c.image)||'', bio:(c&&c.bio)||'', enabled: (c&&c.enabled===true)?true:false }; });
+        if (t && t.coach && typeof t.coach === 'object' && (t.coach.name||t.coach.image||t.coach.bio))
+          return [{ name:t.coach.name||'', image:t.coach.image||'', bio:t.coach.bio||'', enabled:true }];
+        return [];
+      })()
     };
   });
 }
@@ -1504,6 +1548,8 @@ function loadAll(){
     resetPersonForm();
     renderPeople();
     updateTotalCount();
+    try { renderCoachPanel(); } catch(e){}
+    try { loadPendingIssues(); } catch(e){}
     try { refreshJsonPanel(); } catch(e){}
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
@@ -1736,7 +1782,19 @@ function renderRecruitPanel(){
       showStatus('saveStatus','「'+t.name+'」招募状态已修改，记得最后点「保存所有改动」上传。','info');
       renderRecruitPanel();
     };
+    var jbtn = document.createElement('span');
+    var joinOpen = (t.joinOpen !== false);
+    jbtn.className = 'recruit-toggle ' + (joinOpen ? 'r-on' : 'r-off');
+    jbtn.innerHTML = joinOpen ? '📝 接受申请' : '🚫 不招人';
+    jbtn.title = '点击开关：控制该团队是否出现在员工申请表 join.html（不招人=关闭申请）';
+    jbtn.style.marginLeft = '6px';
+    jbtn.onclick = function(){
+      t.joinOpen = !(t.joinOpen !== false);
+      markTeamsDirty('✅ 「'+t.name+'」'+(t.joinOpen ? '开放申请（出现在 join.html）' : '不招人（不出现在 join.html）')+'，记得点「保存所有改动」同步到 teams.json。');
+      renderRecruitPanel();
+    };
     chip.appendChild(badge);
+    chip.appendChild(jbtn);
     box.appendChild(chip);
   });
 }
@@ -2134,6 +2192,304 @@ async function saveAllToRepo(){
     btn.disabled = false;
   }
 }
+
+// ========== 入队申请审批（GitHub Issues） ==========
+// join.html 用低权 PAT 创建的 Issue，标题以「入队申请：」开头。
+// 这里用管理员的完整 PAT 读取 / 关闭 Issue，并在「通过」时把数据写进 data.json。
+function joinEsc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+// 从 Issue body 里抽出 ```json ... ``` 块解析成对象
+function parseJoinBody(body){
+  if (!body) return null;
+  var m = body.match(/```json\s*([\s\S]*?)```/i);
+  if (!m) return null;
+  try { return JSON.parse(m[1].trim()); } catch(e){ return null; }
+}
+// PATCH（关闭 Issue 用）
+function ghPatch(path, body){
+  return fetch('https://api.github.com'+path, {
+    method: 'PATCH', headers: ghHeaders({'Content-Type':'application/json'}),
+    body: JSON.stringify(body||{})
+  }).then(function(r){
+    if(r.status===401||r.status===403||r.status===404){
+      return r.text().then(function(t){ throw new Error(explainGhError(r.status)+(t?'\n'+t.slice(0,200):'')); });
+    }
+    if(!r.ok){ return r.json().then(function(e){ throw new Error('GitHub API 错误: '+r.status+' '+(e&&e.message?e.message:'')); }); }
+    return r.json();
+  }).catch(function(err){ throw new Error(explainNetworkError(err)); });
+}
+// POST（给 Issue 评论用）
+function ghPost(path, body){
+  return fetch('https://api.github.com'+path, {
+    method: 'POST', headers: ghHeaders({'Content-Type':'application/json'}),
+    body: JSON.stringify(body||{})
+  }).then(function(r){
+    if(r.status===401||r.status===403||r.status===404){
+      return r.text().then(function(t){ throw new Error(explainGhError(r.status)+(t?'\n'+t.slice(0,200):'')); });
+    }
+    if(!r.ok){ return r.json().then(function(e){ throw new Error('GitHub API 错误: '+r.status+' '+(e&&e.message?e.message:'')); }); }
+    return r.json();
+  }).catch(function(err){ throw new Error(explainNetworkError(err)); });
+}
+
+function loadPendingIssues(){
+  var st = document.getElementById('pendingStatus');
+  if (st) st.textContent = '正在读取待审批…';
+  ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=open&per_page=100')
+    .then(function(arr){
+      if (!Array.isArray(arr)) arr = [];
+      var prefix = '入队申请：';
+      var list = arr.filter(function(it){
+        return !it.pull_request && it.title && it.title.indexOf(prefix) === 0;
+      });
+      renderPendingList(list);
+    })
+    .catch(function(err){
+      var box = document.getElementById('pendingList');
+      if (box) box.innerHTML = '<div style="padding:14px;color:#c62828;">读取待审批失败：'+joinEsc(err.message||err)+'</div>';
+      if (st) st.textContent = '读取失败';
+    });
+}
+
+function renderPendingList(list){
+  var box = document.getElementById('pendingList');
+  var cnt = document.getElementById('pendingCount');
+  var st = document.getElementById('pendingStatus');
+  if (cnt) cnt.textContent = list.length;
+  if (!list.length){
+    if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无待审批申请</div>';
+    if (st) st.textContent = '';
+    return;
+  }
+  if (st) st.textContent = '共 '+list.length+' 条待审批';
+  var html = list.map(function(it){
+    var d = parseJoinBody(it.body);
+    if (!d){
+      d = { name: it.title.replace(/^入队申请：/,'').split(' → ')[0] || '(无名)', teamName:'', team:'', qq:'', desc:'', bio:'', _unparsed:true };
+    }
+    var avatar = d.image ? resolveAvatar(d.image) : '';
+    var s = [];
+    s.push('<div style="border:1px solid #d8e2ef;border-radius:10px;padding:12px;margin-bottom:10px;background:#fafcff;">');
+    s.push('<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">');
+    if (avatar) s.push('<img src="'+joinEsc(avatar)+'" alt="" onerror="this.style.display=\'none\'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#e0e0e0;">');
+    s.push('<div style="flex:1;min-width:200px;">');
+    s.push('<div style="font-weight:bold;font-size:15px;color:#222;">'+joinEsc(d.name||'(无名)')+' <span style="font-weight:normal;color:#999;font-size:12px;">#'+it.number+'</span></div>');
+    s.push('<div style="font-size:13px;color:#555;margin-top:4px;">');
+    if (d.teamName) s.push('<span class="badge badge-team">'+joinEsc(d.teamName)+'</span> ');
+    if (d.desc) s.push('· '+joinEsc(d.desc)+' ');
+    if (d.qq) s.push('· QQ:'+joinEsc(d.qq)+' ');
+    s.push('</div>');
+    if (d.bio) s.push('<div style="font-size:12px;color:#666;margin-top:4px;">'+joinEsc(d.bio)+'</div>');
+    if (d._unparsed) s.push('<div style="font-size:11px;color:#c62828;margin-top:4px;">⚠️ 申请数据格式异常（无法自动解析），通过时需手动核对，或让员工重提。</div>');
+    s.push('<div style="font-size:11px;color:#999;margin-top:4px;">提交于 '+joinEsc(new Date(it.created_at).toLocaleString('zh-CN'))+'</div>');
+    s.push('</div>');
+    s.push('<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">');
+    s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveJoin('+it.number+')">✅ 通过</button>');
+    s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectJoin('+it.number+')">❌ 拒绝</button>');
+    s.push('</div>');
+    s.push('</div></div>');
+    return s.join('');
+  }).join('');
+  box.innerHTML = html;
+}
+
+// 通过：写入 data.json（joinedAt=现在）+ 关闭 Issue + 评论
+async function approveJoin(issueNumber){
+  try {
+    var issue = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber);
+    var d = parseJoinBody(issue.body);
+    if (!d || !d.name){
+      alert('该申请无法自动解析（缺姓名或 JSON 块）。\n请去「人员管理」手动新增该员工，然后回来点「拒绝」关闭此 Issue。');
+      return;
+    }
+    var team = +(d.team);
+    var tname = d.teamName || teamName(team);
+    if (!team){
+      alert('该申请缺少团队 id，无法自动通过。\n请让员工重新提交，或在「人员管理」里手动新增后回来关闭此 Issue。');
+      return;
+    }
+    var obj = {
+      id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      name: d.name,
+      team: team,
+      image: d.image || (d.qq ? ('qq:'+d.qq) : ''),
+      desc: d.desc || '',
+      phone: '',
+      email: '',
+      bio: d.bio || '',
+      wechat: '',
+      qqcontact: d.qq || '',
+      joinedAt: Date.now(),
+      // 头像默认：clip 关（完整显示），避免 QQ 头像被裁头；可在「人员管理」里细调
+      cAvatarScale: 1, cAvatarClip: 0, cAvatarOffsetX: 0, cAvatarOffsetY: 0,
+      dAvatarScale: 1, dAvatarClip: 0, dAvatarOffsetX: 0, dAvatarOffsetY: 0
+    };
+    PEOPLE.push(obj);
+    DIRTY_PEOPLE = true;
+    showStatus('pendingStatus','正在部署 '+d.name+' 到主站…','info');
+
+    // 立即写 data.json（立即上线，不等「保存所有改动」）
+    var dsha = PEOPLE._sha || null;
+    if (!dsha){ try { var cur = await getContent('data.json'); if(cur) dsha = cur.sha; } catch(e){} }
+    var dataStr = JSON.stringify(PEOPLE, null, 2);
+    var dataB64 = utf8ToBase64(dataStr);
+    var dRes = await writeFile('data.json', dataB64, dsha, '审批通过入队: '+d.name+' → '+tname);
+    if (dRes && dRes.content && dRes.content.sha) PEOPLE._sha = dRes.content.sha; else PEOPLE._sha = null;
+    DIRTY_PEOPLE = false;
+
+    // 评论 + 关闭 Issue
+    try {
+      await ghPost('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber+'/comments',
+        { body: '✅ 已通过审批，欢迎加入「'+tname+'」！\n你的名片已上线主站，团队页顶部会显示欢迎横幅（3 天后自动消失）。' });
+    } catch(e){}
+    await ghPatch('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber, { state: 'closed' });
+
+    showStatus('pendingStatus','✅ '+d.name+' 已通过并部署到主站。等 1~2 分钟 Ctrl+F5 强刷主站即可看到欢迎横幅。','ok');
+    showStatus('saveStatus','✅ 审批通过 '+d.name+'，data.json 已更新（共 '+PEOPLE.length+' 人）。','ok');
+    renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
+    try { refreshJsonPanel(); } catch(e){}
+    loadPendingIssues();
+  } catch (err) {
+    showStatus('pendingStatus','❌ 通过失败：'+(err.message||err),'err');
+    showStatus('saveStatus','❌ 通过失败：'+(err.message||err),'err');
+  }
+}
+
+// 拒绝：评论 + 关闭 Issue
+async function rejectJoin(issueNumber){
+  if (!confirm('确定拒绝该入队申请并关闭 Issue 吗？')) return;
+  try {
+    try { await ghPost('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber+'/comments',
+      { body: '❌ 抱歉，本次申请未通过审批。如有疑问请联系管理员。' }); } catch(e){}
+    await ghPatch('/repos/'+OWNER+'/'+REPO+'/issues/'+issueNumber, { state: 'closed' });
+    showStatus('pendingStatus','已拒绝并关闭 Issue #'+issueNumber,'info');
+    loadPendingIssues();
+  } catch (err) {
+    showStatus('pendingStatus','❌ 拒绝失败：'+(err.message||err),'err');
+  }
+}
+
+// ========== 教练管理（每团队可加多位教练，每位独立开关；关掉=不展示=「不招」） ==========
+// 数据结构：TEAMS[i].coaches = [{ name, image, bio, enabled }]，存进 teams.json
+// 兼容旧版单教练字段 team.coach（自动迁移成 coaches 数组）
+function ensureCoaches(t){
+  if (!t) return [];
+  if (Array.isArray(t.coaches)) return t.coaches;
+  if (t.coach && typeof t.coach === 'object' && (t.coach.name || t.coach.image || t.coach.bio))
+    t.coaches = [{ name: t.coach.name||'', image: t.coach.image||'', bio: t.coach.bio||'', enabled: true }];
+  else
+    t.coaches = [];
+  return t.coaches;
+}
+function coachToggleStyle(en){
+  return 'display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;' +
+    'padding:4px 10px;border-radius:999px;font-size:12px;font-weight:bold;border:1px solid ' +
+    (en ? '#2e7d32;background:rgba(46,125,50,0.12);color:#2e7d32;' : '#9e9e9e;background:rgba(158,158,158,0.12);color:#757575;');
+}
+function renderCoachPanel(){
+  var box = document.getElementById('coachList');
+  if (!box) return;
+  var teams = allTeams();
+  box.innerHTML = '';
+  if (!teams.length){
+    box.innerHTML = '<div style="padding:14px;color:#888;">暂无团队，先在「团队管理」里启用团队。</div>';
+    return;
+  }
+  teams.forEach(function(t, i){ renderTeamCoachSection(i); });
+}
+function renderTeamCoachSection(i){
+  var box = document.getElementById('coachList');
+  if (!box || !TEAMS[i]) return;
+  var t = TEAMS[i];
+  var coaches = ensureCoaches(t);
+  var existing = document.getElementById('coachSec_' + i);
+  var sec;
+  if (!existing){
+    sec = document.createElement('div');
+    sec.id = 'coachSec_' + i;
+    sec.style.cssText = 'border:1px solid #e3e3e3;border-radius:10px;padding:12px;margin-bottom:10px;background:#fff;';
+    box.appendChild(sec);
+  } else {
+    sec = existing;
+  }
+  var onCount = coaches.filter(function(c){ return c && c.enabled === true; }).length;
+  var h = [];
+  h.push('<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">');
+  h.push('<span style="font-size:20px;">' + joinEsc(t.icon) + '</span>');
+  h.push('<b style="color:' + joinEsc(t.color) + ';">' + joinEsc(t.name) + '</b>');
+  h.push('<span style="margin-left:auto;font-size:11px;color:#999;">' + onCount + '/' + coaches.length + ' 位展示中</span>');
+  h.push('</div>');
+  if (!coaches.length){
+    h.push('<div style="padding:10px;color:#aaa;font-size:13px;">该团队暂无教练（主页不显示教练卡片 = 不招教练）</div>');
+  }
+  coaches.forEach(function(c, ci){
+    var en = c.enabled === true;
+    h.push('<div data-ci="' + ci + '" style="border:1px dashed #cfd8dc;border-radius:8px;padding:8px;margin-bottom:8px;background:#fbfdff;">');
+    h.push('<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">');
+    h.push('<span data-act="toggle" title="点击切换是否在主站展示该教练" style="' + coachToggleStyle(en) + '">' + (en ? '🟢 展示中' : '⚫ 已隐藏') + '</span>');
+    h.push('<span style="font-size:12px;color:#888;">教练 #' + (ci + 1) + '</span>');
+    h.push('<button type="button" data-act="del" class="btn-danger" style="margin-left:auto;padding:4px 8px;font-size:12px;">🗑️ 删除</button>');
+    h.push('</div>');
+    h.push('<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">');
+    h.push('<div><label style="font-size:11px;color:#666;">名字</label><input type="text" data-ci="' + ci + '" data-k="name" value="' + joinEsc(c.name) + '" placeholder="教练名字" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;"></div>');
+    h.push('<div><label style="font-size:11px;color:#666;">头像（qq:QQ号 或 图片名/URL）</label><input type="text" data-ci="' + ci + '" data-k="image" value="' + joinEsc(c.image) + '" placeholder="例：qq:123456" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;"></div>');
+    h.push('</div>');
+    h.push('<div style="margin-top:6px;"><label style="font-size:11px;color:#666;">简介</label><textarea data-ci="' + ci + '" data-k="bio" placeholder="一句话简介" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;min-height:40px;resize:vertical;">' + joinEsc(c.bio) + '</textarea></div>');
+    h.push('</div>');
+  });
+  h.push('<button type="button" data-act="add" class="btn-secondary" style="margin-top:4px;padding:6px 12px;font-size:13px;">➕ 增加教练</button>');
+  sec.innerHTML = h.join('');
+  bindCoachSection(sec, i);
+}
+function bindCoachSection(sec, i){
+  // 输入框：实时写模型，不重渲染（保持焦点）
+  var inputs = sec.querySelectorAll('input[data-k], textarea[data-k]');
+  for (var k = 0; k < inputs.length; k++){
+    (function(el){
+      el.addEventListener('input', function(){
+        var ci = +el.getAttribute('data-ci');
+        var key = el.getAttribute('data-k');
+        var coaches = ensureCoaches(TEAMS[i]);
+        if (coaches[ci]) { coaches[ci][key] = el.value; markTeamsDirty(); }
+      });
+    })(inputs[k]);
+  }
+  // 按钮委托：容器监听，innerHTML 重置后仍有效
+  sec.onclick = function(e){
+    var btn = (e.target && e.target.closest) ? e.target.closest('[data-act]') : null;
+    if (!btn) return;
+    var act = btn.getAttribute('data-act');
+    var coaches = ensureCoaches(TEAMS[i]);
+    if (act === 'add'){
+      coaches.push({ name: '', image: '', bio: '', enabled: true });
+      markTeamsDirty('✅ 已增加一位教练（默认展示），改好名字头像后点「保存所有改动」同步到仓库。');
+      renderTeamCoachSection(i);
+      return;
+    }
+    var row = (btn.closest) ? btn.closest('[data-ci]') : null;
+    var ci = row ? +row.getAttribute('data-ci') : -1;
+    if (act === 'toggle' && coaches[ci]){
+      coaches[ci].enabled = !coaches[ci].enabled;
+      markTeamsDirty('✅ 教练「' + (coaches[ci].name || '#' + (ci + 1)) + '」已' + (coaches[ci].enabled ? '展示' : '隐藏') + '，记得保存。');
+      renderTeamCoachSection(i);
+    } else if (act === 'del' && coaches[ci]){
+      if (confirm('确定删除教练「' + (coaches[ci].name || '#' + (ci + 1)) + '」吗？')){
+        coaches.splice(ci, 1);
+        markTeamsDirty('✅ 已删除一位教练，记得保存。');
+        renderTeamCoachSection(i);
+      }
+    }
+  };
+}
+
+// 绑定「刷新待审批」按钮
+try {
+  var _rpb = document.getElementById('refreshPendingBtn');
+  if (_rpb) _rpb.onclick = loadPendingIssues;
+} catch(e){}
 </script>
 
 <!-- 通用模态框：查看单条人员 JSON / 单文件大窗口 / 后台源码 -->
