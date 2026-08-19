@@ -246,13 +246,8 @@
     <p id="pageSubtitle">教官专属管理面板，查看名下学员</p>
   </header>
 
-  <!-- ====== 未登录：登录/注册切换 ====== -->
+  <!-- ====== 未登录：登录 ====== -->
   <div class="card" id="authCard">
-    <div class="tab-row">
-      <div class="tab-btn active" id="tabLogin" onclick="switchTab('login')">🔑 登录</div>
-      <div class="tab-btn" id="tabRegister" onclick="switchTab('register')">📝 注册</div>
-    </div>
-
     <!-- 登录表单 -->
     <div id="loginForm">
       <div class="field">
@@ -265,38 +260,8 @@
       </div>
       <button class="btn btn-primary" id="loginBtn" type="button" onclick="doLogin()">🚀 登录</button>
       <div class="status" id="loginStatus"></div>
-    </div>
-
-    <!-- 注册表单 -->
-    <div id="registerForm" class="hidden">
-      <div class="field">
-        <label>用户名 <span class="req">*</span></label>
-        <input type="text" id="regUser" placeholder="2-30位，中文/字母/数字/下划线">
-      </div>
-      <div class="field">
-        <label>密码 <span class="req">*</span> <span class="hint">（至少 4 位）</span></label>
-        <input type="password" id="regPass" placeholder="设置登录密码" autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label>确认密码 <span class="req">*</span></label>
-        <input type="password" id="regPass2" placeholder="再输入一次密码" autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label>所属团队 <span class="req">*</span></label>
-        <select id="regTeam"><option value="">加载中…</option></select>
-      </div>
-      <div class="field" id="regCoachField" style="display:none;">
-        <label>你的教官名 <span class="req">*</span> <span class="hint">（选择你对应的教官身份）</span></label>
-        <select id="regCoach"><option value="">— 请先选择团队 —</option></select>
-      </div>
-      <div class="field">
-        <label>简介 <span class="hint">（选填）</span></label>
-        <textarea id="regBio" placeholder="一句话介绍自己" maxlength="200"></textarea>
-      </div>
-      <button class="btn btn-primary" id="regBtn" type="button" onclick="doRegister()">📋 提交注册申请</button>
-      <div class="status" id="regStatus"></div>
       <p style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6;">
-        ⚠️ 注册提交后需等待管理员审核通过才能登录。审核通过后，你的账号将关联到 teams.json 中对应团队和教官名。
+        💡 账号由管理员分配，如需账号请联系管理员。
       </p>
     </div>
   </div>
@@ -315,7 +280,6 @@
 </div>
 
 <script>
-var JOIN_API_URL = 'https://9178gg-join.3751211611.workers.dev';
 var TEAMS_CACHE = [];
 
 function $(id){ return document.getElementById(id); }
@@ -350,171 +314,6 @@ function fromUrlSafe(s){
   s = String(s||'').replace(/-/g,'+').replace(/_/g,'/');
   while (s.length % 4) s += '=';
   return s;
-}
-
-// ===== Tab 切换 =====
-function switchTab(tab){
-  if (tab === 'login'){
-    $('tabLogin').classList.add('active');
-    $('tabRegister').classList.remove('active');
-    $('loginForm').classList.remove('hidden');
-    $('registerForm').classList.add('hidden');
-    $('pageTitle').textContent = '教官登录';
-  } else {
-    $('tabLogin').classList.remove('active');
-    $('tabRegister').classList.add('active');
-    $('loginForm').classList.add('hidden');
-    $('registerForm').classList.remove('hidden');
-    $('pageTitle').textContent = '教官注册';
-  }
-}
-
-// ===== 加载团队列表（注册表单用） =====
-function loadTeamsForReg(){
-  var sel = $('regTeam');
-  sel.innerHTML = '<option value="">加载中…</option>';
-  fetch('teams.json?t=' + Date.now(), { cache: 'no-store' })
-    .then(function(r){ if (!r.ok) throw new Error(''+r.status); return r.json(); })
-    .then(function(arr){
-      TEAMS_CACHE = Array.isArray(arr) ? arr.slice() : [];
-      sel.innerHTML = '<option value="">— 请选择团队 —</option>';
-      (TEAMS_CACHE || []).forEach(function(t){
-        if (!t || t.enabled !== true || !t.name || !String(t.name).trim()) return;
-        var opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = (t.icon || '') + ' ' + t.name;
-        sel.appendChild(opt);
-      });
-    })
-    .catch(function(){
-      sel.innerHTML = '<option value="">（团队加载失败）</option>';
-    });
-}
-function refreshRegCoachOptions(teamId){
-  var field = $('regCoachField');
-  var sel = $('regCoach');
-  if (!field || !sel) return;
-  sel.innerHTML = '<option value="">— 不选择 —</option>';
-  if (!teamId) { field.style.display = 'none'; return; }
-  var team = (TEAMS_CACHE || []).find(function(t){ return +t.id === +teamId; });
-  var coaches = [];
-  if (team && Array.isArray(team.coaches)){
-    coaches = team.coaches.filter(function(c){ return c && c.enabled === true && (c.name || c.image); });
-  } else if (team && team.coach && typeof team.coach === 'object' && (team.coach.name || team.coach.image)){
-    coaches = [team.coach];
-  }
-  if (!coaches.length) { field.style.display = 'none'; return; }
-  coaches.forEach(function(c){
-    var opt = document.createElement('option');
-    opt.value = c.name || '';
-    opt.textContent = (c.name || '(未命名)') + (c.bio ? ' — ' + c.bio : '');
-    sel.appendChild(opt);
-  });
-  field.style.display = 'block';
-}
-$('regTeam').addEventListener('change', function(){ refreshRegCoachOptions(this.value); });
-
-// ===== 注册提交 =====
-function explainErr(status){
-  if (status === 401) return 'Worker 的 GitHub PAT 无效或已过期。';
-  if (status === 403) return '网站来源不被允许或 PAT 权限不足。';
-  if (status === 404) return 'Worker 地址或仓库不存在。';
-  if (status === 503) return 'Worker 尚未配置 GITHUB_PAT Secret。';
-  return '服务返回 HTTP ' + status + '。';
-}
-// 网络预检：快速探测 Worker 是否可达
-async function pingWorker(){
-  try {
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 8000);
-    var r = await fetch(JOIN_API_URL, { method:'GET', signal: controller.signal, cache:'no-store', credentials:'omit' });
-    clearTimeout(timeoutId);
-    return r.ok;
-  } catch(e){ return false; }
-}
-
-async function doRegister(){
-  var username = $('regUser').value.trim();
-  var pass = $('regPass').value;
-  var pass2 = $('regPass2').value;
-  var teamVal = $('regTeam').value;
-  var teamName = $('regTeam').selectedOptions[0] ? $('regTeam').selectedOptions[0].textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() : '';
-  var coachName = $('regCoach').value;
-  var bio = $('regBio').value.trim();
-
-  if (!username) { showStatus('regStatus','err','❌ 请填写用户名'); return; }
-  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(username)) { showStatus('regStatus','err','❌ 用户名只能用中文、字母、数字、下划线，2-30 位'); return; }
-  if (!pass || pass.length < 4) { showStatus('regStatus','err','❌ 密码至少 4 位'); return; }
-  if (pass !== pass2) { showStatus('regStatus','err','❌ 两次密码不一致'); return; }
-  if (!teamVal) { showStatus('regStatus','err','❌ 请选择所属团队'); return; }
-  if (!coachName) { showStatus('regStatus','err','❌ 请选择你的教官名'); return; }
-
-  var data = {
-    type: 'coach-register',
-    username: username,
-    password: pass,
-    coachName: coachName,
-    team: +teamVal,
-    teamName: teamName,
-    bio: bio,
-    submittedAt: new Date().toISOString()
-  };
-
-  var btn = $('regBtn');
-  btn.disabled = true;
-  btn.textContent = '提交中…';
-  showStatus('regStatus','info','正在提交…');
-
-  // 先快速预检 Worker 是否可达
-  var reachable = await pingWorker();
-  if (!reachable) {
-    showStatus('regStatus','err',
-      '⚠️ 无法连接注册服务器（workers.dev 可能被 DNS 污染）。\n' +
-      '请按以下任一方式处理后重试：\n' +
-      '① 安卓手机：设置 → 网络 → 私有 DNS → 填入 dns.google\n' +
-      '② 苹果手机：使用代理/VPN 后再访问本页\n' +
-      '③ 切换到其他网络（如移动数据/WiFi 互换）后重试'
-    );
-    btn.disabled = false;
-    btn.textContent = '📋 重新提交';
-    return;
-  }
-
-  try {
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 30000);
-    var opts = {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain;charset=UTF-8'},
-      body: JSON.stringify(data),
-      credentials: 'omit',
-      cache: 'no-store'
-    };
-    if (typeof AbortController !== 'undefined' && controller && controller.signal) {
-      opts.signal = controller.signal;
-    }
-    var response = await fetch(JOIN_API_URL, opts);
-    clearTimeout(timeoutId);
-    if (!response.ok) {
-      var detail = '';
-      try { var ed = await response.json(); detail = ed && (ed.error || ed.message) ? '（'+(ed.error||ed.message)+'）' : ''; } catch(e){}
-      throw new Error(explainErr(response.status) + detail);
-    }
-    var result = await response.json();
-    showStatus('regStatus','ok',
-      '✅ 注册申请已提交！\n' +
-      '请等待管理员审核通过后，再用用户名「'+username+'」和密码登录。\n' +
-      (result.html_url ? '申请单号：#' + (result.number || '') : '')
-    );
-    btn.textContent = '✅ 已提交';
-  } catch(e) {
-    var msg = (e && e.name === 'AbortError')
-      ? '⏰ 提交超时（30秒）。服务器可能被 DNS 污染。\n建议：安卓手机在「设置→网络→私有DNS」填 dns.google，或使用代理后重试。'
-      : ('❌ 提交失败：' + (e && e.message || e));
-    showStatus('regStatus','err', msg);
-    btn.disabled = false;
-    btn.textContent = '📋 重新提交';
-  }
 }
 
 // ===== 登录 =====
@@ -693,7 +492,6 @@ function tryAutoLogin(){
 }
 
 // ===== 初始化 =====
-loadTeamsForReg();
 tryAutoLogin();
 </script>
 </body>
