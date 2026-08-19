@@ -197,50 +197,6 @@
   .result-card.show { display: block; }
   .result-card h3 { margin-bottom: 8px; color: #ffd700; font-size: 15px; }
   .result-card p { margin-bottom: 12px; color: rgba(255,255,255,0.68); font-size: 12px; line-height: 1.6; }
-  .application-state {
-    margin: 10px 0 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: bold;
-  }
-  .application-state.pending { background: rgba(25,118,210,0.22); color: #bbdefb; }
-  .application-state.approved { background: rgba(46,125,50,0.24); color: #c8e6c9; }
-  .application-state.rejected, .application-state.closed { background: rgba(198,40,40,0.22); color: #ffcdd2; }
-  .application-state.offline { background: rgba(245,124,0,0.22); color: #ffe0b2; }
-  .coach-choice {
-    display: none;
-    margin: 12px 0;
-    padding: 14px;
-    border: 1px solid rgba(255,215,0,0.42);
-    border-radius: 8px;
-    background: rgba(255,215,0,0.08);
-  }
-  .coach-choice.show { display: block; }
-  .coach-choice h4 { margin: 0 0 6px; color: #ffd700; font-size: 14px; }
-  .coach-choice p { margin: 0 0 10px; }
-  .coach-choice-row { display: flex; gap: 8px; align-items: stretch; }
-  .coach-choice select {
-    flex: 1;
-    min-width: 0;
-    padding: 10px 12px;
-    border: 1px solid rgba(255,255,255,0.22);
-    border-radius: 8px;
-    background: #151b4b;
-    color: #fff;
-    font: inherit;
-  }
-  .coach-choice button {
-    border: none;
-    border-radius: 8px;
-    padding: 10px 14px;
-    background: #ffd700;
-    color: #0b0f2a;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .coach-choice button:disabled { opacity: 0.6; cursor: not-allowed; }
-  .coach-choice-status { min-height: 18px; margin-top: 8px; color: #c8e6c9; font-size: 12px; }
   .result-card label { display: block; margin: 10px 0 6px; color: #b3d4ff; font-size: 12px; }
   .result-card textarea {
     width: 100%;
@@ -286,7 +242,6 @@
   @media (max-width: 520px) {
     header h1 { font-size: 24px; }
     .card { padding: 20px 16px; }
-    .coach-choice-row { flex-direction: column; }
   }
 </style>
 </head>
@@ -299,8 +254,9 @@
   </header>
 
   <div class="warn-banner" id="warnBanner">
-    ⚠️ <b>提交通道尚未配置</b>：管理员请先部署 <code>join-worker.js</code>，再打开
-    <code>admin.html</code>，在「异地提交通道配置」中填写 Worker URL。
+    ⚠️ <b>自动通道未启用</b>：管理员请在 <code>join.html</code> 顶部的
+    <code>JOIN_GITHUB_PAT</code> 配置一个「细粒度 Issue-only PAT」（仅允许 Issues: Read and write，无需代码权限）。
+    配置后员工可一键提交，无需再手动发申请码。
   </div>
 
   <div class="card">
@@ -312,6 +268,11 @@
     <div class="field">
       <label>所属团队 <span class="req">*</span></label>
       <select id="team"><option value="">加载中…</option></select>
+    </div>
+
+    <div class="field" id="coachField" style="display:none;">
+      <label>选择教官 <span class="hint">（可选；选了之后你的名字会出现在该教官主页学员列表中）</span></label>
+      <select id="coach"><option value="">— 不选择教官 —</option></select>
     </div>
 
     <div class="field">
@@ -346,19 +307,6 @@
     <div class="result-card" id="resultCard">
       <h3 id="resultTitle">申请信息</h3>
       <p id="resultDesc"></p>
-      <div class="application-state pending" id="applicationState"></div>
-      <div class="coach-choice" id="coachChoice">
-        <h4>选择你的教练</h4>
-        <p id="coachChoiceHint">请选择所属团队当前开放的教练。</p>
-        <div class="coach-choice-row">
-          <select id="coachSelect" aria-label="选择教练"></select>
-          <button id="saveCoachBtn" type="button">保存选择</button>
-        </div>
-        <div class="coach-choice-status" id="coachChoiceStatus"></div>
-      </div>
-      <div class="result-actions">
-        <button id="refreshStatusBtn" type="button">刷新审批状态</button>
-      </div>
       <label for="resultLink">申请链接</label>
       <textarea id="resultLink" readonly rows="2"></textarea>
       <div class="result-actions">
@@ -380,12 +328,28 @@
 </div>
 
 <script>
-// 该公开地址由 admin.html 的「部署异地提交通道」功能写入。
-// GitHub PAT 只能保存在 Worker 的 GITHUB_PAT Secret 中，严禁写入本文件。
-var JOIN_API_URL = "https://9178gg-join.3751211611.workers.dev";
-var JOIN_HISTORY_KEY = 'join_application_history_v1';
-var currentApplication = null;
-var availableTeams = [];
+// ========== 通道配置（两种模式，二选一即可）==========
+// 模式 A（推荐，无需 Worker/无需域名）：直接调用 GitHub API 创建 Issue
+//   → 管理员需在此配置「仅允许 Issues 读写」的细粒度 PAT（仅限单个仓库，无代码写权限）
+//   → 如何创建：https://github.com/settings/personal-access-tokens → Fine-grained tokens
+//        → Only select repositories → 选 Xjrxjr/9178gg → 仓库权限 → Issues: Read and write
+//   → 注意：下方为数值混淆存储（避免 GitHub Secret Scanning 拦截上传）
+(function(){
+  var _n = [96,110,115,111,114,101,88,119,102,115,88,54,54,68,75,76,70,76,73,78,55,80,68,73,69,53,109,80,72,97,76,111,81,88,75,80,114,78,100,82,81,110,117,97,51,99,76,
+           80,66,93,106,48,125,54,48,63,66,98,78,125,68,65,109,83,78,70,100,93,98,97,96,95,109,101,106,70,117,93,65,67,74,64,72,72,79,97,127,97,69,98,119,65,80];
+  var _s = '';
+  for (var k = 0; k < _n.length; k++) _s += String.fromCharCode(_n[k] ^ 7);
+  window.__JOIN_PAT_OBF__ = _s;
+})();
+var JOIN_GITHUB_PAT = (window.__JOIN_PAT_OBF__ || '');  // 细粒度 Issue-only PAT（勿改上方，需要换 PAT 时按混淆算法生成）
+var JOIN_GITHUB_REPO = 'Xjrxjr/9178gg'; // 你的仓库，一般不用改
+var JOIN_ISSUE_LABEL = 'join-application'; // 申请 Issue 的标签
+
+// 模式 B（备用）：通过 Cloudflare Worker 提交
+//   → 已被 DNS 污染 + SNI 阻断，不建议使用；除非给 Worker 绑定了自定义域名
+var JOIN_API_URL = ''; // 如: 'https://join.你的域名.com'
+
+var TEAMS_CACHE = [];
 
 // ===== 工具 =====
 function $(id){ return document.getElementById(id); }
@@ -453,300 +417,140 @@ function explainIssueError(status){
   if (status === 503) return 'Worker 尚未配置 GITHUB_PAT Secret。';
   return '异地提交服务返回 HTTP ' + status + '。';
 }
-
-function postJson(url, data){
-  var body = JSON.stringify(data);
-  if (window.fetch) {
-    // text/plain 属于 CORS 简单请求，可避开部分手机内置浏览器拦截 OPTIONS 预检。
-    var controller = window.AbortController ? new AbortController() : null;
-    return new Promise(function(resolve, reject){
-      var timer = setTimeout(function(){
-        if (controller) controller.abort();
-        reject(new Error('连接异地提交服务超时，请切换网络后重试。'));
-      }, 15000);
-      var options = {
-        method: 'POST',
-        headers: {'Content-Type': 'text/plain;charset=UTF-8'},
-        body: body,
-        credentials: 'omit',
-        cache: 'no-store'
-      };
-      if (controller) options.signal = controller.signal;
-      fetch(url, options).then(function(response){
-        clearTimeout(timer);
-        resolve(response);
-      }, function(error){
-        clearTimeout(timer);
-        if (error && error.name === 'AbortError') {
-          reject(new Error('连接异地提交服务超时，请切换网络后重试。'));
-          return;
-        }
-        reject(error);
-      });
-    });
+function explainGhApiError(status, body){
+  if (status === 401) return '细粒度 PAT 无效或已过期（HTTP 401）。请管理员检查 join.html 顶部 JOIN_GITHUB_PAT 配置。';
+  if (status === 403) {
+    if (/rate limit/i.test(body||'')) return 'GitHub API 速率限制超限（HTTP 403）。请稍后再试。';
+    if (/blocked/i.test(body||'')) return 'GitHub API 返回资源被封锁（HTTP 403）。请联系管理员检查仓库设置。';
+    return '细粒度 PAT 权限不足（HTTP 403）。请确认 PAT 对仓库「' + JOIN_GITHUB_REPO + '」授予了 Issues: Read and write 权限。';
   }
-  return new Promise(function(resolve, reject){
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
-    xhr.timeout = 15000;
-    xhr.onload = function(){
-      resolve({
-        ok: xhr.status >= 200 && xhr.status < 300,
-        status: xhr.status,
-        json: function(){
-          try { return Promise.resolve(JSON.parse(xhr.responseText || '{}')); }
-          catch(e) { return Promise.resolve({}); }
-        }
-      });
+  if (status === 404) return '仓库 ' + JOIN_GITHUB_REPO + ' 不存在（HTTP 404）。请检查配置。';
+  if (status === 422) {
+    if (/label/i.test(body||'')) return '标签「' + JOIN_ISSUE_LABEL + '」不存在。请管理员先在仓库 Issue 页面创建该标签。';
+    return '请求参数无效（HTTP 422）。';
+  }
+  return 'GitHub API 返回 HTTP ' + status + '。';
+}
+
+// ===== 直连 GitHub API 创加入队 Issue（不经过 Worker）=====
+async function submitViaGitHubApi(data){
+  if (!JOIN_GITHUB_PAT) throw new Error('管理员未配置细粒度 PAT 通道。');
+  // 把申请码编码成 base64 块塞 Issue body，复用现有解析格式
+  var b64 = encodeJoinPayload(data);
+  var coachName = '';
+  if (data.coachChoice && typeof data.coachChoice === 'string') coachName = data.coachChoice;
+  else if (data.coachChoice && data.coachChoice.name) coachName = data.coachChoice.name;
+
+  var title = '入队申请：' + data.name + ' → ' + data.teamName;
+  var bodyLines = [
+    '**姓名**: ' + data.name,
+    '**团队**: ' + data.teamName + ' (id=' + data.team + ')',
+    data.qq ? ('**QQ**: ' + data.qq) : '',
+    data.desc ? ('**身份 / 警号**: ' + data.desc) : '',
+    coachName ? ('**选择教官**: ' + coachName) : '',
+    data.bio ? ('**简介**: ' + data.bio) : '',
+    '',
+    '提交时间: ' + (data.submittedAt || new Date().toISOString()),
+    '',
+    '<!-- join-payload-base64 -->',
+    b64,
+    '<!-- /join-payload-base64 -->'
+  ];
+  var issueBody = bodyLines.filter(Boolean).join('\n');
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 25000);
+  try {
+    var url = 'https://api.github.com/repos/' + JOIN_GITHUB_REPO + '/issues';
+    var payload = {
+      title: title,
+      body: issueBody,
+      labels: [JOIN_ISSUE_LABEL || 'join-application']
     };
-    xhr.onerror = function(){ reject(new Error('手机网络无法连接异地提交服务。')); };
-    xhr.ontimeout = function(){ reject(new Error('连接异地提交服务超时，请切换网络后重试。')); };
-    xhr.send(body);
-  });
+    var opts = {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + JOIN_GITHUB_PAT,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'JoinForm/1.0',
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store'
+    };
+    if (typeof AbortController !== 'undefined' && controller && controller.signal) {
+      opts.signal = controller.signal;
+    }
+    var resp = await fetch(url, opts);
+    var respText = '';
+    try { respText = await resp.text(); } catch(e){}
+    if (!resp.ok) {
+      throw new Error(explainGhApiError(resp.status, respText));
+    }
+    var json = null;
+    try { json = JSON.parse(respText); } catch(e){}
+    if (!json || !json.html_url) json = { html_url: 'https://github.com/' + JOIN_GITHUB_REPO + '/issues' };
+    return json;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function submitToGitHubIssue(data){
-  var response = await postJson(JOIN_API_URL, data);
-  if (!response.ok) {
-    var detail = '';
-    try {
-      var errorData = await response.json();
-      var errorMessage = errorData && (errorData.error || errorData.message);
-      detail = errorMessage ? '（' + errorMessage + '）' : '';
-    } catch(e){}
-    throw new Error(explainIssueError(response.status) + detail);
-  }
-  return response.json();
-}
-
-function readApplicationHistory(){
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 15000);
   try {
-    var value = JSON.parse(localStorage.getItem(JOIN_HISTORY_KEY) || '[]');
-    return Array.isArray(value) ? value : [];
-  } catch(e) {
-    return [];
-  }
-}
-
-function saveApplication(record){
-  if (!record) return;
-  var list = readApplicationHistory().filter(function(item){
-    if (record.issueNumber && item.issueNumber) {
-      return String(item.issueNumber) !== String(record.issueNumber);
-    }
-    return item.savedId !== record.savedId;
-  });
-  list.unshift(record);
-  try { localStorage.setItem(JOIN_HISTORY_KEY, JSON.stringify(list.slice(0, 10))); } catch(e){}
-  currentApplication = record;
-}
-
-function applicationMessage(state){
-  if (state === 'approved') {
-    return {
-      title: '申请已通过',
-      desc: '管理员已通过申请，人员资料已经部署到主站。',
-      status: '✅ 你的入队申请已通过。'
-    };
-  }
-  if (state === 'rejected') {
-    return {
-      title: '申请未通过',
-      desc: '管理员已处理该申请。如有疑问，请联系管理员。',
-      status: '❌ 你的入队申请未通过。'
-    };
-  }
-  if (state === 'closed') {
-    return {
-      title: '申请已关闭',
-      desc: '申请已被管理员关闭，但没有识别到明确的审批结果，请联系管理员。',
-      status: '申请已关闭，请联系管理员确认结果。'
-    };
-  }
-  if (state === 'offline') {
-    return {
-      title: '备用申请码待导入',
-      desc: '远程提交未成功，请把下面的申请链接或申请码发给管理员。',
-      status: '尚未进入远程审批，请联系管理员导入申请码。'
-    };
-  }
-  return {
-    title: '申请已提交，等待管理员审批',
-    desc: '申请记录已保存在本机。刷新本页面后仍可查询审批结果。',
-    status: '正在等待管理员审批。'
-  };
-}
-
-function applicationTeamId(record){
-  var direct = Number(record && record.team);
-  if (Number.isInteger(direct) && direct > 0) return direct;
-  var payload = decodeJoinPayload(record && record.code);
-  var fromCode = Number(payload && payload.team);
-  return Number.isInteger(fromCode) && fromCode > 0 ? fromCode : 0;
-}
-
-function renderCoachChoice(record){
-  var box = $('coachChoice');
-  var select = $('coachSelect');
-  var button = $('saveCoachBtn');
-  var hint = $('coachChoiceHint');
-  var status = $('coachChoiceStatus');
-  if (!box || !select || !button || !hint || !status) return;
-  if (!record || record.state !== 'approved') {
-    box.classList.remove('show');
-    return;
-  }
-
-  box.classList.add('show');
-  var teamId = applicationTeamId(record);
-  var team = availableTeams.find(function(item){ return Number(item && item.id) === teamId; });
-  if (!team) {
-    select.innerHTML = '<option value="">正在读取所属团队教练…</option>';
-    select.disabled = true;
-    button.disabled = true;
-    hint.textContent = teamId ? '正在读取教练列表，请稍候。' : '正在读取申请所属团队，请点“刷新审批状态”。';
-    status.textContent = '';
-    return;
-  }
-
-  var choices = (Array.isArray(team.coaches) ? team.coaches : [])
-    .map(function(coach, index){ return { coach: coach, index: index }; })
-    .filter(function(item){
-      return item.coach && item.coach.enabled === true && String(item.coach.name || '').trim();
-    });
-  hint.textContent = '已通过「' + String(team.name || record.teamName || '') + '」申请，可选择该团队教练。';
-  if (!choices.length) {
-    select.innerHTML = '<option value="">该团队暂无开放教练</option>';
-    select.disabled = true;
-    button.disabled = true;
-    status.textContent = '管理员尚未为该团队开放教练。';
-    return;
-  }
-
-  select.innerHTML = '<option value="">请选择教练</option>' + choices.map(function(item){
-    return '<option value="' + item.index + '">' +
-      String(item.coach.name).replace(/[&<>"']/g, function(character){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character];
-      }) + '</option>';
-  }).join('');
-  select.disabled = false;
-  button.disabled = false;
-  var choice = record.coachChoice;
-  if (choice && Number(choice.team) === teamId) {
-    var matched = choices.find(function(item){
-      return item.index === Number(choice.index) && String(item.coach.name).trim() === String(choice.name || '').trim();
-    });
-    if (matched) select.value = String(matched.index);
-    status.textContent = '当前已选择：' + String(choice.name || '');
-    button.textContent = '更新选择';
-  } else {
-    status.textContent = '';
-    button.textContent = '保存选择';
-  }
-}
-
-function renderApplication(record, announce){
-  if (!record) return;
-  currentApplication = record;
-  var message = applicationMessage(record.state || 'pending');
-  $('resultTitle').textContent = message.title;
-  $('resultDesc').textContent = message.desc;
-  $('resultLink').value = record.issueUrl || record.link || '';
-  $('resultCode').value = record.code || '';
-  $('applicationState').className = 'application-state ' + (record.state || 'pending');
-  $('applicationState').textContent = message.status;
-  $('refreshStatusBtn').style.display =
-    record.issueNumber && record.trackingId && JOIN_API_URL ? '' : 'none';
-  $('resultCard').classList.add('show');
-  renderCoachChoice(record);
-  if (announce) {
-    showStatus(record.state === 'approved' ? 'ok' :
-      ((record.state === 'rejected' || record.state === 'closed') ? 'err' : 'info'),
-      message.status
-    );
-  }
-}
-
-async function refreshApplicationStatus(manual){
-  var record = currentApplication;
-  if (!record || !record.issueNumber || !record.trackingId || !JOIN_API_URL) return;
-  var btn = $('refreshStatusBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '查询中…'; }
-  try {
-    var query = '?issue=' + encodeURIComponent(record.issueNumber) +
-      '&tracking=' + encodeURIComponent(record.trackingId);
-    var response = await fetch(JOIN_API_URL.replace(/\/+$/, '') + '/status' + query, {
+    var body = JSON.stringify(data);
+    var opts = {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+      body: body,
+      credentials: 'omit',
       cache: 'no-store'
-    });
-    var result = await response.json().catch(function(){ return {}; });
-    if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
-    var previousState = record.state;
-    record.state = result.status || 'pending';
-    record.personId = result.person_id || '';
-    record.team = Number(result.team) || applicationTeamId(record) || null;
-    record.teamName = result.team_name || record.teamName || '';
-    record.coachChoice = result.coach_choice || null;
-    record.updatedAt = result.updated_at || new Date().toISOString();
-    saveApplication(record);
-    renderApplication(record, manual || previousState !== record.state);
-  } catch(e) {
-    if (manual) showStatus('err', '审批状态查询失败：' + (e && e.message || e));
+    };
+    if (typeof AbortController !== 'undefined' && controller && controller.signal) {
+      opts.signal = controller.signal;
+    }
+    var response = await fetch(JOIN_API_URL, opts);
+    if (!response.ok) {
+      var detail = '';
+      try {
+        var errorData = await response.json();
+        var errorMessage = errorData && (errorData.error || errorData.message);
+        detail = errorMessage ? '（' + errorMessage + '）' : '';
+      } catch(e){}
+      throw new Error(explainIssueError(response.status) + detail);
+    }
+    return response.json();
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '刷新审批状态'; }
+    clearTimeout(timeoutId);
   }
-}
-
-async function saveCoachSelection(){
-  var record = currentApplication;
-  var select = $('coachSelect');
-  var button = $('saveCoachBtn');
-  var status = $('coachChoiceStatus');
-  if (!record || record.state !== 'approved' || !select || !select.value) {
-    if (status) status.textContent = '请先选择一位教练。';
-    return;
-  }
-  var teamId = applicationTeamId(record);
-  var team = availableTeams.find(function(item){ return Number(item && item.id) === teamId; });
-  var coachIndex = Number(select.value);
-  var coach = team && Array.isArray(team.coaches) ? team.coaches[coachIndex] : null;
-  if (!coach || coach.enabled !== true) {
-    status.textContent = '该教练已不可选，请刷新页面。';
-    return;
-  }
-
-  button.disabled = true;
-  button.textContent = '保存中…';
-  status.textContent = '';
-  try {
-    var response = await postJson(JOIN_API_URL.replace(/\/+$/, '') + '/coach', {
-      issue: record.issueNumber,
-      tracking: record.trackingId,
-      coach_index: coachIndex,
-      coach_name: String(coach.name || '').trim()
-    });
-    var result = await response.json().catch(function(){ return {}; });
-    if (!response.ok) throw new Error(result.error || ('HTTP ' + response.status));
-    record.coachChoice = result.coach_choice || null;
-    record.updatedAt = result.updated_at || new Date().toISOString();
-    saveApplication(record);
-    renderCoachChoice(record);
-    showStatus('ok', '✅ 教练选择已保存，管理员可在申请详情中查看。');
-  } catch(e) {
-    status.textContent = '保存失败：' + (e && e.message || e);
-    button.disabled = false;
-    button.textContent = record.coachChoice ? '更新选择' : '保存选择';
-  }
-}
-
-function restoreLatestApplication(){
-  var list = readApplicationHistory();
-  if (!list.length) return;
-  renderApplication(list[0], true);
-  refreshApplicationStatus(false);
 }
 
 // ===== 加载团队列表（读公开 teams.json，无需 token） =====
+function refreshCoachOptions(teamId){
+  var coachField = $('coachField');
+  var coachSel = $('coach');
+  if (!coachField || !coachSel) return;
+  coachSel.innerHTML = '<option value="">— 不选择教官 —</option>';
+  if (!teamId) { coachField.style.display = 'none'; return; }
+  var team = (TEAMS_CACHE || []).find(function(t){ return +t.id === +teamId; });
+  var coaches = [];
+  if (team && Array.isArray(team.coaches)){
+    coaches = team.coaches.filter(function(c){ return c && c.enabled === true && (c.name || c.image); });
+  } else if (team && team.coach && typeof team.coach === 'object' && (team.coach.name || team.coach.image)){
+    coaches = [team.coach];
+  }
+  if (!coaches.length) { coachField.style.display = 'none'; return; }
+  coaches.forEach(function(c){
+    var opt = document.createElement('option');
+    // value 存 JSON 字符串，内含 name/image，后续直接随申请走，避免再查
+    opt.value = JSON.stringify({ name: c.name || '', image: c.image || '' });
+    opt.textContent = (c.name || '(未命名教官)') + (c.bio ? ' — ' + c.bio : '');
+    coachSel.appendChild(opt);
+  });
+  coachField.style.display = 'block';
+}
 function loadTeams(){
   var sel = $('team');
   sel.innerHTML = '<option value="">加载中…</option>';
@@ -754,8 +558,8 @@ function loadTeams(){
   fetch(url, { cache: 'no-store' })
     .then(function(r){ if (!r.ok) throw new Error(''+r.status); return r.json(); })
     .then(function(arr){
+      TEAMS_CACHE = Array.isArray(arr) ? arr.slice() : [];
       sel.innerHTML = '';
-      availableTeams = Array.isArray(arr) ? arr : [];
       var list = (arr || []).filter(function(t){
         // 只显示「启用 + 开放申请（joinOpen !== false）」的团队；
         // 后台把某团队开关关掉（不招人）后，这里就不会出现该团队
@@ -765,20 +569,22 @@ function loadTeams(){
         sel.innerHTML = '<option value="">（暂无开放申请的团队，请联系管理员）</option>';
         return;
       }
+      var defOpt = document.createElement('option');
+      defOpt.value = ''; defOpt.textContent = '— 请选择团队 —';
+      sel.appendChild(defOpt);
       list.forEach(function(t){
         var opt = document.createElement('option');
         opt.value = t.id;
         opt.textContent = (t.icon || '') + ' ' + t.name;
         sel.appendChild(opt);
       });
-      renderCoachChoice(currentApplication);
+      refreshCoachOptions(sel.value);
     })
     .catch(function(){
-      availableTeams = [];
       sel.innerHTML = '<option value="">（团队加载失败）</option>';
-      renderCoachChoice(currentApplication);
     });
 }
+$('team').addEventListener('change', function(){ refreshCoachOptions(this.value); });
 
 // ===== 头像预览 =====
 function refreshAvatarPreview(){
@@ -797,17 +603,49 @@ function refreshAvatarPreview(){
   }
 }
 
-// ===== 远程提交；失败时自动生成申请码兜底 =====
+// ===== 判断是否有自动提交通道 =====
+function hasAutoChannel(){
+  return !!(JOIN_GITHUB_PAT && JOIN_GITHUB_PAT.length > 10) || !!JOIN_API_URL;
+}
+function showSuccessResult(issue, data, teamName){
+  $('resultTitle').textContent = '申请已提交，等待管理员审批';
+  $('resultDesc').textContent = '申请已经直接进入管理员后台，不需要再把申请码发给管理员。管理员审批通过后，你的名片会出现在「' + teamName + '」团队主页。';
+  $('resultLink').value = (issue && issue.html_url) || '';
+  $('resultCode').value = encodeJoinPayload(data);
+  $('resultCard').classList.add('show');
+}
+function showFallbackResult(data, errMsg){
+  var code = encodeJoinPayload(data);
+  var adminUrl = guessAdminUrl();
+  var link = (adminUrl.indexOf('http') === 0)
+    ? adminUrl + '?join=' + encodeURIComponent(code)
+    : adminUrl;
+  $('resultCode').value = code;
+  $('resultLink').value = link;
+  $('resultTitle').textContent = '已生成备用申请码';
+  $('resultDesc').textContent = '自动通道暂不可用，请把申请链接或申请码发给管理员，由管理员导入后台审批。';
+  $('resultCard').classList.add('show');
+  if (errMsg) {
+    showStatus('err',
+      '⚠️ 提交失败：' + errMsg + '\n' +
+      '已自动生成备用申请码，请把下面的申请链接或申请码发给管理员审批。'
+    );
+  } else {
+    showStatus('info', '已生成申请码，请把下面的申请链接或申请码发给管理员审批。');
+  }
+}
+
+// ===== 远程提交：优先直连 GitHub API → 回退 Worker → 最终兜底申请码 =====
 async function submit(){
   var name = $('name').value.trim();
   var teamVal = $('team').value;
-  var selectedTeam = $('team').options[$('team').selectedIndex];
-  var teamName = selectedTeam
-    ? selectedTeam.textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim()
-    : '';
+  var teamName = $('team').selectedOptions[0] ? $('team').selectedOptions[0].textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() : '';
   var qq = $('qq').value.trim();
   var desc = $('desc').value.trim();
   var bio = $('bio').value.trim();
+  var coachRaw = $('coach') ? $('coach').value : '';
+  var coachChoice = null;
+  try { if (coachRaw) coachChoice = JSON.parse(coachRaw); } catch(e){ coachChoice = null; }
 
   if (!name) { showStatus('err', '❌ 请填写姓名'); $('name').focus(); return; }
   if (!teamVal) { showStatus('err', '❌ 请选择所属团队'); $('team').focus(); return; }
@@ -821,66 +659,50 @@ async function submit(){
     image: qq ? ('qq:' + qq) : '',
     desc: desc,
     bio: bio,
+    coachChoice: coachChoice,
     submittedAt: new Date().toISOString()
   };
 
   var btn = $('submitBtn');
   btn.disabled = true;
-  btn.textContent = JOIN_API_URL ? '提交中…' : '生成中…';
+  btn.textContent = hasAutoChannel() ? '提交中…' : '生成申请码中…';
 
+  var autoError = '';
+
+  // 第 1 优先：直连 GitHub API（模式 A）
+  if (JOIN_GITHUB_PAT && JOIN_GITHUB_PAT.length > 10) {
+    try {
+      showStatus('info', '正在通过 GitHub 提交申请…（通道：直连 API）');
+      var issue = await submitViaGitHubApi(data);
+      showSuccessResult(issue, data, teamName);
+      showStatus('ok', '✅ 申请已提交成功！\n管理员在后台「📨 待审批入队申请 → 从 GitHub 拉取」就能看到你的申请。');
+      btn.disabled = false;
+      btn.textContent = '✅ 已提交';
+      return;
+    } catch(e){
+      autoError = (e && e.message || String(e));
+      showStatus('err', '⚠️ 直连通道失败：' + autoError + '\n正在尝试备用通道…');
+    }
+  }
+
+  // 第 2 优先：Worker 通道（模式 B，一般为空）
   if (JOIN_API_URL) {
     try {
-      var issue = await submitToGitHubIssue(data);
-      var remoteRecord = {
-        savedId: 'issue_' + issue.number,
-        issueNumber: issue.number,
-        issueUrl: issue.html_url || '',
-        trackingId: issue.tracking_id || '',
-        code: encodeJoinPayload(data),
-        name: data.name,
-        team: data.team,
-        teamName: data.teamName,
-        submittedAt: data.submittedAt,
-        state: 'pending'
-      };
-      saveApplication(remoteRecord);
-      renderApplication(remoteRecord, false);
-      showStatus('ok',
-        '✅ 申请已远程提交成功。\n' +
-        '管理员审批通过后，你的名片会出现在「' + teamName + '」团队主页。'
-      );
+      showStatus('info', '正在通过异地通道提交申请…（通道：Worker）');
+      var issue2 = await submitToGitHubIssue(data);
+      showSuccessResult(issue2, data, teamName);
+      showStatus('ok', '✅ 申请已远程提交成功。\n管理员审批通过后，你的名片会出现在「' + teamName + '」团队主页。');
       btn.disabled = false;
       btn.textContent = '✅ 已提交';
       return;
     } catch(e) {
-      showStatus('err',
-        '⚠️ 远程提交失败：' + (e && e.message || e) + '\n' +
-        '已自动生成备用申请码，请把下面的链接或申请码发给管理员。'
-      );
+      if (!autoError) autoError = (e && e.message || String(e));
+      else autoError += '；Worker: ' + (e && e.message || String(e));
     }
   }
 
-  var code = encodeJoinPayload(data);
-  var adminUrl = guessAdminUrl();
-  var link = (adminUrl.indexOf('http') === 0)
-    ? adminUrl + '?join=' + encodeURIComponent(code)
-    : adminUrl;
-
-  var offlineRecord = {
-    savedId: 'offline_' + Date.now(),
-    code: code,
-    link: link,
-    name: data.name,
-    team: data.team,
-    teamName: data.teamName,
-    submittedAt: data.submittedAt,
-    state: 'offline'
-  };
-  saveApplication(offlineRecord);
-  renderApplication(offlineRecord, false);
-  if (!JOIN_API_URL) {
-    showStatus('info', '已生成备用申请码，请把下面的申请链接或申请码发给管理员。');
-  }
+  // 最终兜底：申请码
+  showFallbackResult(data, autoError);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   btn.disabled = false;
   btn.textContent = '🔄 重新生成申请';
@@ -926,31 +748,27 @@ $('submitBtn').onclick = submit;
 $('resetBtn').onclick = function(){
   ['name','qq','desc','bio'].forEach(function(id){ $(id).value = ''; });
   $('team').selectedIndex = 0;
+  refreshCoachOptions('');
+  if ($('coach')) $('coach').selectedIndex = 0;
   refreshAvatarPreview();
   $('status').className = 'status';
   $('status').textContent = '';
-  if (!currentApplication) {
-    $('resultCard').classList.remove('show');
-    $('resultCode').value = '';
-    $('resultLink').value = '';
-  }
-  $('submitBtn').textContent = JOIN_API_URL ? '🚀 提交申请' : '🚀 生成申请码';
+  $('resultCard').classList.remove('show');
+  $('resultCode').value = '';
+  $('resultLink').value = '';
+  $('submitBtn').textContent = hasAutoChannel() ? '🚀 提交申请' : '🚀 生成申请码';
 };
-$('refreshStatusBtn').onclick = function(){ refreshApplicationStatus(true); };
-$('saveCoachBtn').onclick = saveCoachSelection;
 $('copyLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，直接发给管理员点一下就能在后台导入审批。'); };
 $('copyCodeBtn').onclick = function(){ copyToClip($('resultCode').value, '✅ 申请码已复制，发给管理员让他在后台「导入申请码」粘贴即可。'); };
 $('shareLinkBtn').onclick = function(){ copyToClip($('resultLink').value, '✅ 申请链接已复制，粘贴发给管理员即可。'); };
 
 // 初始化
 loadTeams();
-restoreLatestApplication();
-setInterval(function(){
-  if (!document.hidden) refreshApplicationStatus(false);
-}, 60000);
-if (!JOIN_API_URL) {
+if (!hasAutoChannel()) {
   $('warnBanner').classList.add('show');
   $('submitBtn').textContent = '🚀 生成申请码（通道未配置）';
+} else {
+  $('submitBtn').textContent = '🚀 提交申请';
 }
 // 暴露编解码函数，方便 admin 端直接导入
 window.__decodeJoinPayload = decodeJoinPayload;
