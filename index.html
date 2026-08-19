@@ -700,7 +700,38 @@
   .coach-card .coach-bio { font-size:12px; color:rgba(255,255,255,0.7); margin-top:3px; }
   /* 多位教练横排 */
   .coach-row { display:flex; flex-wrap:wrap; gap:14px; margin:0 0 18px 0; }
-  .coach-row .coach-card { flex:0 1 340px; margin:0; }
+  .coach-row .coach-card { flex:0 1 360px; margin:0; flex-direction:column; align-items:flex-start; gap:10px; }
+  .coach-row .coach-card .coach-top { display:flex; align-items:center; gap:14px; width:100%; }
+  .coach-students {
+    width:100%;
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .coach-students-label {
+    font-size: 11px;
+    color: #ffd700;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .coach-students-list {
+    display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .coach-student {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #fff;
+    line-height: 1.6;
+  }
+  .coach-student-empty {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    font-style: italic;
+  }
   @media (max-width:520px){ .coach-card .coach-avatar{width:52px;height:52px;} .coach-card .coach-name{font-size:16px;} }
 </style>
 <div class="container">
@@ -1370,15 +1401,55 @@
       coaches = [team.coach]; // 兼容旧版单教练
     }
     if (!coaches.length){ box.innerHTML = ''; return; }
+
+    // 取当前团队所有成员，用于匹配每个教练的学员
+    var teamPeople = getData().filter(function(p){
+      return String(p.team) === String(teamId);
+    });
+
     var cards = coaches.map(function(c){
       var imgSrc = c.image ? getImgSrc(c.image) : '';
+      var cname = c.name || '';
+      // 找出选择了当前教练的学员：coachChoice 是对象 {name,image}，按名字精确匹配
+      var students = [];
+      if (cname) {
+        teamPeople.forEach(function(p){
+          var cc = p && p.coachChoice;
+          if (!cc) return;
+          if (typeof cc === 'string') {
+            if (cc === cname) students.push(p);
+          } else if (typeof cc === 'object') {
+            if ((cc.name || '') === cname) students.push(p);
+          }
+        });
+      }
+      var studentsHtml = '';
+      if (students.length > 0) {
+        var tags = students.map(function(p){
+          return '<span class="coach-student" title="选择了本教官的学员">' + escapeHtml(p.name || '(匿名)') + '</span>';
+        }).join('');
+        studentsHtml =
+          '<div class="coach-students">' +
+            '<div class="coach-students-label">👥 学员 (' + students.length + ')</div>' +
+            '<div class="coach-students-list">' + tags + '</div>' +
+          '</div>';
+      } else {
+        studentsHtml =
+          '<div class="coach-students">' +
+            '<div class="coach-students-label">👥 学员</div>' +
+            '<div class="coach-student-empty">（暂无学员选择本教官）</div>' +
+          '</div>';
+      }
       return '<div class="coach-card">' +
-        (imgSrc ? '<img class="coach-avatar" src="' + escapeHtml(imgSrc) + '" onerror="this.style.visibility=\'hidden\'">' : '') +
-        '<div class="coach-info">' +
-          '<div class="coach-label">🧑\u200d🏫 教练</div>' +
-          '<div class="coach-name">' + escapeHtml(c.name||'(未命名)') + '</div>' +
-          (c.bio ? '<div class="coach-bio">' + escapeHtml(c.bio) + '</div>' : '') +
+        '<div class="coach-top">' +
+          (imgSrc ? '<img class="coach-avatar" src="' + escapeHtml(imgSrc) + '" onerror="this.style.visibility=\'hidden\'">' : '') +
+          '<div class="coach-info">' +
+            '<div class="coach-label">🧑\u200d🏫 教练</div>' +
+            '<div class="coach-name">' + escapeHtml(cname||'(未命名)') + '</div>' +
+            (c.bio ? '<div class="coach-bio">' + escapeHtml(c.bio) + '</div>' : '') +
+          '</div>' +
         '</div>' +
+        studentsHtml +
       '</div>';
     }).join('');
     box.innerHTML = '<div class="coach-row">' + cards + '</div>';
