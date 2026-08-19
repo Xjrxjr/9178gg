@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教官系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #0b0f2a 0%, #1a237e 40%, #0d47a1 70%, #0b0f2a 100%);
+    min-height: 100vh;
+    padding: 24px 16px;
+    color: #fff;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -10%; left: -10%;
+    width: 60%; height: 60%;
+    background: radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -10%; right: -10%;
+    width: 55%; height: 55%;
+    background: radial-gradient(circle, rgba(100,181,246,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,215,0,0.3);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #ffd700;
+    margin-bottom: 14px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #fff 0%, #ffd700 50%, #64b5f6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  header p { color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.6; }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(20px);
+    border-radius: 18px;
+    padding: 26px 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: #b3d4ff;
+    margin-bottom: 7px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .field label .req { color: #ff5252; margin-left: 2px; }
+  .field label .hint { color: rgba(255,255,255,0.4); font-weight: normal; font-size: 11px; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: #ffd700;
+    box-shadow: 0 0 0 3px rgba(255,215,0,0.15);
+  }
+  .field select option { background: #151b4b; color: #fff; }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+    color: #0b0f2a;
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,215,0,0.3); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.14); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .status {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    display: none;
+    white-space: pre-wrap;
+  }
+  .status.show { display: block; }
+  .status.info { background: rgba(25,118,210,0.18); border: 1px solid rgba(100,181,246,0.4); color: #bbdefb; }
+  .status.ok { background: rgba(46,125,50,0.20); border: 1px solid rgba(102,187,106,0.5); color: #c8e6c9; }
+  .status.err { background: rgba(211,47,47,0.18); border: 1px solid rgba(239,154,154,0.5); color: #ffcdd2; }
+  .tab-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.2);
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: rgba(255,215,0,0.12);
+    border-color: rgba(255,215,0,0.5);
+    color: #ffd700;
+  }
+  .hidden { display: none !important; }
+  /* 学员列表 */
+  .student-list { display: grid; gap: 12px; }
+  .student-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 14px;
+    transition: border-color 0.2s;
+  }
+  .student-item:hover { border-color: rgba(255,215,0,0.3); }
+  .student-item img {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,215,0,0.3);
+    flex-shrink: 0;
+    background: #0b0f2a;
+  }
+  .student-info { flex: 1; min-width: 0; }
+  .student-name { font-size: 16px; font-weight: bold; color: #fff; }
+  .student-desc { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .student-bio { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; line-height: 1.4; }
+  .student-joined { font-size: 10px; color: rgba(255,215,0,0.6); margin-top: 3px; }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: rgba(255,255,255,0.4);
+    font-size: 14px;
+  }
+  .coach-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255,215,0,0.08);
+    border: 1px solid rgba(255,215,0,0.25);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .coach-header img {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,215,0,0.5);
+    flex-shrink: 0;
+    background: #0b0f2a;
+  }
+  .coach-header .ch-info { flex: 1; }
+  .coach-header .ch-name { font-size: 20px; font-weight: bold; color: #ffd700; }
+  .coach-header .ch-team { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .coach-header .ch-logout {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .coach-header .ch-logout:hover { background: rgba(255,82,82,0.2); border-color: rgba(255,82,82,0.4); }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    flex: 1;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+  }
+  .stat-num { font-size: 24px; font-weight: bold; color: #ffd700; }
+  .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  footer {
+    text-align: center;
+    margin-top: 22px;
+    color: rgba(255,255,255,0.3);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  footer a { color: #90caf9; text-decoration: none; }
+  @media (max-width: 520px) {
+    header h1 { font-size: 22px; }
+    .card { padding: 20px 16px; }
+    .stats-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">🧑‍🏫 教官系统</span>
+    <h1 id="pageTitle">教官登录</h1>
+    <p id="pageSubtitle">教官专属管理面板，查看名下学员</p>
+  </header>
+
+  <!-- ====== 未登录：登录/注册切换 ====== -->
+  <div class="card" id="authCard">
+    <div class="tab-row">
+      <div class="tab-btn active" id="tabLogin" onclick="switchTab('login')">🔑 登录</div>
+      <div class="tab-btn" id="tabRegister" onclick="switchTab('register')">📝 注册</div>
+    </div>
+
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <div class="field">
+        <label>用户名</label>
+        <input type="text" id="loginUser" placeholder="教官用户名" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" id="loginPass" placeholder="密码" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="loginBtn" type="button" onclick="doLogin()">🚀 登录</button>
+      <div class="status" id="loginStatus"></div>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" class="hidden">
+      <div class="field">
+        <label>用户名 <span class="req">*</span></label>
+        <input type="text" id="regUser" placeholder="2-30位，中文/字母/数字/下划线">
+      </div>
+      <div class="field">
+        <label>密码 <span class="req">*</span> <span class="hint">（至少 4 位）</span></label>
+        <input type="password" id="regPass" placeholder="设置登录密码" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>确认密码 <span class="req">*</span></label>
+        <input type="password" id="regPass2" placeholder="再输入一次密码" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>所属团队 <span class="req">*</span></label>
+        <select id="regTeam"><option value="">加载中…</option></select>
+      </div>
+      <div class="field" id="regCoachField" style="display:none;">
+        <label>你的教官名 <span class="req">*</span> <span class="hint">（选择你对应的教官身份）</span></label>
+        <select id="regCoach"><option value="">— 请先选择团队 —</option></select>
+      </div>
+      <div class="field">
+        <label>简介 <span class="hint">（选填）</span></label>
+        <textarea id="regBio" placeholder="一句话介绍自己" maxlength="200"></textarea>
+      </div>
+      <button class="btn btn-primary" id="regBtn" type="button" onclick="doRegister()">📋 提交注册申请</button>
+      <div class="status" id="regStatus"></div>
+      <p style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6;">
+        ⚠️ 注册提交后需等待管理员审核通过才能登录。审核通过后，你的账号将关联到 teams.json 中对应团队和教官名。
+      </p>
+    </div>
+  </div>
+
+  <!-- ====== 已登录：教官面板 ====== -->
+  <div class="card hidden" id="dashboardCard">
+    <div class="coach-header" id="coachHeader"></div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="student-list" id="studentList"></div>
+  </div>
+
+  <footer>
+    教官系统 · 本页面数据来自公开的 teams.json / data.json / coaches.json<br>
+    如有问题请联系管理员。
+  </footer>
+</div>
+
+<script>
+var JOIN_API_URL = 'https://9178gg-join.3751211611.workers.dev';
+var TEAMS_CACHE = [];
+
+function $(id){ return document.getElementById(id); }
+function showStatus(el, type, msg){
+  var e = typeof el === 'string' ? $(el) : el;
+  if (!e) return;
+  e.className = 'status show ' + type;
+  e.textContent = msg;
+}
+function getImgSrc(src){
+  if (!src) return '';
+  if (src.indexOf('qq:') === 0) {
+    var qq = src.substring(3);
+    return 'https://q1.qlogo.cn/g?b=qq&nk=' + encodeURIComponent(qq) + '&s=640&t=' + Date.now();
+  }
+  return src;
+}
+function escapeHtml(s){
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function u8ToB64(str){
+  try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return ''; }
+}
+function b64ToU8(b64){
+  try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return ''; }
+}
+function toUrlSafe(b64){ return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function fromUrlSafe(s){
+  s = String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+  while (s.length % 4) s += '=';
+  return s;
+}
+
+// ===== Tab 切换 =====
+function switchTab(tab){
+  if (tab === 'login'){
+    $('tabLogin').classList.add('active');
+    $('tabRegister').classList.remove('active');
+    $('loginForm').classList.remove('hidden');
+    $('registerForm').classList.add('hidden');
+    $('pageTitle').textContent = '教官登录';
+  } else {
+    $('tabLogin').classList.remove('active');
+    $('tabRegister').classList.add('active');
+    $('loginForm').classList.add('hidden');
+    $('registerForm').classList.remove('hidden');
+    $('pageTitle').textContent = '教官注册';
+  }
+}
+
+// ===== 加载团队列表（注册表单用） =====
+function loadTeamsForReg(){
+  var sel = $('regTeam');
+  sel.innerHTML = '<option value="">加载中…</option>';
+  fetch('teams.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if (!r.ok) throw new Error(''+r.status); return r.json(); })
+    .then(function(arr){
+      TEAMS_CACHE = Array.isArray(arr) ? arr.slice() : [];
+      sel.innerHTML = '<option value="">— 请选择团队 —</option>';
+      (TEAMS_CACHE || []).forEach(function(t){
+        if (!t || t.enabled !== true || !t.name || !String(t.name).trim()) return;
+        var opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = (t.icon || '') + ' ' + t.name;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(){
+      sel.innerHTML = '<option value="">（团队加载失败）</option>';
+    });
+}
+function refreshRegCoachOptions(teamId){
+  var field = $('regCoachField');
+  var sel = $('regCoach');
+  if (!field || !sel) return;
+  sel.innerHTML = '<option value="">— 不选择 —</option>';
+  if (!teamId) { field.style.display = 'none'; return; }
+  var team = (TEAMS_CACHE || []).find(function(t){ return +t.id === +teamId; });
+  var coaches = [];
+  if (team && Array.isArray(team.coaches)){
+    coaches = team.coaches.filter(function(c){ return c && c.enabled === true && (c.name || c.image); });
+  } else if (team && team.coach && typeof team.coach === 'object' && (team.coach.name || team.coach.image)){
+    coaches = [team.coach];
+  }
+  if (!coaches.length) { field.style.display = 'none'; return; }
+  coaches.forEach(function(c){
+    var opt = document.createElement('option');
+    opt.value = c.name || '';
+    opt.textContent = (c.name || '(未命名)') + (c.bio ? ' — ' + c.bio : '');
+    sel.appendChild(opt);
+  });
+  field.style.display = 'block';
+}
+$('regTeam').addEventListener('change', function(){ refreshRegCoachOptions(this.value); });
+
+// ===== 注册提交 =====
+function explainErr(status){
+  if (status === 401) return 'Worker 的 GitHub PAT 无效或已过期。';
+  if (status === 403) return '网站来源不被允许或 PAT 权限不足。';
+  if (status === 404) return 'Worker 地址或仓库不存在。';
+  if (status === 503) return 'Worker 尚未配置 GITHUB_PAT Secret。';
+  return '服务返回 HTTP ' + status + '。';
+}
+// 网络预检：快速探测 Worker 是否可达
+async function pingWorker(){
+  try {
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 8000);
+    var r = await fetch(JOIN_API_URL, { method:'GET', signal: controller.signal, cache:'no-store', credentials:'omit' });
+    clearTimeout(timeoutId);
+    return r.ok;
+  } catch(e){ return false; }
+}
+
+async function doRegister(){
+  var username = $('regUser').value.trim();
+  var pass = $('regPass').value;
+  var pass2 = $('regPass2').value;
+  var teamVal = $('regTeam').value;
+  var teamName = $('regTeam').selectedOptions[0] ? $('regTeam').selectedOptions[0].textContent.replace(/^[^\w\u4e00-\u9fa5]+/, '').trim() : '';
+  var coachName = $('regCoach').value;
+  var bio = $('regBio').value.trim();
+
+  if (!username) { showStatus('regStatus','err','❌ 请填写用户名'); return; }
+  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(username)) { showStatus('regStatus','err','❌ 用户名只能用中文、字母、数字、下划线，2-30 位'); return; }
+  if (!pass || pass.length < 4) { showStatus('regStatus','err','❌ 密码至少 4 位'); return; }
+  if (pass !== pass2) { showStatus('regStatus','err','❌ 两次密码不一致'); return; }
+  if (!teamVal) { showStatus('regStatus','err','❌ 请选择所属团队'); return; }
+  if (!coachName) { showStatus('regStatus','err','❌ 请选择你的教官名'); return; }
+
+  var data = {
+    type: 'coach-register',
+    username: username,
+    password: pass,
+    coachName: coachName,
+    team: +teamVal,
+    teamName: teamName,
+    bio: bio,
+    submittedAt: new Date().toISOString()
+  };
+
+  var btn = $('regBtn');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  showStatus('regStatus','info','正在提交…');
+
+  // 先快速预检 Worker 是否可达
+  var reachable = await pingWorker();
+  if (!reachable) {
+    showStatus('regStatus','err',
+      '⚠️ 无法连接注册服务器（workers.dev 可能被 DNS 污染）。\n' +
+      '请按以下任一方式处理后重试：\n' +
+      '① 安卓手机：设置 → 网络 → 私有 DNS → 填入 dns.google\n' +
+      '② 苹果手机：使用代理/VPN 后再访问本页\n' +
+      '③ 切换到其他网络（如移动数据/WiFi 互换）后重试'
+    );
+    btn.disabled = false;
+    btn.textContent = '📋 重新提交';
+    return;
+  }
+
+  try {
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function(){ try { controller.abort(); } catch(e){} }, 30000);
+    var opts = {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+      body: JSON.stringify(data),
+      credentials: 'omit',
+      cache: 'no-store'
+    };
+    if (typeof AbortController !== 'undefined' && controller && controller.signal) {
+      opts.signal = controller.signal;
+    }
+    var response = await fetch(JOIN_API_URL, opts);
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      var detail = '';
+      try { var ed = await response.json(); detail = ed && (ed.error || ed.message) ? '（'+(ed.error||ed.message)+'）' : ''; } catch(e){}
+      throw new Error(explainErr(response.status) + detail);
+    }
+    var result = await response.json();
+    showStatus('regStatus','ok',
+      '✅ 注册申请已提交！\n' +
+      '请等待管理员审核通过后，再用用户名「'+username+'」和密码登录。\n' +
+      (result.html_url ? '申请单号：#' + (result.number || '') : '')
+    );
+    btn.textContent = '✅ 已提交';
+  } catch(e) {
+    var msg = (e && e.name === 'AbortError')
+      ? '⏰ 提交超时（30秒）。服务器可能被 DNS 污染。\n建议：安卓手机在「设置→网络→私有DNS」填 dns.google，或使用代理后重试。'
+      : ('❌ 提交失败：' + (e && e.message || e));
+    showStatus('regStatus','err', msg);
+    btn.disabled = false;
+    btn.textContent = '📋 重新提交';
+  }
+}
+
+// ===== 登录 =====
+function doLogin(){
+  var user = $('loginUser').value.trim();
+  var pass = $('loginPass').value;
+  if (!user) { showStatus('loginStatus','err','❌ 请输入用户名'); return; }
+  if (!pass) { showStatus('loginStatus','err','❌ 请输入密码'); return; }
+
+  var btn = $('loginBtn');
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  showStatus('loginStatus','info','正在验证…');
+
+  // 先尝试从服务器加载 coaches.json
+  fetch('coaches.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(list){
+      if (!Array.isArray(list)) throw new Error('账号数据格式错误');
+      // 密码用 base64 存储的，解码比较
+      var found = null;
+      for (var i=0;i<list.length;i++){
+        var c = list[i];
+        if (!c || !c.enabled) continue;
+        if (String(c.username||'').toLowerCase() === user.toLowerCase()){
+          var decodedPass = '';
+          try { decodedPass = b64ToU8(c.password || ''); } catch(e){}
+          if (decodedPass === pass) { found = c; break; }
+        }
+      }
+      if (!found) {
+        showStatus('loginStatus','err','❌ 用户名或密码错误，或账号尚未被管理员审核通过。');
+        btn.disabled = false;
+        btn.textContent = '🚀 登录';
+        return;
+      }
+      // 登录成功
+      try {
+        sessionStorage.setItem('coach_session', JSON.stringify({
+          username: found.username,
+          coachName: found.coachName,
+          team: found.team,
+          teamName: found.teamName,
+          loginAt: Date.now()
+        }));
+      } catch(e){}
+      showStatus('loginStatus','ok','✅ 登录成功，正在加载学员面板…');
+      showDashboard(found);
+    })
+    .catch(function(err){
+      showStatus('loginStatus','err','❌ 登录失败：' + (err.message || err) + '\n可能是首次部署，coaches.json 尚未生成。');
+      btn.disabled = false;
+      btn.textContent = '🚀 登录';
+    });
+}
+
+// ===== 教官面板 =====
+function showDashboard(coach){
+  $('authCard').classList.add('hidden');
+  $('dashboardCard').classList.remove('hidden');
+  $('pageTitle').textContent = '教官面板';
+  $('pageSubtitle').textContent = '查看选择你的学员';
+
+  // 教官头部
+  var ch = $('coachHeader');
+  var team = (TEAMS_CACHE || []).find(function(t){ return +t.id === +coach.team; });
+  var teamIcon = team ? (team.icon || '') : '';
+  var teamName = coach.teamName || (team ? team.name : '');
+  // 从 teams.json 找该教官的头像
+  var coachAvatar = '';
+  if (team && Array.isArray(team.coaches)){
+    var c = team.coaches.find(function(c){ return c && c.name === coach.coachName; });
+    if (c && c.image) coachAvatar = getImgSrc(c.image);
+  }
+  ch.innerHTML =
+    (coachAvatar ? '<img src="'+escapeHtml(coachAvatar)+'" onerror="this.style.visibility=\'hidden\'">' : '<div style="width:64px;height:64px;border-radius:50%;background:rgba(255,215,0,0.15);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🧑‍🏫</div>') +
+    '<div class="ch-info">' +
+      '<div class="ch-name">'+escapeHtml(coach.coachName||'(未命名)')+'</div>' +
+      '<div class="ch-team">'+escapeHtml(teamIcon+' '+teamName)+' · 用户名：'+escapeHtml(coach.username)+'</div>' +
+    '</div>' +
+    '<button class="ch-logout" onclick="doLogout()">退出登录</button>';
+
+  // 加载学员数据
+  fetch('data.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if (!r.ok) throw new Error(''+r.status); return r.json(); })
+    .then(function(people){
+      renderStudents(people, coach);
+    })
+    .catch(function(err){
+      $('studentList').innerHTML = '<div class="empty-state">❌ 学员数据加载失败：'+escapeHtml(err.message||err)+'</div>';
+    });
+
+  // 同时加载 teams.json 确保 TEAMS_CACHE 有数据
+  if (!TEAMS_CACHE.length) {
+    fetch('teams.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(arr){ TEAMS_CACHE = arr || []; showDashboard(coach); })
+      .catch(function(){});
+  }
+}
+
+function renderStudents(people, coach){
+  var list = $('studentList');
+  var all = Array.isArray(people) ? people : [];
+  // 筛选选择当前教官的学员
+  var students = all.filter(function(p){
+    if (String(p.team) !== String(coach.team)) return false;
+    var cc = p.coachChoice;
+    if (!cc) return false;
+    if (typeof cc === 'string') return cc === coach.coachName;
+    if (typeof cc === 'object') return (cc.name || '') === coach.coachName;
+    return false;
+  });
+
+  // 统计
+  $('statsRow').innerHTML =
+    '<div class="stat-card"><div class="stat-num">'+students.length+'</div><div class="stat-label">名下学员</div></div>' +
+    '<div class="stat-card"><div class="stat-num">'+all.filter(function(p){ return String(p.team) === String(coach.team); }).length+'</div><div class="stat-label">团队总人数</div></div>';
+
+  if (!students.length){
+    list.innerHTML = '<div class="empty-state">📋 暂无学员选择你为教官。<br>学员在入队申请时选择你后，会自动出现在这里。</div>';
+    return;
+  }
+
+  list.innerHTML = students.map(function(p){
+    var imgSrc = getImgSrc(p.image);
+    var joinedDate = p.joinedAt ? new Date(+p.joinedAt).toLocaleDateString('zh-CN') : '';
+    return '<div class="student-item">' +
+      (imgSrc ? '<img src="'+escapeHtml(imgSrc)+'" onerror="this.style.visibility=\'hidden\'">' : '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👤</div>') +
+      '<div class="student-info">' +
+        '<div class="student-name">'+escapeHtml(p.name||'(匿名)')+'</div>' +
+        (p.desc ? '<div class="student-desc">'+escapeHtml(p.desc)+'</div>' : '') +
+        (p.bio ? '<div class="student-bio">'+escapeHtml(p.bio)+'</div>' : '') +
+        (joinedDate ? '<div class="student-joined">加入时间：'+escapeHtml(joinedDate)+'</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function doLogout(){
+  try { sessionStorage.removeItem('coach_session'); } catch(e){}
+  $('authCard').classList.remove('hidden');
+  $('dashboardCard').classList.add('hidden');
+  $('pageTitle').textContent = '教官登录';
+  $('pageSubtitle').textContent = '教官专属管理面板，查看名下学员';
+  $('loginUser').value = '';
+  $('loginPass').value = '';
+  $('loginBtn').disabled = false;
+  $('loginBtn').textContent = '🚀 登录';
+  showStatus('loginStatus','info','已退出登录。');
+}
+
+// ===== 自动登录（sessionStorage 中有 session 时） =====
+function tryAutoLogin(){
+  try {
+    var raw = sessionStorage.getItem('coach_session');
+    if (!raw) return false;
+    var session = JSON.parse(raw);
+    if (!session || !session.username || !session.coachName) return false;
+    // 用 coaches.json 验证 session 仍有效
+    fetch('coaches.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(); return r.json(); })
+      .then(function(list){
+        var found = (list || []).find(function(c){
+          return c && c.enabled && String(c.username||'').toLowerCase() === String(session.username||'').toLowerCase();
+        });
+        if (found) {
+          showDashboard(found);
+        } else {
+          try { sessionStorage.removeItem('coach_session'); } catch(e){}
+        }
+      })
+      .catch(function(){});
+    return true;
+  } catch(e){ return false; }
+}
+
+// ===== 初始化 =====
+loadTeamsForReg();
+tryAutoLogin();
+</script>
+</body>
+</html>
