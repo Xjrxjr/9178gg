@@ -2,21 +2,13 @@
   {
     "name": "局长：卢克肖",
     "team": 1,
-    "image": "p_msybb78c_a84f.jpg",
+    "image": "qq:4512318",
     "desc": "警号：2001",
     "phone": "",
     "email": "",
     "bio": "5000块一小时",
     "wechat": "",
     "qqcontact": "4512318",
-    "cAvatarScale": 1,
-    "cAvatarClip": 1,
-    "cAvatarOffsetX": 0,
-    "cAvatarOffsetY": 0,
-    "dAvatarScale": 1,
-    "dAvatarClip": 1,
-    "dAvatarOffsetX": 0,
-    "dAvatarOffsetY": 0,
     "id": 1
   },
   {
@@ -32,44 +24,30 @@
     "id": 2
   },
   {
+    "id": 3,
     "name": "奥利弗",
     "team": 1,
-    "image": "",
+    "image": "201435226473.jpg",
     "desc": "警员-警号2010",
     "phone": "13800138003",
     "email": "wangwu@example.com",
     "bio": "负责市场推广与品牌运营，拥有5年以上市场营销经验。",
     "wechat": "",
     "qqcontact": "",
-    "cAvatarScale": 1,
-    "cAvatarClip": 1,
-    "cAvatarOffsetX": 0,
-    "cAvatarOffsetY": 0,
-    "dAvatarScale": 1,
-    "dAvatarClip": 1,
-    "dAvatarOffsetX": 0,
-    "dAvatarOffsetY": 0,
-    "id": 3
+    "coachChoice": { "name": "罗伯特", "image": "ldt26473.jpg" }
   },
   {
+    "id": 4,
     "name": "艾丽莎",
     "team": 1,
-    "image": "201435226473.jpg",
+    "image": "qq:596573006",
     "desc": "警员-警号2014",
     "phone": "13800138004",
     "email": "zhaoliu@example.com",
     "bio": "负责招聘、员工关系及绩效考核管理。",
     "wechat": "",
-    "qqcontact": "596573006",
-    "cAvatarScale": 1,
-    "cAvatarClip": 1,
-    "cAvatarOffsetX": 0,
-    "cAvatarOffsetY": 0,
-    "dAvatarScale": 1,
-    "dAvatarClip": 1,
-    "dAvatarOffsetX": 0,
-    "dAvatarOffsetY": 0,
-    "id": 4
+    "qqcontact": "",
+    "coachChoice": { "name": "罗伯特", "image": "ldt26473.jpg" }
   },
   {
     "id": 5,
@@ -105,7 +83,8 @@
     "email": "",
     "wechat": "",
     "qqcontact": "",
-    "bio": ""
+    "bio": "",
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513030728lb9l",
@@ -117,7 +96,8 @@
     "email": "",
     "wechat": "",
     "qqcontact": "",
-    "bio": ""
+    "bio": "",
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "name": "麦4",
@@ -129,7 +109,8 @@
     "bio": "",
     "wechat": "",
     "qqcontact": "",
-    "id": "178651309018350nz"
+    "id": "178651309018350nz",
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513151019gt6d",
@@ -141,7 +122,8 @@
     "email": "",
     "wechat": "",
     "qqcontact": "",
-    "bio": ""
+    "bio": "",
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513237908z30k",
@@ -405,11 +387,11 @@
     "bio": "",
     "wechat": "",
     "qqcontact": "",
-    "cAvatarScale": 1.16,
+    "cAvatarScale": 0.78,
     "cAvatarClip": 0,
     "cAvatarOffsetX": 0,
-    "cAvatarOffsetY": -11,
-    "dAvatarScale": 1.02,
+    "cAvatarOffsetY": 0,
+    "dAvatarScale": 1,
     "dAvatarClip": 0,
     "dAvatarOffsetX": 0,
     "dAvatarOffsetY": 0,
