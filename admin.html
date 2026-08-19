@@ -207,28 +207,6 @@
   .modal-body { padding: 20px; overflow: auto; flex: 1; }
   .modal-body pre.code-box { max-height: 68vh; }
   .json-empty { color: #8b949e; font-style: italic; padding: 20px; text-align: center; }
-  .join-detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 20px;
-  }
-  .join-detail-item {
-    padding: 11px 0;
-    border-bottom: 1px solid #eceff1;
-    min-width: 0;
-  }
-  .join-detail-item.wide { grid-column: 1 / -1; }
-  .join-detail-label { color: #78909c; font-size: 12px; margin-bottom: 4px; }
-  .join-detail-value { color: #263238; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
-  .join-detail-state { display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: bold; }
-  .join-detail-state.approved { color: #2e7d32; background: #e8f5e9; }
-  .join-detail-state.rejected { color: #c62828; background: #ffebee; }
-  .join-detail-state.pending { color: #1565c0; background: #e3f2fd; }
-  .join-detail-state.closed { color: #616161; background: #eeeeee; }
-  @media (max-width: 620px) {
-    .join-detail-grid { grid-template-columns: 1fr; }
-    .join-detail-item.wide { grid-column: auto; }
-  }
 
   /* ===== 团队管理面板 ===== */
   .t-mgr-list { display: flex; flex-direction: column; gap: 10px; }
@@ -387,14 +365,10 @@
         </div>
         <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <button class="btn-secondary" id="refreshPendingBtn" type="button">🔄 刷新待审批（重读本地）</button>
-          <button class="btn-primary" id="fetchIssuesBtn" type="button" style="padding:8px 16px;">同步 GitHub 申请</button>
+          <button class="btn-primary" id="fetchIssuesBtn" type="button" style="padding:8px 16px;">从 GitHub 拉取异地申请</button>
           <span id="pendingStatus" style="font-size:13px;color:#666;"></span>
         </div>
         <div id="pendingList"></div>
-        <div id="processedJoinWrap" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #e0e0e0;">
-          <div style="font-size:14px;font-weight:bold;color:#444;margin-bottom:8px;">最近处理记录</div>
-          <div id="processedJoinList"></div>
-        </div>
       </div>
     </div>
 
@@ -455,6 +429,79 @@
       </div>
     </div>
 
+    <!-- 教官注册审核+账号管理 -->
+    <div class="card" data-card="coachreg" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('coachreg')">
+        <h2>🔐 教官注册审核 <span class="badge badge-team" id="coachRegCount">0</span></h2>
+        <span class="card-toggle" id="card-toggle-coachreg">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-coachreg">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
+          教官在 <code>coach.html</code> 注册后，申请会进入下方列表。
+          <b>✅ 通过</b>：把账号写入 <code>coaches.json</code>（含用户名+密码），教官即可登录 coach.html 查看名下学员。
+          <b>❌ 拒绝</b>：关闭申请。已通过的教官账号可在下方「已批准教官账号」区管理（启用/停用/删除）。
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <button class="btn-secondary" id="refreshCoachRegBtn" type="button">🔄 刷新教官注册申请</button>
+          <button class="btn-primary" id="fetchCoachIssuesBtn" type="button" style="padding:8px 16px;">从 GitHub 拉取教官注册申请</button>
+          <span id="coachRegStatus" style="font-size:13px;color:#666;"></span>
+        </div>
+        <div id="coachRegList"></div>
+        <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;">
+        <!-- 手动添加教官账号（不依赖 Worker，直接写入 coaches.json） -->
+        <h3 style="font-size:15px;margin-bottom:10px;">➕ 手动添加教官账号</h3>
+        <p style="font-size:12px;color:#888;margin:0 0 10px;line-height:1.6;">
+          因 workers.dev 被 DNS 污染 + SNI 阻断，教练无法在线注册时，管理员可在此直接创建账号。教官通过 QQ/微信 等方式把信息发给管理员即可。
+        </p>
+        <div style="border:1.5px dashed #1976d2;border-radius:10px;padding:14px;background:#f5f9ff;margin-bottom:14px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:13px;color:#333;display:block;margin-bottom:4px;">用户名 <span style="color:#d32f2f;">*</span></label>
+              <input type="text" id="manualCoachUser" placeholder="2-30位，中文/字母/数字/下划线" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+            </div>
+            <div>
+              <label style="font-size:13px;color:#333;display:block;margin-bottom:4px;">密码 <span style="color:#d32f2f;">*</span></label>
+              <input type="text" id="manualCoachPass" placeholder="至少4位" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+            </div>
+            <div>
+              <label style="font-size:13px;color:#333;display:block;margin-bottom:4px;">所属团队 <span style="color:#d32f2f;">*</span></label>
+              <select id="manualCoachTeam" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;"><option value="">— 请选择 —</option></select>
+            </div>
+            <div>
+              <label style="font-size:13px;color:#333;display:block;margin-bottom:4px;">教官名 <span style="color:#d32f2f;">*</span></label>
+              <select id="manualCoachName" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;"><option value="">— 请先选择团队 —</option></select>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label style="font-size:13px;color:#333;display:block;margin-bottom:4px;">简介（选填）</label>
+            <input type="text" id="manualCoachBio" placeholder="一句话介绍" maxlength="200" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+          </div>
+          <button class="btn-primary" id="manualAddCoachBtn" type="button" style="margin-top:12px;padding:10px 20px;font-size:14px;" onclick="manualAddCoach()">➕ 创建教官账号</button>
+          <span id="manualCoachStatus" style="font-size:13px;margin-left:10px;"></span>
+        </div>
+        <h3 style="font-size:15px;margin-bottom:10px;">📋 已批准教官账号（coaches.json）</h3>
+        <div id="coachAccountsList"></div>
+      </div>
+    </div>
+
+    <!-- 网站文件部署（绕过 git push，直接用 GitHub API） -->
+    <div class="card" data-card="deploy" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('deploy')">
+        <h2>🚀 网站文件部署</h2>
+        <span class="card-toggle" id="card-toggle-deploy">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-deploy">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
+          因 <code>github.com</code> 被 SNI 阻断，<code>git push</code> 无法使用。
+          此功能通过 <code>api.github.com</code>（可访问）直接写入文件，绕过 git。
+          <b>必须从本地 HTTP 服务器（如 http://127.0.0.1:8080/admin.html）打开本页才能使用。</b>
+        </p>
+        <button class="btn-primary" id="deploySiteBtn" type="button" style="padding:10px 20px;font-size:14px;" onclick="deploySiteFiles()">🚀 部署所有网站文件到 GitHub Pages</button>
+        <span id="deployStatus" style="font-size:13px;margin-left:10px;"></span>
+        <div id="deployLog" style="margin-top:12px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:10px;"></div>
+      </div>
+    </div>
+
     <!-- 人员操作面板 -->
     <div class="card" data-card="people" data-collapsed="false">
       <div class="card-header" onclick="toggleCard('people')">
@@ -492,6 +539,9 @@
         </div>
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>身份 / 警号</label><input type="text" id="p_desc" placeholder="例：警员-警号2010"></div>
+          <div class="col"><label>选择教官 <span style="color:#757575;font-weight:normal;">（该学员名字会出现在主站此教官卡片的学员列表中）</span></label>
+            <select id="p_coach"><option value="">— 不选择教官 —</option></select>
+          </div>
         </div>
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
@@ -1599,6 +1649,8 @@ function loadAll(){
     try { renderCoachPanel(); } catch(e){}
     try { refreshPendingAll(); } catch(e){}
     try { fetchPendingFromIssues(); } catch(e){}
+    try { refreshCoachRegAll(); } catch(e){}
+    try { loadManualCoachTeams(); } catch(e){}
     try { refreshJsonPanel(); } catch(e){}
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
@@ -1885,7 +1937,47 @@ function renderTeamOptions(){
     opt.textContent = t.icon + ' ' + t.name;
     sel.appendChild(opt);
   });
+  try { refreshPersonCoachOptions(sel.value, null); } catch(_) {}
 }
+// 人员表单：根据当前选中团队刷新「选择教官」下拉
+function refreshPersonCoachOptions(teamId, selectCoachName){
+  var sel = document.getElementById('p_coach');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— 不选择教官 —</option>';
+  if (!teamId) return;
+  var team = (TEAMS || []).find(function(t){ return +t.id === +teamId; });
+  var coaches = [];
+  if (team && Array.isArray(team.coaches)){
+    coaches = team.coaches.filter(function(c){ return c && c.enabled === true && (c.name || c.image); });
+  } else if (team && team.coach && typeof team.coach === 'object' && (team.coach.name || team.coach.image)){
+    coaches = [team.coach];
+  }
+  if (!coaches.length) return;
+  coaches.forEach(function(c){
+    var opt = document.createElement('option');
+    opt.value = JSON.stringify({ name: c.name || '', image: c.image || '' });
+    opt.textContent = (c.name || '(未命名教官)') + (c.bio ? ' — ' + c.bio : '');
+    sel.appendChild(opt);
+  });
+  // 回选：如果有指定的教官名，找到对应 option 设置为 selected
+  if (selectCoachName) {
+    var scn = String(selectCoachName);
+    for (var i=0;i<sel.options.length;i++){
+      var v = sel.options[i].value;
+      if (!v) continue;
+      try {
+        var obj = JSON.parse(v);
+        if (obj && String(obj.name || '') === scn) { sel.selectedIndex = i; break; }
+      } catch(_) {}
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    var ps = document.getElementById('p_team');
+    if (ps) ps.addEventListener('change', function(){ refreshPersonCoachOptions(this.value, null); });
+  } catch(_) {}
+});
 
 // ========== 人员列表渲染 ==========
 function renderPeople(){
@@ -1997,6 +2089,12 @@ function resetPersonForm(){
   document.getElementById('formTitle').textContent = '➕ 添加新人员';
   ['p_name','p_phone','p_email','p_wechat','p_qq','p_desc','p_bio','avatarName'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
+  try {
+    // 重置教官下拉：根据当前团队刷新，默认不选
+    refreshPersonCoachOptions(document.getElementById('p_team').value, null);
+    var pc = document.getElementById('p_coach');
+    if (pc) pc.selectedIndex = 0;
+  } catch(_) {}
   document.getElementById('avatarFile').value = '';
   document.getElementById('avatarPreview').src = '';
   // 头像调节：清空时也恢复默认值
@@ -2027,6 +2125,13 @@ function editPerson(p){
   document.getElementById('p_bio').value    = p.bio || '';
   document.getElementById('avatarName').value = p.image || '';
   document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
+  // 教官回选：先刷新该团队的教官列表，再按名字回选
+  try {
+    var coachName = null;
+    if (typeof p.coachChoice === 'string' && p.coachChoice) coachName = p.coachChoice;
+    else if (typeof p.coachChoice === 'object' && p.coachChoice && p.coachChoice.name) coachName = p.coachChoice.name;
+    refreshPersonCoachOptions(p.team || '', coachName);
+  } catch(_) {}
   // 头像调节：加载这个人的设置（自动兼容旧字段）
   avApplyToForm(avMigrate(p));
   // 预览图同步当前头像
@@ -2078,6 +2183,17 @@ function savePersonForm(){
     dAvatarOffsetX: av.d.ox,
     dAvatarOffsetY: av.d.oy
   };
+  // 选择教官：写入 coachChoice 对象；没有选择则从 obj 中删掉这个字段（避免覆盖原有的非空选择）
+  try {
+    var pcSel = document.getElementById('p_coach');
+    var pcv = pcSel ? pcSel.value : '';
+    if (pcv) {
+      try {
+        var coachObj = JSON.parse(pcv);
+        if (coachObj && (coachObj.name || coachObj.image)) obj.coachChoice = coachObj;
+      } catch(_) {}
+    }
+  } catch(_) {}
   // 清掉旧版字段（两套：avatarH/D/Fit/X/Y 老下拉；avatarScale/Clip/OffsetX/Y 上一版 4字段）
   [ 'avatarH','avatarD','avatarFit','avatarX','avatarY',
     'avatarScale','avatarClip','avatarOffsetX','avatarOffsetY'
@@ -2088,6 +2204,11 @@ function savePersonForm(){
     var idx = PEOPLE.findIndex(function(x){ return String(x.id) === editingId; });
     if (idx >= 0) {
       obj.id = PEOPLE[idx].id;
+      // 编辑时保留原有的 joinedAt / coachChoice（如果本次没选教官，保留原选择）等非表单字段
+      var prev = PEOPLE[idx] || {};
+      if (!('coachChoice' in obj) && ('coachChoice' in prev)) obj.coachChoice = prev.coachChoice;
+      if ('joinedAt' in prev) obj.joinedAt = prev.joinedAt;
+      if ('welcomeMsg' in prev) obj.welcomeMsg = prev.welcomeMsg;
       PEOPLE[idx] = obj;
       writtenId = PEOPLE[idx].id;
     }
@@ -2333,44 +2454,6 @@ function extractJoinPayloadFromIssue(body){
   return match ? decodeJoinPayload(match[1].trim()) : null;
 }
 
-function joinCoachChoiceFromComments(comments){
-  var list = Array.isArray(comments) ? comments.slice().reverse() : [];
-  for (var i=0;i<list.length;i++) {
-    var body = String(list[i] && list[i].body || '');
-    var match = body.match(/<!--\s*join-coach-choice-base64:([A-Za-z0-9_-]+)\s*-->/);
-    if (!match) continue;
-    try {
-      var choice = JSON.parse(_b64u8(_unUrlSafe(match[1])));
-      if (choice && choice.name) return choice;
-    } catch(e){}
-  }
-  return null;
-}
-
-function joinResultFromComments(comments){
-  var list = Array.isArray(comments) ? comments.slice().reverse() : [];
-  var approved = list.find(function(comment){
-    var body = String(comment && comment.body || '');
-    return body.indexOf('<!-- join-result:approved -->') >= 0 || body.indexOf('申请已通过') >= 0;
-  });
-  var rejected = list.find(function(comment){
-    var body = String(comment && comment.body || '');
-    return body.indexOf('<!-- join-result:rejected -->') >= 0 ||
-      body.indexOf('申请未通过') >= 0 || body.indexOf('未通过') >= 0;
-  });
-  var status = approved ? 'approved' : (rejected ? 'rejected' : 'closed');
-  var personId = '';
-  if (approved) {
-    var match = String(approved.body || '').match(/<!--\s*join-person-id:([A-Za-z0-9_-]+)\s*-->/);
-    personId = match ? match[1] : '';
-  }
-  return {
-    status: status,
-    personId: personId,
-    coachChoice: joinCoachChoiceFromComments(list)
-  };
-}
-
 async function fetchPendingFromIssues(){
   if (!PAT) {
     showStatus('pendingStatus','请先登录后台，再拉取异地申请。','err');
@@ -2378,74 +2461,39 @@ async function fetchPendingFromIssues(){
   }
   var btn = document.getElementById('fetchIssuesBtn');
   if (btn) { btn.disabled = true; btn.textContent = '拉取中…'; }
-  showStatus('pendingStatus','正在从 GitHub 拉取申请与处理记录…','info');
+  showStatus('pendingStatus','正在从 GitHub 拉取异地申请…','info');
   try {
-    var issues = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=all&per_page=100');
+    var issues = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues?state=open&per_page=100');
     var arr = _pRead();
     var added = 0;
-    var synced = 0;
-    var commentErrors = 0;
-    for (var i=0;i<(issues || []).length;i++) {
-      var issue = issues[i];
-      if (issue.pull_request) continue;
+    (issues || []).forEach(function(issue){
+      if (issue.pull_request) return;
       var data = extractJoinPayloadFromIssue(issue.body);
-      if (!data || !data.name || !data.team) continue;
-      var item = arr.find(function(entry){
-        return String(entry.issueNumber || '') === String(issue.number);
+      if (!data || !data.name || !data.team) return;
+      var exists = arr.some(function(item){ return item.issueNumber === issue.number; });
+      if (exists) return;
+      arr.push({
+        _id: _pid(),
+        status: 'pending',
+        source: 'issue',
+        issueNumber: issue.number,
+        issueUrl: issue.html_url || '',
+        importedAt: Date.now(),
+        data: data
       });
-      if (!item) {
-        item = {
-          _id: _pid(),
-          status: 'pending',
-          source: 'issue',
-          issueNumber: issue.number,
-          importedAt: Date.now(),
-          data: data
-        };
-        arr.push(item);
-        added++;
-      }
-      item.source = 'issue';
-      item.issueNumber = issue.number;
-      item.issueUrl = issue.html_url || item.issueUrl || '';
-      item.issueCreatedAt = issue.created_at || item.issueCreatedAt || '';
-      item.issueUpdatedAt = issue.updated_at || item.issueUpdatedAt || '';
-      item.data = data;
-
-      if (issue.state === 'open') {
-        item.status = 'pending';
-        item.processedAt = null;
-      } else {
-        try {
-          var comments = await ghGet('/repos/'+OWNER+'/'+REPO+'/issues/'+issue.number+'/comments?per_page=100');
-          var result = joinResultFromComments(comments);
-          item.status = result.status;
-          item.personId = result.personId || item.personId || '';
-          item.coachChoice = result.coachChoice;
-          item.resultSynced = result.status !== 'closed';
-        } catch(e) {
-          commentErrors++;
-          if (item.status === 'pending') item.status = 'closed';
-        }
-        item.processedAt = Date.parse(issue.closed_at || issue.updated_at || '') || Date.now();
-      }
-      synced++;
-    }
+      added++;
+    });
     _pWrite(arr);
-    refreshPendingAll();
-    var message = '✅ 已同步 '+synced+' 条申请';
-    if (added) message += '，新增 '+added+' 条';
-    if (commentErrors) message += '；'+commentErrors+' 条详情读取失败';
-    message += '。';
+    renderPendingList(arr.filter(function(item){ return item.status === 'pending'; }));
     showStatus(
       'pendingStatus',
-      message,
-      commentErrors ? 'err' : 'ok'
+      added ? ('✅ 已从 GitHub 拉取 '+added+' 条新申请。') : '已完成拉取，没有新的异地申请。',
+      added ? 'ok' : 'info'
     );
   } catch(e) {
     showStatus('pendingStatus','❌ 拉取失败：'+(e && e.message || e),'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '同步 GitHub 申请'; }
+    if (btn) { btn.disabled = false; btn.textContent = '从 GitHub 拉取异地申请'; }
   }
 }
 
@@ -2453,15 +2501,14 @@ async function closeJoinIssue(item, approved, personId){
   if (!item || !item.issueNumber || !PAT) return false;
   var base = 'https://api.github.com/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
   var comment = approved
-    ? '✅ 申请已通过，人员资料已部署到主站。人员 ID：'+(personId || '')+'。\n\n<!-- join-result:approved -->\n<!-- join-person-id:'+(personId || '')+' -->'
-    : '❌ 该入队申请未通过。如有疑问，请联系管理员。\n\n<!-- join-result:rejected -->';
+    ? '✅ 申请已通过，人员资料已部署到主站。人员 ID：'+(personId || '')+'。'
+    : '❌ 该入队申请未通过。如有疑问，请联系管理员。';
   try {
-    var commentResponse = await fetch(base+'/comments', {
+    await fetch(base+'/comments', {
       method: 'POST',
       headers: ghHeaders({'Content-Type':'application/json'}),
       body: JSON.stringify({body: comment})
     });
-    if (!commentResponse.ok) throw new Error('写入审批结果失败：HTTP '+commentResponse.status);
     var response = await fetch(base, {
       method: 'PATCH',
       headers: ghHeaders({'Content-Type':'application/json'}),
@@ -2471,25 +2518,6 @@ async function closeJoinIssue(item, approved, personId){
   } catch(e) {
     console.warn('关闭入队申请 Issue 失败', e);
     return false;
-  }
-}
-
-async function retryJoinResult(pid){
-  var arr = _pRead();
-  var item = arr.find(function(entry){ return entry._id === pid; });
-  if (!item || item.status === 'pending') {
-    showStatus('pendingStatus','找不到已处理的申请记录。','err');
-    return;
-  }
-  showStatus('pendingStatus','正在重新同步审批结果…','info');
-  var ok = await closeJoinIssue(item, item.status === 'approved', item.personId || '');
-  if (ok) {
-    item.resultSynced = true;
-    _pWrite(arr);
-    refreshPendingAll();
-    showStatus('pendingStatus','✅ 审批结果已同步，申请人刷新页面即可看到。','ok');
-  } else {
-    showStatus('pendingStatus','❌ 审批结果仍未同步，请检查 GitHub PAT 的 Issues 写权限。','err');
   }
 }
 
@@ -2535,119 +2563,20 @@ function importFromUrl(){
 // 刷新：读 URL + 重渲染
 function refreshPendingAll(){
   importFromUrl();
-  var all = _pRead();
-  renderPendingList(all.filter(function(x){ return x.status === 'pending'; }));
-  renderProcessedJoinList(all.filter(function(x){ return x.status !== 'pending'; }));
+  var list = _pRead().filter(function(x){ return x.status === 'pending'; });
+  renderPendingList(list);
 }
-
-function joinStatusMeta(status){
-  if (status === 'approved') return { label: '已通过', className: 'approved' };
-  if (status === 'rejected') return { label: '未通过', className: 'rejected' };
-  if (status === 'closed') return { label: '已关闭，结果不明确', className: 'closed' };
-  return { label: '待审批', className: 'pending' };
-}
-
-function joinDetailItem(label, value, wide, raw){
-  return '<div class="join-detail-item'+(wide ? ' wide' : '')+'">'
-    +'<div class="join-detail-label">'+joinEsc(label)+'</div>'
-    +'<div class="join-detail-value">'+(raw ? value : joinEsc(value || '未填写'))+'</div>'
-    +'</div>';
-}
-
-function renderJoinDetails(item, loading, errorMessage){
-  var body = document.getElementById('joinDetailBody');
-  var title = document.getElementById('joinDetailTitle');
-  if (!body || !title || !item) return;
-  var d = item.data || {};
-  var meta = joinStatusMeta(item.status);
-  var source = item.source === 'issue' ? 'GitHub 异地申请' :
-    (item.source === 'url' ? '申请链接导入' : '申请码导入');
-  var submitted = d.submittedAt || item.issueCreatedAt || item.importedAt;
-  var processed = item.processedAt ? new Date(item.processedAt).toLocaleString('zh-CN') : '';
-  var coach = item.coachChoice;
-  var issue = item.issueUrl
-    ? '<a href="'+joinEsc(item.issueUrl)+'" target="_blank" rel="noopener">GitHub #'+joinEsc(item.issueNumber)+'</a>'
-    : '无远程 Issue';
-  title.textContent = '申请详情：' + (d.name || '(无名)');
-  var html = '<div class="join-detail-grid">';
-  html += joinDetailItem('审批状态',
-    '<span class="join-detail-state '+meta.className+'">'+joinEsc(meta.label)+'</span>', false, true);
-  html += joinDetailItem('申请来源', source);
-  html += joinDetailItem('姓名 / 游戏ID', d.name);
-  html += joinDetailItem('所属团队', d.teamName || ('团队 '+(d.team || '')));
-  html += joinDetailItem('QQ号', d.qq);
-  html += joinDetailItem('身份 / 警号', d.desc);
-  html += joinDetailItem('个人简介', d.bio, true);
-  html += joinDetailItem('提交时间', submitted ? new Date(submitted).toLocaleString('zh-CN') : '');
-  html += joinDetailItem('处理时间', processed);
-  html += joinDetailItem('申请编号', issue, false, true);
-  html += joinDetailItem('人员 ID', item.personId || '');
-  html += joinDetailItem('申请人选择的教练',
-    coach ? (coach.name + (coach.selected_at ? '\n选择时间：'+new Date(coach.selected_at).toLocaleString('zh-CN') : '')) : '尚未选择',
-    true);
-  html += '</div>';
-  if (loading) html += '<div class="status show info" style="margin-top:14px;">正在从 GitHub 更新申请详情…</div>';
-  if (errorMessage) html += '<div class="status show err" style="margin-top:14px;">详情更新失败：'+joinEsc(errorMessage)+'</div>';
-  body.innerHTML = html;
-}
-
-function closeJoinDetails(){
-  var mask = document.getElementById('joinDetailMask');
-  if (mask) mask.classList.add('hidden');
-}
-
-async function openJoinDetails(pid){
-  var arr = _pRead();
-  var item = arr.find(function(entry){ return entry._id === pid; });
-  if (!item) {
-    showStatus('pendingStatus','找不到该申请详情，请重新拉取。','err');
-    return;
-  }
-  var mask = document.getElementById('joinDetailMask');
-  if (mask) mask.classList.remove('hidden');
-  renderJoinDetails(item, !!(item.issueNumber && PAT), '');
-  if (!item.issueNumber || !PAT) return;
-
-  try {
-    var base = '/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
-    var values = await Promise.all([
-      ghGet(base),
-      ghGet(base+'/comments?per_page=100')
-    ]);
-    var issue = values[0] || {};
-    var comments = values[1] || [];
-    var data = extractJoinPayloadFromIssue(issue.body);
-    if (data) item.data = data;
-    item.issueUrl = issue.html_url || item.issueUrl || '';
-    item.issueCreatedAt = issue.created_at || item.issueCreatedAt || '';
-    item.issueUpdatedAt = issue.updated_at || item.issueUpdatedAt || '';
-    if (issue.state === 'open') {
-      item.status = 'pending';
-      item.processedAt = null;
-    } else {
-      var result = joinResultFromComments(comments);
-      item.status = result.status;
-      item.personId = result.personId || item.personId || '';
-      item.coachChoice = result.coachChoice;
-      item.resultSynced = result.status !== 'closed';
-      item.processedAt = Date.parse(issue.closed_at || issue.updated_at || '') || item.processedAt || Date.now();
-    }
-    _pWrite(arr);
-    refreshPendingAll();
-    renderJoinDetails(item, false, '');
-  } catch(e) {
-    renderJoinDetails(item, false, e && e.message || e);
-  }
-}
-
 function renderPendingList(list){
   var box = document.getElementById('pendingList');
   var cnt = document.getElementById('pendingCount');
+  var st = document.getElementById('pendingStatus');
   if (cnt) cnt.textContent = list.length;
   if (!list.length){
     if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无待审批申请<br><span style="font-size:12px;">把员工发的申请码粘贴到上面的「导入申请码」框里点导入，或直接点员工发的 admin.html?join=xxx 链接自动加入。</span></div>';
+    if (st) st.textContent = '';
     return;
   }
+  if (st) st.textContent = '共 '+list.length+' 条待审批（本地存储）';
   var html = list.map(function(it){
     var d = it.data || {};
     var avatar = d.image ? resolveAvatar(d.image) : '';
@@ -2664,6 +2593,13 @@ function renderPendingList(list){
     if (d.desc) s.push('· '+joinEsc(d.desc)+' ');
     if (d.qq) s.push('· QQ:'+joinEsc(d.qq)+' ');
     s.push('</div>');
+    // 显示学员选择的教官
+    var coachName = null;
+    if (typeof d.coachChoice === 'string' && d.coachChoice) coachName = d.coachChoice;
+    else if (typeof d.coachChoice === 'object' && d.coachChoice && d.coachChoice.name) coachName = d.coachChoice.name;
+    if (coachName) {
+      s.push('<div style="font-size:12px;color:#1565c0;margin-top:4px;">🧑‍🏫 选择教官：<b>'+joinEsc(coachName)+'</b></div>');
+    }
     if (d.bio) s.push('<div style="font-size:12px;color:#666;margin-top:4px;">'+joinEsc(d.bio)+'</div>');
     s.push('<div style="font-size:11px;color:#999;margin-top:4px;">员工提交于 '+joinEsc(t.toLocaleString('zh-CN'))+'</div>');
     if (it.issueUrl) {
@@ -2671,7 +2607,6 @@ function renderPendingList(list){
     }
     s.push('</div>');
     s.push('<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">');
-    s.push('<button class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="openJoinDetails(\''+joinEsc(it._id)+'\')">申请详情</button>');
     s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveJoin(\''+joinEsc(it._id)+'\')">✅ 通过</button>');
     s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectJoin(\''+joinEsc(it._id)+'\')">❌ 拒绝</button>');
     s.push('</div>');
@@ -2679,43 +2614,6 @@ function renderPendingList(list){
     return s.join('');
   }).join('');
   box.innerHTML = html;
-}
-
-function renderProcessedJoinList(list){
-  var wrap = document.getElementById('processedJoinWrap');
-  var box = document.getElementById('processedJoinList');
-  if (!wrap || !box) return;
-  list = (list || []).sort(function(a,b){
-    return Number(b.processedAt || 0) - Number(a.processedAt || 0);
-  }).slice(0, 20);
-  if (!list.length) {
-    wrap.style.display = 'none';
-    box.innerHTML = '';
-    return;
-  }
-  wrap.style.display = 'block';
-  box.innerHTML = list.map(function(it){
-    var d = it.data || {};
-    var approved = it.status === 'approved';
-    var rejected = it.status === 'rejected';
-    var color = approved ? '#2e7d32' : (rejected ? '#c62828' : '#616161');
-    var background = approved ? '#f1f8f2' : (rejected ? '#fff5f5' : '#f5f5f5');
-    var label = approved ? '已通过' : (rejected ? '未通过' : '已关闭');
-    var processed = new Date(it.processedAt || Date.now()).toLocaleString('zh-CN');
-    var issueLink = it.issueUrl
-      ? '<a href="'+joinEsc(it.issueUrl)+'" target="_blank" rel="noopener" style="font-size:12px;">GitHub #'+joinEsc(it.issueNumber)+'</a>'
-      : '';
-    var retryButton = it.issueNumber && it.resultSynced === false
-      ? '<button class="btn-warning" style="padding:6px 10px;font-size:12px;" onclick="retryJoinResult(\''+joinEsc(it._id)+'\')">重试同步</button>'
-      : '';
-    var detailButton = '<button class="btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="openJoinDetails(\''+joinEsc(it._id)+'\')">申请详情</button>';
-    return '<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;'
-      +'padding:10px 12px;margin-bottom:8px;border:1px solid '+color+'33;border-radius:8px;background:'+background+';">'
-      +'<div><b>'+joinEsc(d.name || '(无名)')+'</b> → '+joinEsc(d.teamName || ('团队'+(d.team || '')))
-      +'<div style="font-size:11px;color:#777;margin-top:3px;">'+joinEsc(processed)+'</div></div>'
-      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><b style="color:'+color+';">'+label+'</b>'+issueLink+detailButton+retryButton+'</div>'
-      +'</div>';
-  }).join('');
 }
 
 // 通过：写 data.json + 立即部署 + 标记该申请为 approved
@@ -2749,6 +2647,10 @@ async function approveJoin(pid){
       cAvatarScale: 1, cAvatarClip: 0, cAvatarOffsetX: 0, cAvatarOffsetY: 0,
       dAvatarScale: 1, dAvatarClip: 0, dAvatarOffsetX: 0, dAvatarOffsetY: 0
     };
+    // 保留员工申请时选择的教官，后续主站教练卡片会显示该学员
+    if (d.coachChoice && (typeof d.coachChoice === 'string' || (typeof d.coachChoice === 'object' && d.coachChoice.name))) {
+      obj.coachChoice = d.coachChoice;
+    }
     PEOPLE.push(obj);
     DIRTY_PEOPLE = true;
     showStatus('pendingStatus','正在部署 '+d.name+' 到主站（写 data.json）…','info');
@@ -2765,16 +2667,8 @@ async function approveJoin(pid){
     arr[idx].processedAt = Date.now();
     arr[idx].personId = obj.id;
     _pWrite(arr);
-    var resultSynced = await closeJoinIssue(arr[idx], true, obj.id);
-    arr[idx].resultSynced = resultSynced;
-    _pWrite(arr);
-    showStatus(
-      'pendingStatus',
-      resultSynced
-        ? ('✅ '+d.name+' 已通过并部署到主站。申请人刷新申请页即可看到“已通过”。')
-        : ('⚠️ '+d.name+' 已部署到主站，但审批结果同步失败。请在“最近处理记录”点击“重试同步”。'),
-      resultSynced ? 'ok' : 'err'
-    );
+    await closeJoinIssue(arr[idx], true, obj.id);
+    showStatus('pendingStatus','✅ '+d.name+' 已通过并部署到主站。等 1~2 分钟 Ctrl+F5 强刷主站即可看到欢迎横幅。','ok');
     showStatus('saveStatus','✅ 审批通过 '+d.name+'，data.json 已更新（共 '+PEOPLE.length+' 人）。','ok');
     renderTeamFilter(); renderPeople(); updateTotalCount(); renderRecruitPanel();
     try { refreshJsonPanel(); } catch(e){}
@@ -2796,16 +2690,8 @@ async function rejectJoin(pid){
   arr[idx].status = 'rejected';
   arr[idx].processedAt = Date.now();
   _pWrite(arr);
-  var resultSynced = await closeJoinIssue(arr[idx], false, null);
-  arr[idx].resultSynced = resultSynced;
-  _pWrite(arr);
-  showStatus(
-    'pendingStatus',
-    resultSynced
-      ? ('ℹ️ 已拒绝 '+name+' 的申请；申请人刷新申请页即可看到“未通过”。')
-      : ('⚠️ 已拒绝 '+name+'，但审批结果同步失败。请在“最近处理记录”点击“重试同步”。'),
-    resultSynced ? 'info' : 'err'
-  );
+  await closeJoinIssue(arr[idx], false, null);
+  showStatus('pendingStatus','ℹ️ 已拒绝 '+name+' 的申请；对应 GitHub 申请已关闭。','info');
   refreshPendingAll();
 }
 
@@ -2820,6 +2706,480 @@ function clearDonePending(){
   showStatus('pendingStatus','🧹 已清理 '+removed+' 条已处理记录。','ok');
   refreshPendingAll();
 }
+
+// ========== 教官注册审核 + 账号管理 ==========
+var COACH_REG_KEY = 'admin_coach_reg_v1';
+var COACHES_FILE = 'coaches.json';
+function _crRead(){
+  try { var s = localStorage.getItem(COACH_REG_KEY); return s ? JSON.parse(s) : []; } catch(e){ return []; }
+}
+function _crWrite(arr){
+  try { localStorage.setItem(COACH_REG_KEY, JSON.stringify(arr || [])); } catch(e){}
+}
+function _crFind(arr, d){
+  for (var i=0;i<arr.length;i++){
+    var it = arr[i];
+    var dd = it.data || {};
+    if (dd.username && d.username && String(dd.username).toLowerCase() === String(d.username).toLowerCase()) return i;
+  }
+  return -1;
+}
+// 解码教官注册 Issue 的 payload（标记为 coach-register-base64）
+function decodeCoachRegPayload(body){
+  var match = String(body || '').match(
+    /<!--\s*coach-register-base64\s*-->([\s\S]*?)<!--\s*\/coach-register-base64\s*-->/
+  );
+  if (!match) return null;
+  // 复用 decodeJoinPayload（V1:xxx 格式）
+  return decodeJoinPayload(match[1].trim());
+}
+// 从 GitHub Issue 拉取教官注册申请
+async function fetchCoachRegIssues(){
+  if (!PAT) {
+    showStatus('coachRegStatus','请先登录后台，再拉取教官注册申请。','err');
+    return;
+  }
+  var btn = document.getElementById('fetchCoachIssuesBtn');
+  btn.disabled = true; btn.textContent = '拉取中…';
+  showStatus('coachRegStatus','正在从 GitHub 拉取教官注册申请…','info');
+  try {
+    var url = 'https://api.github.com/repos/'+OWNER+'/'+REPO+'/issues?labels=coach-register&state=open&per_page=50';
+    var res = await fetch(url, { headers: ghHeaders() });
+    if (!res.ok) throw new Error('GitHub API '+res.status);
+    var issues = await res.json();
+    var arr = _crRead();
+    var added = 0;
+    for (var i=0;i<issues.length;i++){
+      var issue = issues[i];
+      var d = decodeCoachRegPayload(issue.body || '');
+      if (!d || !d.username || !d.coachName) continue;
+      // 去重
+      var existIdx = _crFind(arr, d);
+      if (existIdx >= 0 && arr[existIdx].status === 'pending') continue;
+      if (existIdx >= 0) {
+        arr[existIdx].status = 'pending';
+        arr[existIdx].importedAt = Date.now();
+      } else {
+        arr.push({ _id: 'cr_'+Date.now().toString(36)+i, status: 'pending', source: 'issue',
+          importedAt: Date.now(), issueNumber: issue.number, issueUrl: issue.html_url, data: d });
+      }
+      added++;
+    }
+    _crWrite(arr);
+    showStatus('coachRegStatus', added ? '✅ 拉取了 '+added+' 条教官注册申请。' : '没有新的教官注册申请。', added ? 'ok' : 'info');
+    renderCoachRegList();
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 拉取失败：'+(e && e.message || e),'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '从 GitHub 拉取教官注册申请';
+  }
+}
+function renderCoachRegList(){
+  var box = document.getElementById('coachRegList');
+  var cnt = document.getElementById('coachRegCount');
+  var st = document.getElementById('coachRegStatus');
+  var arr = _crRead().filter(function(x){ return x.status === 'pending'; });
+  if (cnt) cnt.textContent = arr.length;
+  if (!arr.length){
+    if (box) box.innerHTML = '<div style="padding:20px;text-align:center;color:#888;">✅ 暂无教官注册申请<br><span style="font-size:12px;">教官在 coach.html 注册后，点「从 GitHub 拉取」即可。</span></div>';
+    return;
+  }
+  var html = arr.map(function(it){
+    var d = it.data || {};
+    var t = new Date(d.submittedAt || it.importedAt || Date.now());
+    var s = [];
+    s.push('<div style="border:1px solid #d8e2ef;border-radius:10px;padding:12px;margin-bottom:10px;background:#fafcff;">');
+    s.push('<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">');
+    s.push('<div style="flex:1;min-width:200px;">');
+    s.push('<div style="font-weight:bold;font-size:15px;color:#222;">'+joinEsc(d.username||'(无名)')+' <span style="font-weight:normal;color:#999;font-size:11px;">'+(it.source === 'issue' ? '🐙 GitHub Issue' : '📋 手动导入')+'</span></div>');
+    s.push('<div style="font-size:13px;color:#555;margin-top:4px;">');
+    s.push('🧑‍🏫 教官名：<b>'+joinEsc(d.coachName||'')+'</b> · ');
+    s.push('<span class="badge badge-team">'+joinEsc(d.teamName||('团队'+d.team))+'</span>');
+    s.push('</div>');
+    if (d.bio) s.push('<div style="font-size:12px;color:#666;margin-top:4px;">'+joinEsc(d.bio)+'</div>');
+    s.push('<div style="font-size:11px;color:#999;margin-top:4px;">提交于 '+joinEsc(t.toLocaleString('zh-CN'))+'</div>');
+    if (it.issueUrl) s.push('<div style="font-size:11px;margin-top:4px;"><a href="'+joinEsc(it.issueUrl)+'" target="_blank" rel="noopener">查看 GitHub Issue #'+joinEsc(it.issueNumber)+'</a></div>');
+    s.push('</div>');
+    s.push('<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">');
+    s.push('<button class="btn-success" style="padding:8px 14px;font-size:13px;" onclick="approveCoachReg(\''+joinEsc(it._id)+'\')">✅ 通过</button>');
+    s.push('<button class="btn-danger" style="padding:8px 14px;font-size:13px;" onclick="rejectCoachReg(\''+joinEsc(it._id)+'\')">❌ 拒绝</button>');
+    s.push('</div>');
+    s.push('</div></div>');
+    return s.join('');
+  }).join('');
+  box.innerHTML = html;
+}
+// 通过教官注册 → 写入 coaches.json
+async function approveCoachReg(rid){
+  var arr = _crRead();
+  var idx = -1;
+  for (var i=0;i<arr.length;i++) if (arr[i]._id === rid) { idx = i; break; }
+  if (idx < 0) { showStatus('coachRegStatus','❌ 找不到该申请。','err'); return; }
+  var it = arr[idx];
+  var d = it.data || {};
+  if (!d.username || !d.coachName || !d.team) {
+    showStatus('coachRegStatus','❌ 申请数据不完整。','err');
+    return;
+  }
+  if (!PAT) { showStatus('coachRegStatus','请先登录后台。','err'); return; }
+  showStatus('coachRegStatus','正在写入 coaches.json…','info');
+  try {
+    // 读取现有 coaches.json
+    var coachesData = [];
+    try {
+      var cur = await getContent(COACHES_FILE);
+      if (cur && cur.content) coachesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    } catch(e){ /* 首次创建，文件不存在 */ }
+    if (!Array.isArray(coachesData)) coachesData = [];
+    // 检查用户名是否已存在
+    var exist = coachesData.find(function(c){ return c && String(c.username||'').toLowerCase() === String(d.username).toLowerCase(); });
+    if (exist) {
+      showStatus('coachRegStatus','⚠️ 用户名「'+d.username+'」已存在，请拒绝此申请或让教官换用户名重注册。','err');
+      return;
+    }
+    // 添加新账号（密码用 base64 存储，coach.html 解码验证）
+    var newAccount = {
+      username: d.username,
+      password: _u8b64(d.password || ''),
+      coachName: d.coachName,
+      team: +d.team,
+      teamName: d.teamName || '',
+      bio: d.bio || '',
+      enabled: true,
+      createdAt: Date.now(),
+      approvedAt: Date.now()
+    };
+    coachesData.push(newAccount);
+    // 写入 coaches.json
+    var content = utf8ToBase64(JSON.stringify(coachesData, null, 2));
+    var sha = null;
+    try { var existing = await getContent(COACHES_FILE); if (existing) sha = existing.sha; } catch(e){}
+    var res = await writeFile(COACHES_FILE, content, sha, '审批通过教官注册: '+d.username+' → '+d.coachName);
+    if (!res) throw new Error('写入 coaches.json 失败');
+    // 标记已通过
+    arr[idx].status = 'approved';
+    arr[idx].processedAt = Date.now();
+    _crWrite(arr);
+    // 关闭 Issue
+    if (it.issueNumber) {
+      try { await closeCoachRegIssue(it, true, d.username); } catch(e){}
+    }
+    showStatus('coachRegStatus','✅ 教官「'+d.coachName+'」('+d.username+') 账号已写入 coaches.json，教官现在可以登录 coach.html 了。','ok');
+    renderCoachRegList();
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 通过失败：'+(e && e.message || e),'err');
+  }
+}
+// 拒绝教官注册
+async function rejectCoachReg(rid){
+  var arr = _crRead();
+  var idx = -1;
+  for (var i=0;i<arr.length;i++) if (arr[i]._id === rid) { idx = i; break; }
+  if (idx < 0) { showStatus('coachRegStatus','❌ 找不到该申请。','err'); return; }
+  var it = arr[idx];
+  arr[idx].status = 'rejected';
+  arr[idx].processedAt = Date.now();
+  _crWrite(arr);
+  if (it.issueNumber && PAT) {
+    try { await closeCoachRegIssue(it, false, ''); } catch(e){}
+  }
+  showStatus('coachRegStatus','已拒绝教官注册申请：'+((it.data||{}).username||'')+'。','info');
+  renderCoachRegList();
+}
+async function closeCoachRegIssue(item, approved, username){
+  if (!item || !item.issueNumber || !PAT) return false;
+  var base = 'https://api.github.com/repos/'+OWNER+'/'+REPO+'/issues/'+item.issueNumber;
+  var comment = approved
+    ? '✅ 教官注册已通过，账号已创建。用户名：'+(username||'')+'。请前往 coach.html 登录。'
+    : '❌ 教官注册申请未通过。如有疑问请联系管理员。';
+  try {
+    await fetch(base+'/comments', { method: 'POST', headers: ghHeaders({'Content-Type':'application/json'}), body: JSON.stringify({body: comment}) });
+    await fetch(base, { method: 'PATCH', headers: ghHeaders({'Content-Type':'application/json'}), body: JSON.stringify({state:'closed'}) });
+  } catch(e){}
+  return true;
+}
+// 渲染已批准教官账号列表
+async function renderCoachAccounts(){
+  var box = document.getElementById('coachAccountsList');
+  if (!box) return;
+  try {
+    var cur = await getContent(COACHES_FILE);
+    if (!cur || !cur.content) { box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">coaches.json 尚未创建（暂无已批准教官账号）。</div>'; return; }
+    var coaches = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    if (!coaches.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无已批准教官账号。</div>'; return; }
+    var html = coaches.map(function(c, i){
+      var en = c.enabled !== false;
+      return '<div style="border:1px solid #d8e2ef;border-radius:8px;padding:10px;margin-bottom:8px;background:#fbfdff;">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+          '<span style="font-weight:bold;font-size:14px;color:#222;">'+joinEsc(c.username||'')+'</span>' +
+          '<span style="font-size:12px;color:#888;">→ '+joinEsc(c.coachName||'')+'</span>' +
+          '<span class="badge badge-team">'+joinEsc(c.teamName||('团队'+c.team))+'</span>' +
+          '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleCoachAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delCoachAccount('+i+')">🗑️ 删除</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = html;
+  } catch(e){
+    box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">coaches.json 尚未创建或读取失败。</div>';
+  }
+}
+// 切换教官账号启用/停用
+async function toggleCoachAccount(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  showStatus('coachRegStatus','正在更新 coaches.json…','info');
+  try {
+    var cur = await getContent(COACHES_FILE);
+    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
+    coaches[idx].enabled = coaches[idx].enabled === false ? true : false;
+    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '切换教官账号: '+coaches[idx].username+' → '+(coaches[idx].enabled?'启用':'停用'));
+    if (!res) throw new Error('写入失败');
+    showStatus('coachRegStatus','✅ 教官账号「'+coaches[idx].username+'」已'+(coaches[idx].enabled?'启用':'停用')+'。','ok');
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 操作失败：'+(e && e.message || e),'err');
+  }
+}
+// 删除教官账号
+async function delCoachAccount(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  if (!confirm('确定删除该教官账号？此操作不可撤销。')) return;
+  showStatus('coachRegStatus','正在删除教官账号…','info');
+  try {
+    var cur = await getContent(COACHES_FILE);
+    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var removed = coaches.splice(idx, 1)[0];
+    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '删除教官账号: '+(removed && removed.username || ''));
+    if (!res) throw new Error('写入失败');
+    showStatus('coachRegStatus','✅ 已删除教官账号「'+(removed && removed.username || '')+'」。','ok');
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 删除失败：'+(e && e.message || e),'err');
+  }
+}
+function refreshCoachRegAll(){
+  renderCoachRegList();
+  try { renderCoachAccounts(); } catch(e){}
+}
+// ========== 手动添加教官账号（不依赖 Worker） ==========
+function loadManualCoachTeams(){
+  var sel = document.getElementById('manualCoachTeam');
+  if (!sel) return;
+  var teams = allTeams();
+  sel.innerHTML = '<option value="">— 请选择 —</option>';
+  teams.forEach(function(t){
+    if (!t || t.enabled !== true || !t.name) return;
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = (t.icon||'') + ' ' + t.name;
+    sel.appendChild(opt);
+  });
+}
+function refreshManualCoachNames(){
+  var teamSel = document.getElementById('manualCoachTeam');
+  var nameSel = document.getElementById('manualCoachName');
+  if (!teamSel || !nameSel) return;
+  var teamId = teamSel.value;
+  nameSel.innerHTML = '<option value="">— 请先选择团队 —</option>';
+  if (!teamId) return;
+  var team = allTeams().find(function(t){ return +t.id === +teamId; });
+  if (!team) return;
+  var coaches = ensureCoaches(team);
+  var list = coaches.filter(function(c){ return c && (c.name || c.image); });
+  if (!list.length){
+    nameSel.innerHTML = '<option value="">（该团队暂无教官，可手动输入）</option>';
+    nameSel.innerHTML += '<option value="__custom__">— 手动输入教官名 —</option>';
+    return;
+  }
+  list.forEach(function(c){
+    var opt = document.createElement('option');
+    opt.value = c.name || '';
+    opt.textContent = (c.name || '(未命名)') + (c.bio ? ' — ' + c.bio : '');
+    nameSel.appendChild(opt);
+  });
+  nameSel.innerHTML += '<option value="__custom__">— 手动输入教官名 —</option>';
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var teamSel = document.getElementById('manualCoachTeam');
+  if (teamSel) teamSel.addEventListener('change', refreshManualCoachNames);
+  var nameSel = document.getElementById('manualCoachName');
+  if (nameSel) nameSel.addEventListener('change', function(){
+    var customBox = document.getElementById('manualCoachNameCustom');
+    if (this.value === '__custom__'){
+      if (!customBox){
+        customBox = document.createElement('input');
+        customBox.type = 'text';
+        customBox.id = 'manualCoachNameCustom';
+        customBox.placeholder = '输入教官名';
+        customBox.style = 'width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;margin-top:6px;';
+        this.parentNode.appendChild(customBox);
+        customBox.focus();
+      }
+      customBox.style.display = 'block';
+    } else {
+      if (customBox) customBox.style.display = 'none';
+    }
+  });
+});
+async function manualAddCoach(){
+  if (!PAT){ alert('请先登录后台。'); return; }
+  var user = (document.getElementById('manualCoachUser').value||'').trim();
+  var pass = (document.getElementById('manualCoachPass').value||'').trim();
+  var teamVal = document.getElementById('manualCoachTeam').value;
+  var nameVal = document.getElementById('manualCoachName').value;
+  var bio = (document.getElementById('manualCoachBio').value||'').trim();
+  var st = document.getElementById('manualCoachStatus');
+
+  // 验证
+  if (!user){ showStatus('manualCoachStatus','❌ 请填写用户名','err'); return; }
+  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(user)){ showStatus('manualCoachStatus','❌ 用户名只能用中文、字母、数字、下划线，2-30位','err'); return; }
+  if (!pass || pass.length < 4){ showStatus('manualCoachStatus','❌ 密码至少4位','err'); return; }
+  if (!teamVal){ showStatus('manualCoachStatus','❌ 请选择团队','err'); return; }
+  if (nameVal === '__custom__'){
+    var customBox = document.getElementById('manualCoachNameCustom');
+    nameVal = customBox ? (customBox.value||'').trim() : '';
+  }
+  if (!nameVal){ showStatus('manualCoachStatus','❌ 请选择或输入教官名','err'); return; }
+
+  var team = allTeams().find(function(t){ return +t.id === +teamVal; });
+  var teamName = team ? team.name : ('团队'+teamVal);
+
+  showStatus('manualCoachStatus','正在创建…','info');
+  try {
+    // 读取现有 coaches.json
+    var coachesData = [];
+    try {
+      var cur = await getContent(COACHES_FILE);
+      if (cur && cur.content) coachesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    } catch(e){}
+    if (!Array.isArray(coachesData)) coachesData = [];
+    // 检查用户名是否已存在
+    var exist = coachesData.find(function(c){ return c && String(c.username||'').toLowerCase() === user.toLowerCase(); });
+    if (exist){ showStatus('manualCoachStatus','⚠️ 用户名「'+user+'」已存在','err'); return; }
+    // 创建新账号
+    var newAccount = {
+      username: user,
+      password: _u8b64(pass),
+      coachName: nameVal,
+      team: +teamVal,
+      teamName: teamName,
+      bio: bio,
+      enabled: true,
+      createdAt: Date.now(),
+      approvedAt: Date.now()
+    };
+    coachesData.push(newAccount);
+    var content = utf8ToBase64(JSON.stringify(coachesData, null, 2));
+    var sha = null;
+    try { var existing = await getContent(COACHES_FILE); if (existing) sha = existing.sha; } catch(e){}
+    var res = await writeFile(COACHES_FILE, content, sha, '手动创建教官账号: '+user+' → '+nameVal);
+    if (!res) throw new Error('写入 coaches.json 失败');
+    showStatus('manualCoachStatus','✅ 教官账号「'+user+'」已创建，教官可登录 coach.html','ok');
+    // 清空表单
+    document.getElementById('manualCoachUser').value = '';
+    document.getElementById('manualCoachPass').value = '';
+    document.getElementById('manualCoachBio').value = '';
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('manualCoachStatus','❌ 创建失败：'+(e && e.message || e),'err');
+  }
+}
+// ========== 网站文件部署（绕过 git push，用 GitHub API） ==========
+async function deploySiteFiles(){
+  if (!PAT){ alert('请先登录后台（需要 PAT）。'); return; }
+  // 协议检测：必须从 HTTP 服务器打开（file:// 无法 fetch 本地文件）
+  var proto = location.protocol;
+  var correctUrl = 'http://127.0.0.1:8080/admin.html';
+  if (proto === 'file:'){
+    alert(
+      '❌ 检测到使用 file:// 协议打开本页！\n\n' +
+      '浏览器禁止 file:// 协议读取本地文件，无法使用此功能。\n\n' +
+      '✅ 请改为在浏览器地址栏输入以下地址打开：\n\n' +
+      correctUrl + '\n\n' +
+      '（确认 Python HTTP 服务器已运行：python -m http.server 8080 --bind 127.0.0.1 --directory j:\\9178GG）'
+    );
+    return;
+  }
+  var btn = document.getElementById('deploySiteBtn');
+  var log = document.getElementById('deployLog');
+  var st = document.getElementById('deployStatus');
+  if (btn) btn.disabled = true;
+  if (log) log.textContent = '';
+  function appendLog(msg){ if(log){ log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; } }
+
+  // 部署文件列表
+  var files = [
+    'coach.html','admin.html','join.html','index.html','join-worker.js',
+    'coaches.json','teams.json','data.json'
+  ];
+  appendLog('🚀 开始部署 ' + files.length + ' 个文件到 GitHub Pages...');
+  appendLog('   当前地址: ' + location.origin + location.pathname);
+  appendLog('   仓库: ' + OWNER + '/' + REPO + ' 分支: ' + BRANCH);
+  appendLog('');
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < files.length; i++){
+    var fname = files[i];
+    appendLog('[' + (i+1) + '/' + files.length + '] 读取本地 ' + fname + '...');
+    try {
+      // 从本地 HTTP 服务器读取文件内容
+      var resp = await fetch(fname + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var text = await resp.text();
+      if (!text) throw new Error('文件内容为空');
+      appendLog('   本地读取成功 (' + text.length + ' 字节)');
+
+      // 获取 GitHub 上现有文件的 SHA
+      var sha = null;
+      try {
+        var existing = await getContent(fname);
+        if (existing && existing.sha) sha = existing.sha;
+      } catch(e){ /* 文件可能不存在，sha=null 表示新建 */ }
+
+      // 写入 GitHub
+      appendLog('   写入 GitHub (' + (sha ? '更新 SHA:' + sha.substring(0,7) : '新建') + ')...');
+      var content = utf8ToBase64(text);
+      var writeRes = await writeFile(fname, content, sha, 'deploy: ' + fname);
+      if (writeRes){
+        appendLog('   ✅ ' + fname + ' 部署成功');
+        ok++;
+      } else {
+        appendLog('   ❌ ' + fname + ' 写入失败');
+        fail++;
+      }
+    } catch(e){
+      appendLog('   ❌ ' + fname + ' 失败: ' + (e && e.message || e));
+      fail++;
+    }
+    appendLog('');
+  }
+
+  appendLog('========================================');
+  appendLog('部署完成: ✅ ' + ok + ' 成功, ❌ ' + fail + ' 失败');
+  if (fail === 0){
+    appendLog('🎉 全部部署成功！GitHub Pages 将在 1-2 分钟内更新。');
+    appendLog('   访问 https://xjrxjr.github.io/9178gg/ 查看效果。');
+    showStatus('deployStatus', '✅ 全部 ' + ok + ' 个文件部署成功', 'ok');
+  } else {
+    appendLog('⚠️ 有 ' + fail + ' 个文件部署失败，请查看上方日志。');
+    showStatus('deployStatus', '⚠️ ' + ok + ' 成功, ' + fail + ' 失败', 'err');
+  }
+  if (btn) btn.disabled = false;
+}
+// 绑定按钮
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    var b1 = document.getElementById('refreshCoachRegBtn');
+    if (b1) b1.onclick = refreshCoachRegAll;
+    var b2 = document.getElementById('fetchCoachIssuesBtn');
+    if (b2) b2.onclick = fetchCoachRegIssues;
+  } catch(_) {}
+});
 
 // ========== 教练管理（每团队可加多位教练，每位独立开关；关掉=不展示=「不招」） ==========
 // 数据结构：TEAMS[i].coaches = [{ name, image, bio, enabled }]，存进 teams.json
@@ -2964,26 +3324,14 @@ try {
 (function initPendingEarly(){
   try {
     if (document.readyState === 'loading')
-      document.addEventListener('DOMContentLoaded', function(){ try{ refreshPendingAll(); }catch(e){} });
-    else
+      document.addEventListener('DOMContentLoaded', function(){ try{ refreshPendingAll(); }catch(e){} try{ renderCoachRegList(); }catch(e){} });
+    else {
       refreshPendingAll();
+      try { renderCoachRegList(); } catch(e){}
+    }
   } catch(e){}
 })();
-document.addEventListener('keydown', function(event){
-  if (event.key === 'Escape') closeJoinDetails();
-});
 </script>
-
-<!-- 入队申请详情 -->
-<div class="modal-mask hidden" id="joinDetailMask" onclick="if(event.target===this)closeJoinDetails()">
-  <div class="modal-box" style="max-width:720px;">
-    <div class="modal-header">
-      <h3 id="joinDetailTitle">申请详情</h3>
-      <button class="modal-close" onclick="closeJoinDetails()" title="关闭">✕</button>
-    </div>
-    <div class="modal-body" id="joinDetailBody"></div>
-  </div>
-</div>
 
 <!-- 通用模态框：查看单条人员 JSON / 单文件大窗口 / 后台源码 -->
 <div class="modal-mask hidden" id="codeModalMask" onclick="if(event.target===this)closeCodeModal()">
