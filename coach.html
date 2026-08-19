@@ -328,11 +328,37 @@ function doLogin(){
   btn.textContent = '登录中…';
   showStatus('loginStatus','info','正在验证…');
 
+  // 协议检测
+  var proto = location.protocol;
+  if (proto === 'file:'){
+    showStatus('loginStatus','err',
+      '❌ 请勿直接双击打开本文件！\n'+
+      '请通过网页地址访问：\n'+
+      '• 部署后：https://xjrxjr.github.io/9178gg/coach.html\n'+
+      '• 本地测试：http://127.0.0.1:8080/coach.html'
+    );
+    btn.disabled = false;
+    btn.textContent = '🚀 登录';
+    return;
+  }
   // 先尝试从服务器加载 coaches.json
   fetch('coaches.json?t=' + Date.now(), { cache: 'no-store' })
-    .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(r){
+      if (r.status === 404) throw new Error('coaches.json 不存在（管理员尚未部署）');
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
     .then(function(list){
       if (!Array.isArray(list)) throw new Error('账号数据格式错误');
+      if (!list.length){
+        showStatus('loginStatus','err',
+          '⚠️ 暂无可登录账号。\n'+
+          '请联系管理员在 admin.html → 「手动添加教官账号」中创建账号。'
+        );
+        btn.disabled = false;
+        btn.textContent = '🚀 登录';
+        return;
+      }
       // 密码用 base64 存储的，解码比较
       var found = null;
       for (var i=0;i<list.length;i++){
@@ -345,7 +371,7 @@ function doLogin(){
         }
       }
       if (!found) {
-        showStatus('loginStatus','err','❌ 用户名或密码错误，或账号尚未被管理员审核通过。');
+        showStatus('loginStatus','err','❌ 用户名或密码错误，或账号尚未被管理员启用。');
         btn.disabled = false;
         btn.textContent = '🚀 登录';
         return;
@@ -364,7 +390,12 @@ function doLogin(){
       showDashboard(found);
     })
     .catch(function(err){
-      showStatus('loginStatus','err','❌ 登录失败：' + (err.message || err) + '\n可能是首次部署，coaches.json 尚未生成。');
+      var hint = '';
+      var msg = (err && err.message) || String(err);
+      if (/Failed to fetch|NetworkError|fetch/.test(msg)){
+        hint = '\n（检查网络连接，或确认 coaches.json 已通过 admin.html 部署到网站）';
+      }
+      showStatus('loginStatus','err','❌ 登录失败：' + msg + hint);
       btn.disabled = false;
       btn.textContent = '🚀 登录';
     });
