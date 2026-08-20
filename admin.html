@@ -481,6 +481,49 @@
         </div>
         <h3 style="font-size:15px;margin-bottom:10px;">📋 已批准教官账号（coaches.json）</h3>
         <div id="coachAccountsList"></div>
+
+        <!-- 教官详情编辑面板 -->
+        <div id="coachDetailPanel" style="display:none;margin-top:16px;border:2px solid #ff9800;border-radius:12px;padding:16px;background:#fff8e1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="font-size:15px;color:#f57c00;">✏️ 教官详情管理 <span id="chDetailTitle" style="color:#888;font-weight:normal;font-size:13px;"></span></h3>
+            <button class="btn-secondary" style="padding:4px 12px;font-size:12px;" onclick="closeCoachDetail()">✕ 关闭</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label>用户名</label>
+              <input type="text" id="chDetailUser">
+            </div>
+            <div>
+              <label>密码</label>
+              <input type="text" id="chDetailPass">
+            </div>
+            <div>
+              <label>教官姓名</label>
+              <input type="text" id="chDetailName">
+            </div>
+            <div>
+              <label>所属团队</label>
+              <select id="chDetailTeam"></select>
+            </div>
+            <div>
+              <label>身份 / 警号</label>
+              <input type="text" id="chDetailDesc">
+            </div>
+            <div>
+              <label>头像来源</label>
+              <input type="text" id="chDetailImage" placeholder="例：qq:12345678 或 photo.jpg">
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label>个人简介</label>
+            <input type="text" id="chDetailBio">
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" style="padding:8px 16px;font-size:13px;" onclick="saveCoachDetail()">💾 保存所有修改</button>
+            <button class="btn-danger" style="padding:8px 16px;font-size:13px;" onclick="delCoachAccount(currentCoachIdx);closeCoachDetail();">🗑️ 删除此账号</button>
+          </div>
+          <span id="chDetailStatus" class="status" style="display:inline-block;margin-left:10px;"></span>
+        </div>
       </div>
     </div>
 
@@ -527,6 +570,54 @@
         </div>
         <h3 style="font-size:15px;margin-bottom:10px;">📋 已批准员工账号（employees.json）</h3>
         <div id="employeeAccountsList"></div>
+
+        <!-- 员工详情编辑面板 -->
+        <div id="employeeDetailPanel" style="display:none;margin-top:16px;border:2px solid #1976d2;border-radius:12px;padding:16px;background:#f5f9ff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="font-size:15px;color:#1976d2;">✏️ 员工详情管理 <span id="empDetailTitle" style="color:#888;font-weight:normal;font-size:13px;"></span></h3>
+            <button class="btn-secondary" style="padding:4px 12px;font-size:12px;" onclick="closeEmpDetail()">✕ 关闭</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label>用户名</label>
+              <input type="text" id="empDetailUser">
+            </div>
+            <div>
+              <label>密码</label>
+              <input type="text" id="empDetailPass">
+            </div>
+            <div>
+              <label>员工姓名</label>
+              <input type="text" id="empDetailName">
+            </div>
+            <div>
+              <label>所属团队</label>
+              <select id="empDetailTeam"></select>
+            </div>
+            <div>
+              <label>身份 / 警号</label>
+              <input type="text" id="empDetailDesc">
+            </div>
+            <div>
+              <label>绑定教练</label>
+              <select id="empDetailCoach"><option value="">— 不绑定教练 —</option></select>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label>个人简介</label>
+            <input type="text" id="empDetailBio">
+          </div>
+          <div style="margin-top:10px;">
+            <label>头像来源 <span style="color:#888;font-weight:normal;">（QQ号或图片文件名，可选）</span></label>
+            <input type="text" id="empDetailImage" placeholder="例：qq:12345678 或 photo.jpg">
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" style="padding:8px 16px;font-size:13px;" onclick="saveEmpDetail()">💾 保存所有修改</button>
+            <button class="btn-secondary" style="padding:8px 16px;font-size:13px;" onclick="removeEmpCoach()">🚫 解除教练绑定</button>
+            <button class="btn-danger" style="padding:8px 16px;font-size:13px;" onclick="delEmployeeAccount(currentEmpIdx);closeEmpDetail();">🗑️ 删除此账号</button>
+          </div>
+          <span id="empDetailStatus" class="status" style="display:inline-block;margin-left:10px;"></span>
+        </div>
       </div>
     </div>
 
@@ -2967,6 +3058,7 @@ async function renderCoachAccounts(){
           '<span style="font-size:12px;color:#888;">→ '+joinEsc(c.coachName||'')+'</span>' +
           '<span class="badge badge-team">'+joinEsc(c.teamName||('团队'+c.team))+'</span>' +
           '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleCoachAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="openCoachDetail('+i+')">📝 详情</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachUsername('+i+')">✏️ 改用户名</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachPassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delCoachAccount('+i+')">🗑️ 删除</button>' +
@@ -3068,6 +3160,91 @@ async function editCoachPassword(idx){
     renderCoachAccounts();
   } catch(e){
     showStatus('coachRegStatus','❌ 修改失败：'+(e && e.message || e),'err');
+  }
+}
+// ========== 教官详情面板 ==========
+var currentCoachIdx = -1;
+function openCoachDetail(idx){
+  currentCoachIdx = idx;
+  var panel = document.getElementById('coachDetailPanel');
+  if (!panel) return;
+  if (!PAT) { alert('请先登录后台。'); return; }
+  showStatus('chDetailStatus','正在加载…','info');
+  getContent(COACHES_FILE).then(function(cur){
+    if (!cur || !cur.content) { showStatus('chDetailStatus','❌ coaches.json 读取失败','err'); return; }
+    var coaches = JSON.parse(cur.content) || [];
+    var c = coaches[idx];
+    if (!c) { showStatus('chDetailStatus','❌ 找不到该账号','err'); return; }
+    var showPass = '';
+    try { showPass = b64ToU8(c.password || ''); } catch(e){}
+    document.getElementById('chDetailTitle').textContent = '（'+(c.username||'')+'）';
+    document.getElementById('chDetailUser').value = c.username || '';
+    document.getElementById('chDetailPass').value = showPass;
+    document.getElementById('chDetailName').value = c.coachName || '';
+    document.getElementById('chDetailDesc').value = c.desc || '';
+    document.getElementById('chDetailBio').value = c.bio || '';
+    document.getElementById('chDetailImage').value = c.image || '';
+    // 填充团队下拉
+    var teamSel = document.getElementById('chDetailTeam');
+    teamSel.innerHTML = '';
+    var teams = allTeams();
+    teams.forEach(function(t){
+      if (!t || t.enabled !== true || !t.name) return;
+      var opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = (t.icon||'') + ' ' + t.name;
+      if (+t.id === +c.team) opt.selected = true;
+      teamSel.appendChild(opt);
+    });
+    showStatus('chDetailStatus','已加载，修改后点保存。','info');
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }).catch(function(e){ showStatus('chDetailStatus','❌ 加载失败：'+(e&&e.message||e),'err'); });
+}
+function closeCoachDetail(){
+  var panel = document.getElementById('coachDetailPanel');
+  if (panel) panel.style.display = 'none';
+  currentCoachIdx = -1;
+}
+async function saveCoachDetail(){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  if (currentCoachIdx < 0) { alert('请先选择一个教官。'); return; }
+  showStatus('chDetailStatus','正在保存…','info');
+  try {
+    var cur = await getContent(COACHES_FILE);
+    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
+    var c = coaches[currentCoachIdx];
+    if (!c) { showStatus('chDetailStatus','❌ 找不到该账号','err'); return; }
+    var newUser = (document.getElementById('chDetailUser').value||'').trim();
+    var newPass = document.getElementById('chDetailPass').value||'';
+    var newName = (document.getElementById('chDetailName').value||'').trim();
+    var newTeam = document.getElementById('chDetailTeam').value;
+    var newDesc = document.getElementById('chDetailDesc').value||'';
+    var newBio = document.getElementById('chDetailBio').value||'';
+    var newImage = document.getElementById('chDetailImage').value||'';
+    if (!newUser) { showStatus('chDetailStatus','❌ 用户名不能为空','err'); return; }
+    if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(newUser)) { showStatus('chDetailStatus','❌ 用户名格式不正确','err'); return; }
+    if (!newPass || newPass.length < 4) { showStatus('chDetailStatus','❌ 密码至少4位','err'); return; }
+    if (!newName) { showStatus('chDetailStatus','❌ 教官姓名不能为空','err'); return; }
+    // 检查重名
+    var dup = coaches.find(function(x, i){ return i !== currentCoachIdx && String(x.username||'').toLowerCase() === newUser.toLowerCase(); });
+    if (dup) { showStatus('chDetailStatus','⚠️ 用户名「'+newUser+'」已存在','err'); return; }
+    var team = allTeams().find(function(t){ return +t.id === +newTeam; });
+    c.username = newUser;
+    c.password = _u8b64(newPass);
+    c.coachName = newName;
+    c.team = +newTeam;
+    c.teamName = team ? team.name : ('团队'+newTeam);
+    c.desc = newDesc;
+    c.bio = newBio;
+    c.image = newImage;
+    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '后台修改教官详情: '+newUser);
+    if (!res) throw new Error('写入失败');
+    showStatus('chDetailStatus','✅ 教官「'+newUser+'」信息已保存','ok');
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('chDetailStatus','❌ 保存失败：'+(e && e.message || e),'err');
   }
 }
 function refreshCoachRegAll(){
@@ -3287,6 +3464,7 @@ async function renderEmployeeAccounts(){
           '<span style="font-size:12px;color:#888;">→ '+joinEsc(e.employeeName||'')+'</span>' +
           '<span class="badge badge-team">'+joinEsc(e.teamName||('团队'+e.team))+'</span>' +
           '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleEmployeeAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="openEmpDetail('+i+')">📝 详情</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeeUsername('+i+')">✏️ 改用户名</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeePassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delEmployeeAccount('+i+')">🗑️ 删除</button>' +
@@ -3386,6 +3564,145 @@ async function editEmployeePassword(idx){
     renderEmployeeAccounts();
   } catch(e){
     showStatus('manualEmployeeStatus','❌ 修改失败：'+(e && e.message || e),'err');
+  }
+}
+// ========== 员工详情面板 ==========
+var currentEmpIdx = -1;
+function openEmpDetail(idx){
+  currentEmpIdx = idx;
+  var panel = document.getElementById('employeeDetailPanel');
+  if (!panel) return;
+  if (!PAT) { alert('请先登录后台。'); return; }
+  showStatus('empDetailStatus','正在加载…','info');
+  Promise.all([
+    getContent(EMPLOYEES_FILE),
+    fetch('teams.json?t=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(results){
+    var cur = results[0];
+    var teams = results[1] || [];
+    if (!cur || !cur.content) { showStatus('empDetailStatus','❌ employees.json 读取失败','err'); return; }
+    var employees = JSON.parse(cur.content) || [];
+    var e = employees[idx];
+    if (!e) { showStatus('empDetailStatus','❌ 找不到该账号','err'); return; }
+    var showPass = '';
+    try { showPass = b64ToU8(e.password || ''); } catch(err){}
+    document.getElementById('empDetailTitle').textContent = '（'+(e.username||'')+'）';
+    document.getElementById('empDetailUser').value = e.username || '';
+    document.getElementById('empDetailPass').value = showPass;
+    document.getElementById('empDetailName').value = e.employeeName || '';
+    document.getElementById('empDetailDesc').value = e.desc || '';
+    document.getElementById('empDetailBio').value = e.bio || '';
+    document.getElementById('empDetailImage').value = e.image || '';
+    // 填充团队下拉
+    var teamSel = document.getElementById('empDetailTeam');
+    teamSel.innerHTML = '';
+    teams.forEach(function(t){
+      if (!t || t.enabled !== true || !t.name) return;
+      var opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = (t.icon||'') + ' ' + t.name;
+      if (+t.id === +e.team) opt.selected = true;
+      teamSel.appendChild(opt);
+    });
+    // 填充教练下拉（该员工所属团队的所有教练）
+    var coachSel = document.getElementById('empDetailCoach');
+    coachSel.innerHTML = '<option value="">— 不绑定教练 —</option>';
+    var team = teams.find(function(t){ return +t.id === +e.team; });
+    var boundCoachName = '';
+    if (e.coachChoice){
+      if (typeof e.coachChoice === 'string') boundCoachName = e.coachChoice;
+      else if (e.coachChoice.name) boundCoachName = e.coachChoice.name;
+    }
+    if (team && Array.isArray(team.coaches)){
+      team.coaches.forEach(function(c){
+        if (!c || !c.name) return;
+        var opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name + (c.bio ? ' — '+c.bio : '');
+        if (c.name === boundCoachName) opt.selected = true;
+        coachSel.appendChild(opt);
+      });
+    }
+    showStatus('empDetailStatus','已加载，修改后点保存。','info');
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }).catch(function(e){ showStatus('empDetailStatus','❌ 加载失败：'+(e&&e.message||e),'err'); });
+}
+function closeEmpDetail(){
+  var panel = document.getElementById('employeeDetailPanel');
+  if (panel) panel.style.display = 'none';
+  currentEmpIdx = -1;
+}
+async function saveEmpDetail(){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  if (currentEmpIdx < 0) { alert('请先选择一个员工。'); return; }
+  showStatus('empDetailStatus','正在保存…','info');
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
+    var e = employees[currentEmpIdx];
+    if (!e) { showStatus('empDetailStatus','❌ 找不到该账号','err'); return; }
+    var newUser = (document.getElementById('empDetailUser').value||'').trim();
+    var newPass = document.getElementById('empDetailPass').value||'';
+    var newName = (document.getElementById('empDetailName').value||'').trim();
+    var newTeam = document.getElementById('empDetailTeam').value;
+    var newDesc = document.getElementById('empDetailDesc').value||'';
+    var newBio = document.getElementById('empDetailBio').value||'';
+    var newImage = document.getElementById('empDetailImage').value||'';
+    var newCoachName = document.getElementById('empDetailCoach').value;
+    if (!newUser) { showStatus('empDetailStatus','❌ 用户名不能为空','err'); return; }
+    if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(newUser)) { showStatus('empDetailStatus','❌ 用户名格式不正确','err'); return; }
+    if (!newPass || newPass.length < 4) { showStatus('empDetailStatus','❌ 密码至少4位','err'); return; }
+    if (!newName) { showStatus('empDetailStatus','❌ 员工姓名不能为空','err'); return; }
+    var dup = employees.find(function(x, i){ return i !== currentEmpIdx && String(x.username||'').toLowerCase() === newUser.toLowerCase(); });
+    if (dup) { showStatus('empDetailStatus','⚠️ 用户名「'+newUser+'」已存在','err'); return; }
+    // 读取 teams.json 获取团队名和教练信息
+    var teams = await fetch('teams.json?t='+Date.now(), {cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return [];});
+    var team = teams.find(function(t){ return +t.id === +newTeam; });
+    var teamName = team ? team.name : ('团队'+newTeam);
+    // 处理教练绑定
+    var newCoachChoice = null;
+    if (newCoachName && team && Array.isArray(team.coaches)){
+      var coach = team.coaches.find(function(c){ return c && c.name === newCoachName; });
+      if (coach) newCoachChoice = { name: coach.name, image: coach.image || '' };
+    }
+    e.username = newUser;
+    e.password = _u8b64(newPass);
+    e.employeeName = newName;
+    e.team = +newTeam;
+    e.teamName = teamName;
+    e.desc = newDesc;
+    e.bio = newBio;
+    e.image = newImage;
+    e.coachChoice = newCoachChoice;
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '后台修改员工详情: '+newUser);
+    if (!res) throw new Error('写入失败');
+    showStatus('empDetailStatus','✅ 员工「'+newUser+'」信息已保存','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('empDetailStatus','❌ 保存失败：'+(e && e.message || e),'err');
+  }
+}
+async function removeEmpCoach(){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  if (currentEmpIdx < 0) { alert('请先选择一个员工。'); return; }
+  showStatus('empDetailStatus','正在解除教练绑定…','info');
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
+    var e = employees[currentEmpIdx];
+    if (!e) { showStatus('empDetailStatus','❌ 找不到该账号','err'); return; }
+    if (!e.coachChoice){ showStatus('empDetailStatus','ℹ️ 该员工未绑定教练','info'); return; }
+    e.coachChoice = null;
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '后台解除员工教练绑定: '+e.username);
+    if (!res) throw new Error('写入失败');
+    document.getElementById('empDetailCoach').value = '';
+    showStatus('empDetailStatus','✅ 已解除教练绑定','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('empDetailStatus','❌ 解除失败：'+(e && e.message || e),'err');
   }
 }
 // ========== 网站文件部署（绕过 git push，用 GitHub API） ==========
