@@ -34,10 +34,7 @@
     "bio": "负责市场推广与品牌运营，拥有5年以上市场营销经验。",
     "wechat": "",
     "qqcontact": "",
-    "coachChoice": {
-      "name": "罗伯特",
-      "image": "ldt26473.jpg"
-    }
+    "coachChoice": { "name": "罗伯特", "image": "ldt26473.jpg" }
   },
   {
     "id": 4,
@@ -50,10 +47,7 @@
     "bio": "负责招聘、员工关系及绩效考核管理。",
     "wechat": "",
     "qqcontact": "",
-    "coachChoice": {
-      "name": "罗伯特",
-      "image": "ldt26473.jpg"
-    }
+    "coachChoice": { "name": "罗伯特", "image": "ldt26473.jpg" }
   },
   {
     "id": 5,
@@ -90,10 +84,7 @@
     "wechat": "",
     "qqcontact": "",
     "bio": "",
-    "coachChoice": {
-      "name": "轩辕玄女",
-      "image": ""
-    }
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513030728lb9l",
@@ -106,10 +97,7 @@
     "wechat": "",
     "qqcontact": "",
     "bio": "",
-    "coachChoice": {
-      "name": "轩辕玄女",
-      "image": ""
-    }
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "name": "麦4",
@@ -122,10 +110,7 @@
     "wechat": "",
     "qqcontact": "",
     "id": "178651309018350nz",
-    "coachChoice": {
-      "name": "轩辕玄女",
-      "image": ""
-    }
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513151019gt6d",
@@ -138,10 +123,7 @@
     "wechat": "",
     "qqcontact": "",
     "bio": "",
-    "coachChoice": {
-      "name": "轩辕玄女",
-      "image": ""
-    }
+    "coachChoice": { "name": "轩辕玄女", "image": "" }
   },
   {
     "id": "1786513237908z30k",
@@ -398,20 +380,20 @@
   {
     "name": "网站制作者",
     "team": 3,
-    "image": "p_mt12oqen_e66o.webp",
+    "image": "p_msxyen2y_p9zf.jpg",
     "desc": "",
     "phone": "",
     "email": "",
     "bio": "",
     "wechat": "",
     "qqcontact": "",
-    "cAvatarScale": 1,
+    "cAvatarScale": 0.78,
     "cAvatarClip": 0,
     "cAvatarOffsetX": 0,
     "cAvatarOffsetY": 0,
-    "dAvatarScale": 1.2,
+    "dAvatarScale": 1,
     "dAvatarClip": 0,
-    "dAvatarOffsetX": 7,
+    "dAvatarOffsetX": 0,
     "dAvatarOffsetY": 0,
     "id": "p_msxj3f94wqyn"
   }
