@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>员工系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #0b0f2a 0%, #1a237e 40%, #0d47a1 70%, #0b0f2a 100%);
+    min-height: 100vh;
+    padding: 24px 16px;
+    color: #fff;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -10%; left: -10%;
+    width: 60%; height: 60%;
+    background: radial-gradient(circle, rgba(100,181,246,0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -10%; right: -10%;
+    width: 55%; height: 55%;
+    background: radial-gradient(circle, rgba(76,175,80,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(100,181,246,0.3);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #64b5f6;
+    margin-bottom: 14px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #fff 0%, #64b5f6 50%, #4caf50 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  header p { color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.6; }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(20px);
+    border-radius: 18px;
+    padding: 26px 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: #b3d4ff;
+    margin-bottom: 7px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .field label .req { color: #ff5252; margin-left: 2px; }
+  .field label .hint { color: rgba(255,255,255,0.4); font-weight: normal; font-size: 11px; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: #64b5f6;
+    box-shadow: 0 0 0 3px rgba(100,181,246,0.15);
+  }
+  .field input[readonly] { background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.6); }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #64b5f6 0%, #1976d2 100%);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(100,181,246,0.3); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.14); }
+  .btn-success {
+    background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+    color: #fff;
+  }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .status {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    display: none;
+    white-space: pre-wrap;
+  }
+  .status.show { display: block; }
+  .status.info { background: rgba(25,118,210,0.18); border: 1px solid rgba(100,181,246,0.4); color: #bbdefb; }
+  .status.ok { background: rgba(46,125,50,0.20); border: 1px solid rgba(102,187,106,0.5); color: #c8e6c9; }
+  .status.err { background: rgba(211,47,47,0.18); border: 1px solid rgba(239,154,154,0.5); color: #ffcdd2; }
+  .hidden { display: none !important; }
+  .emp-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(100,181,246,0.08);
+    border: 1px solid rgba(100,181,246,0.25);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .emp-header .eh-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: rgba(100,181,246,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .emp-header .eh-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .emp-header .eh-info { flex: 1; }
+  .emp-header .eh-name { font-size: 20px; font-weight: bold; color: #64b5f6; }
+  .emp-header .eh-team { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .emp-header .eh-logout {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .emp-header .eh-logout:hover { background: rgba(255,82,82,0.2); border-color: rgba(255,82,82,0.4); }
+  .section-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,215,0,0.2);
+  }
+  .coach-card {
+    background: rgba(255,215,0,0.06);
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .coach-card .cc-empty {
+    text-align: center;
+    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    padding: 16px;
+  }
+  .coach-list { display: grid; gap: 12px; }
+  .coach-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .coach-item img {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,215,0,0.3);
+    flex-shrink: 0;
+    background: #0b0f2a;
+  }
+  .coach-item .ci-info { flex: 1; min-width: 0; }
+  .coach-item .ci-name { font-size: 16px; font-weight: bold; color: #ffd700; }
+  .coach-item .ci-bio { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 3px; line-height: 1.4; }
+  .save-bar {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .save-bar button { flex: 1; }
+  footer {
+    text-align: center;
+    margin-top: 22px;
+    color: rgba(255,255,255,0.3);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  @media (max-width: 520px) {
+    header h1 { font-size: 22px; }
+    .card { padding: 20px 16px; }
+    .emp-header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">👤 员工系统</span>
+    <h1 id="pageTitle">员工登录</h1>
+    <p id="pageSubtitle">查看与管理你的个人信息</p>
+  </header>
+
+  <!-- ====== 未登录：登录 ====== -->
+  <div class="card" id="authCard">
+    <div class="field">
+      <label>用户名</label>
+      <input type="text" id="loginUser" placeholder="员工用户名" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input type="password" id="loginPass" placeholder="密码" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" id="loginBtn" type="button" onclick="doLogin()">🚀 登录</button>
+    <div class="status" id="loginStatus"></div>
+    <p style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.6;">
+      💡 账号由管理员分配，如需账号请联系管理员。
+    </p>
+  </div>
+
+  <!-- ====== 已登录：员工面板 ====== -->
+  <div class="card hidden" id="dashboardCard">
+    <div class="emp-header" id="empHeader"></div>
+
+    <div class="section-title">📝 我的信息</div>
+    <div class="field">
+      <label>姓名</label>
+      <input type="text" id="empName" readonly>
+    </div>
+    <div class="field">
+      <label>所属团队</label>
+      <input type="text" id="empTeam" readonly>
+    </div>
+    <div class="field">
+      <label>身份 / 警号</label>
+      <input type="text" id="empDesc" placeholder="例：警员-警号2010">
+    </div>
+    <div class="field">
+      <label>个人简介</label>
+      <textarea id="empBio" placeholder="一句话介绍自己"></textarea>
+    </div>
+    <div class="save-bar">
+      <button class="btn btn-success" id="saveInfoBtn" onclick="saveInfo()">💾 保存信息</button>
+    </div>
+    <div class="status" id="infoStatus"></div>
+
+    <div class="section-title" style="margin-top:24px;">🧑‍🏫 我的教练</div>
+    <div class="coach-card" id="coachCard">
+      <div class="cc-empty">加载中…</div>
+    </div>
+  </div>
+
+  <footer>
+    员工系统 · 数据来自 employees.json / teams.json<br>
+    如有问题请联系管理员。
+  </footer>
+</div>
+
+<script>
+var TEAMS_CACHE = [];
+
+// ========== GitHub API 配置（PAT 通过数值数组 + XOR 7 混淆存储）==========
+// 该 PAT 需具有仓库 Xjrxjr/9178gg 的 Contents: Read and write 权限
+(function(){
+  var _n = [96,111,119,88,70,87,108,117,93,95,69,99,116,73,54,72,55,95,49,85,63,78,110,114,81,69,81,87,63,109,77,52,68,102,52,113,105,49,52,126];
+  var _s = '';
+  for (var k = 0; k < _n.length; k++) _s += String.fromCharCode(_n[k] ^ 7);
+  window.__EMP_PAT_OBF__ = _s;
+})();
+var EMP_GITHUB_PAT = (window.__EMP_PAT_OBF__ || '');
+var OWNER = 'Xjrxjr';
+var REPO  = '9178gg';
+var BRANCH = 'main';
+var EMP_FILE = 'employees.json';
+var EMP_SESSION = null;
+
+// ===== 工具 =====
+function $(id){ return document.getElementById(id); }
+function showStatus(el, type, msg){
+  var e = typeof el === 'string' ? $(el) : el;
+  if (!e) return;
+  e.className = 'status show ' + type;
+  e.textContent = msg;
+}
+function getImgSrc(src){
+  if (!src) return '';
+  if (src.indexOf('qq:') === 0) {
+    var qq = src.substring(3);
+    return 'https://q1.qlogo.cn/g?b=qq&nk=' + encodeURIComponent(qq) + '&s=640&t=' + Date.now();
+  }
+  return src;
+}
+function escapeHtml(s){
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function b64ToU8(b64){
+  try { return decodeURIComponent(escape(atob(b64))); } catch(e){ return ''; }
+}
+function u8ToB64(str){
+  try { return btoa(unescape(encodeURIComponent(str))); } catch(e){ return ''; }
+}
+
+// ===== GitHub API 辅助 =====
+function ghHeaders(extra){
+  var h = {
+    'Accept': 'application/vnd.github+json',
+    'Authorization': 'Bearer ' + EMP_GITHUB_PAT,
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+  if (extra) for (var k in extra) h[k] = extra[k];
+  return h;
+}
+function explainGhError(status){
+  if (status === 401) return 'PAT 无效或已过期（401），请联系管理员。';
+  if (status === 403) return 'PAT 权限不足（403），需 Contents: Read and write 权限。';
+  if (status === 404) return '文件或仓库不存在（404）。';
+  if (status === 409) return '冲突（409）：employees.json 被他人修改，请刷新后重试。';
+  return 'HTTP ' + status;
+}
+function readEmpFile(){
+  return fetch('https://api.github.com/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(EMP_FILE)+'?ref='+BRANCH, {
+    headers: ghHeaders(), cache: 'no-store'
+  })
+  .then(function(r){
+    if (!r.ok) throw new Error(explainGhError(r.status));
+    return r.json();
+  })
+  .then(function(data){
+    if (!data || Array.isArray(data)) return { sha: null, list: [] };
+    var content = data.content ? atob(data.content.replace(/\n/g,'')) : '[]';
+    var list = [];
+    try { list = JSON.parse(content); } catch(e){ list = []; }
+    return { sha: data.sha, list: list };
+  });
+}
+function writeEmpFile(list, sha, message){
+  var content = btoa(unescape(encodeURIComponent(JSON.stringify(list, null, 2))));
+  var body = { message: message || '员工更新 employees.json', content: content, branch: BRANCH };
+  if (sha) body.sha = sha;
+  return fetch('https://api.github.com/repos/'+OWNER+'/'+REPO+'/contents/'+encodeURIComponent(EMP_FILE), {
+    method: 'PUT',
+    headers: ghHeaders({'Content-Type': 'application/json'}),
+    body: JSON.stringify(body),
+    cache: 'no-store'
+  })
+  .then(function(r){
+    if (!r.ok) throw new Error(explainGhError(r.status));
+    return r.json();
+  });
+}
+
+// ===== 登录 =====
+function doLogin(){
+  var user = $('loginUser').value.trim();
+  var pass = $('loginPass').value;
+  if (!user) { showStatus('loginStatus','err','❌ 请输入用户名'); return; }
+  if (!pass) { showStatus('loginStatus','err','❌ 请输入密码'); return; }
+
+  var btn = $('loginBtn');
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  showStatus('loginStatus','info','正在验证…');
+
+  var proto = location.protocol;
+  if (proto === 'file:'){
+    showStatus('loginStatus','err',
+      '❌ 请勿直接双击打开本文件！\n'+
+      '请通过网页地址访问：\n'+
+      '• 部署后：https://xjrxjr.github.io/9178gg/employee.html\n'+
+      '• 本地测试：http://127.0.0.1:8080/employee.html'
+    );
+    btn.disabled = false;
+    btn.textContent = '🚀 登录';
+    return;
+  }
+  fetch('employees.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){
+      if (r.status === 404) throw new Error('employees.json 不存在（管理员尚未部署）');
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(list){
+      if (!Array.isArray(list)) throw new Error('账号数据格式错误');
+      if (!list.length){
+        showStatus('loginStatus','err',
+          '⚠️ 暂无可登录账号。\n'+
+          '请联系管理员在 admin.html → 「员工账号管理」中创建账号。'
+        );
+        btn.disabled = false;
+        btn.textContent = '🚀 登录';
+        return;
+      }
+      var found = null;
+      for (var i=0;i<list.length;i++){
+        var e = list[i];
+        if (!e || !e.enabled) continue;
+        if (String(e.username||'').toLowerCase() === user.toLowerCase()){
+          var decodedPass = '';
+          try { decodedPass = b64ToU8(e.password || ''); } catch(err){}
+          if (decodedPass === pass) { found = e; break; }
+        }
+      }
+      if (!found) {
+        showStatus('loginStatus','err','❌ 用户名或密码错误，或账号尚未被管理员启用。');
+        btn.disabled = false;
+        btn.textContent = '🚀 登录';
+        return;
+      }
+      try {
+        sessionStorage.setItem('emp_session', JSON.stringify({
+          username: found.username,
+          employeeName: found.employeeName,
+          team: found.team,
+          teamName: found.teamName,
+          loginAt: Date.now()
+        }));
+      } catch(e){}
+      showStatus('loginStatus','ok','✅ 登录成功，正在加载员工面板…');
+      showDashboard(found, list);
+    })
+    .catch(function(err){
+      var hint = '';
+      var msg = (err && err.message) || String(err);
+      if (/Failed to fetch|NetworkError|fetch/.test(msg)){
+        hint = '\n（检查网络连接，或确认 employees.json 已通过 admin.html 部署到网站）';
+      }
+      showStatus('loginStatus','err','❌ 登录失败：' + msg + hint);
+      btn.disabled = false;
+      btn.textContent = '🚀 登录';
+    });
+}
+
+// ===== 员工面板 =====
+function showDashboard(emp, list){
+  EMP_SESSION = emp;
+  $('authCard').classList.add('hidden');
+  $('dashboardCard').classList.remove('hidden');
+  $('pageTitle').textContent = '员工面板';
+  $('pageSubtitle').textContent = '查看与管理你的个人信息';
+
+  // 员工头部
+  var eh = $('empHeader');
+  var team = (TEAMS_CACHE || []).find(function(t){ return +t.id === +emp.team; });
+  var teamIcon = team ? (team.icon || '') : '';
+  var teamName = emp.teamName || (team ? team.name : '');
+  eh.innerHTML =
+    '<div class="eh-avatar">👤</div>' +
+    '<div class="eh-info">' +
+      '<div class="eh-name">'+escapeHtml(emp.employeeName||'(未命名)')+'</div>' +
+      '<div class="eh-team">'+escapeHtml(teamIcon+' '+teamName)+' · 用户名：'+escapeHtml(emp.username)+'</div>' +
+    '</div>' +
+    '<button class="eh-logout" onclick="doLogout()">退出登录</button>';
+
+  // 填充信息
+  $('empName').value = emp.employeeName || '';
+  $('empTeam').value = teamIcon + ' ' + teamName;
+  $('empDesc').value = emp.desc || '';
+  $('empBio').value = emp.bio || '';
+
+  // 加载教练信息
+  loadCoachInfo(emp);
+
+  // 同时加载 teams.json
+  if (!TEAMS_CACHE.length) {
+    fetch('teams.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(arr){ TEAMS_CACHE = arr || []; showDashboard(emp, list); })
+      .catch(function(){});
+  }
+}
+
+// 加载教练信息
+function loadCoachInfo(emp){
+  var box = $('coachCard');
+  fetch('teams.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(teams){
+      TEAMS_CACHE = teams || [];
+      var team = teams.find(function(t){ return +t.id === +emp.team; });
+      if (!team || !Array.isArray(team.coaches) || !team.coaches.length){
+        box.innerHTML = '<div class="cc-empty">📋 你的团队暂无教官。</div>';
+        return;
+      }
+      var coaches = team.coaches.filter(function(c){ return c && c.name; });
+      if (!coaches.length){
+        box.innerHTML = '<div class="cc-empty">📋 你的团队暂无教官。</div>';
+        return;
+      }
+      box.innerHTML = '<div class="coach-list">' + coaches.map(function(c){
+        var imgSrc = getImgSrc(c.image);
+        return '<div class="coach-item">' +
+          (imgSrc ? '<img src="'+escapeHtml(imgSrc)+'" onerror="this.style.visibility=\'hidden\'">' : '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,215,0,0.15);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">🧑‍🏫</div>') +
+          '<div class="ci-info">' +
+            '<div class="ci-name">'+escapeHtml(c.name||'(未命名)')+'</div>' +
+            (c.bio ? '<div class="ci-bio">'+escapeHtml(c.bio)+'</div>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    })
+    .catch(function(err){
+      box.innerHTML = '<div class="cc-empty">❌ 教练数据加载失败：'+escapeHtml(err.message||err)+'</div>';
+    });
+}
+
+// 保存信息
+function saveInfo(){
+  if (!EMP_SESSION) { alert('请先登录'); return; }
+  var desc = $('empDesc').value;
+  var bio = $('empBio').value;
+  var btn = $('saveInfoBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  showStatus('infoStatus','info','正在保存…');
+  readEmpFile()
+    .then(function(result){
+      var list = result.list || [];
+      var idx = -1;
+      for (var i=0;i<list.length;i++){
+        if (String(list[i].username||'').toLowerCase() === String(EMP_SESSION.username||'').toLowerCase()){
+          idx = i; break;
+        }
+      }
+      if (idx < 0) throw new Error('找不到你的账号记录');
+      list[idx].desc = desc;
+      list[idx].bio = bio;
+      return writeEmpFile(list, result.sha, '员工「'+EMP_SESSION.employeeName+'」更新个人信息')
+        .then(function(){ return list[idx]; });
+    })
+    .then(function(updated){
+      EMP_SESSION.desc = desc;
+      EMP_SESSION.bio = bio;
+      showStatus('infoStatus','ok','✅ 信息已保存。');
+      btn.disabled = false;
+      btn.textContent = '💾 保存信息';
+    })
+    .catch(function(err){
+      showStatus('infoStatus','err','❌ 保存失败：'+(err && err.message || err));
+      btn.disabled = false;
+      btn.textContent = '💾 保存信息';
+    });
+}
+
+function doLogout(){
+  try { sessionStorage.removeItem('emp_session'); } catch(e){}
+  EMP_SESSION = null;
+  $('authCard').classList.remove('hidden');
+  $('dashboardCard').classList.add('hidden');
+  $('pageTitle').textContent = '员工登录';
+  $('pageSubtitle').textContent = '查看与管理你的个人信息';
+  $('loginUser').value = '';
+  $('loginPass').value = '';
+  $('loginBtn').disabled = false;
+  $('loginBtn').textContent = '🚀 登录';
+  showStatus('loginStatus','info','已退出登录。');
+}
+
+// ===== 自动登录 =====
+function tryAutoLogin(){
+  try {
+    var raw = sessionStorage.getItem('emp_session');
+    if (!raw) return false;
+    var session = JSON.parse(raw);
+    if (!session || !session.username || !session.employeeName) return false;
+    fetch('employees.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(); return r.json(); })
+      .then(function(list){
+        var found = (list || []).find(function(e){
+          return e && e.enabled && String(e.username||'').toLowerCase() === String(session.username||'').toLowerCase();
+        });
+        if (found) {
+          showDashboard(found, list);
+        } else {
+          try { sessionStorage.removeItem('emp_session'); } catch(e){}
+        }
+      })
+      .catch(function(){});
+    return true;
+  } catch(e){ return false; }
+}
+
+// ===== 初始化 =====
+tryAutoLogin();
+</script>
+</body>
+</html>
