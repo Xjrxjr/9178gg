@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "username": "GAY",
+    "password": "R0FZMQ==",
+    "employeeName": "GAY",
+    "team": 3,
+    "teamName": "网站维护",
+    "desc": "",
+    "bio": "",
+    "enabled": true,
+    "createdAt": 1787218124466
+  }
+]
