@@ -2965,6 +2965,8 @@ async function renderCoachAccounts(){
           '<span style="font-size:12px;color:#888;">→ '+joinEsc(c.coachName||'')+'</span>' +
           '<span class="badge badge-team">'+joinEsc(c.teamName||('团队'+c.team))+'</span>' +
           '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleCoachAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachUsername('+i+')">✏️ 改用户名</button>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachPassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delCoachAccount('+i+')">🗑️ 删除</button>' +
         '</div>' +
       '</div>';
@@ -3008,6 +3010,56 @@ async function delCoachAccount(idx){
     renderCoachAccounts();
   } catch(e){
     showStatus('coachRegStatus','❌ 删除失败：'+(e && e.message || e),'err');
+  }
+}
+// 修改教官用户名
+async function editCoachUsername(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  try {
+    var cur = await getContent(COACHES_FILE);
+    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
+    var oldUser = coaches[idx].username || '';
+    var newUser = prompt('修改教官用户名\n当前用户名：'+oldUser+'\n请输入新用户名（中文/字母/数字/下划线，2-30位）：', oldUser);
+    if (newUser === null) return;
+    newUser = newUser.trim();
+    if (!newUser) { showStatus('coachRegStatus','❌ 用户名不能为空','err'); return; }
+    if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(newUser)) { showStatus('coachRegStatus','❌ 用户名只能用中文、字母、数字、下划线，2-30位','err'); return; }
+    if (newUser === oldUser) { showStatus('coachRegStatus','ℹ️ 用户名未改变','info'); return; }
+    // 检查重名
+    var dup = coaches.find(function(c, i){ return i !== idx && String(c.username||'').toLowerCase() === newUser.toLowerCase(); });
+    if (dup) { showStatus('coachRegStatus','⚠️ 用户名「'+newUser+'」已存在','err'); return; }
+    showStatus('coachRegStatus','正在修改用户名…','info');
+    coaches[idx].username = newUser;
+    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '修改教官用户名: '+oldUser+' → '+newUser);
+    if (!res) throw new Error('写入失败');
+    showStatus('coachRegStatus','✅ 教官用户名已从「'+oldUser+'」改为「'+newUser+'」','ok');
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 修改失败：'+(e && e.message || e),'err');
+  }
+}
+// 修改教官密码
+async function editCoachPassword(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  try {
+    var cur = await getContent(COACHES_FILE);
+    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
+    var user = coaches[idx].username || '';
+    var newPass = prompt('修改教官密码\n用户名：'+user+'\n请输入新密码（至少4位）：');
+    if (newPass === null) return;
+    if (!newPass || newPass.length < 4) { showStatus('coachRegStatus','❌ 密码至少4位','err'); return; }
+    showStatus('coachRegStatus','正在修改密码…','info');
+    coaches[idx].password = _u8b64(newPass);
+    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '修改教官密码: '+user);
+    if (!res) throw new Error('写入失败');
+    showStatus('coachRegStatus','✅ 教官「'+user+'」的密码已修改','ok');
+    renderCoachAccounts();
+  } catch(e){
+    showStatus('coachRegStatus','❌ 修改失败：'+(e && e.message || e),'err');
   }
 }
 function refreshCoachRegAll(){
@@ -3225,6 +3277,8 @@ async function renderEmployeeAccounts(){
           '<span style="font-size:12px;color:#888;">→ '+joinEsc(e.employeeName||'')+'</span>' +
           '<span class="badge badge-team">'+joinEsc(e.teamName||('团队'+e.team))+'</span>' +
           '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleEmployeeAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeeUsername('+i+')">✏️ 改用户名</button>' +
+          '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeePassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delEmployeeAccount('+i+')">🗑️ 删除</button>' +
         '</div>' +
       '</div>';
@@ -3266,6 +3320,55 @@ async function delEmployeeAccount(idx){
     renderEmployeeAccounts();
   } catch(e){
     showStatus('manualEmployeeStatus','❌ 删除失败：'+(e && e.message || e),'err');
+  }
+}
+// 修改员工用户名
+async function editEmployeeUsername(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
+    var oldUser = employees[idx].username || '';
+    var newUser = prompt('修改员工用户名\n当前用户名：'+oldUser+'\n请输入新用户名（中文/字母/数字/下划线，2-30位）：', oldUser);
+    if (newUser === null) return;
+    newUser = newUser.trim();
+    if (!newUser) { showStatus('manualEmployeeStatus','❌ 用户名不能为空','err'); return; }
+    if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(newUser)) { showStatus('manualEmployeeStatus','❌ 用户名只能用中文、字母、数字、下划线，2-30位','err'); return; }
+    if (newUser === oldUser) { showStatus('manualEmployeeStatus','ℹ️ 用户名未改变','info'); return; }
+    var dup = employees.find(function(e, i){ return i !== idx && String(e.username||'').toLowerCase() === newUser.toLowerCase(); });
+    if (dup) { showStatus('manualEmployeeStatus','⚠️ 用户名「'+newUser+'」已存在','err'); return; }
+    showStatus('manualEmployeeStatus','正在修改用户名…','info');
+    employees[idx].username = newUser;
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '修改员工用户名: '+oldUser+' → '+newUser);
+    if (!res) throw new Error('写入失败');
+    showStatus('manualEmployeeStatus','✅ 员工用户名已从「'+oldUser+'」改为「'+newUser+'」','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('manualEmployeeStatus','❌ 修改失败：'+(e && e.message || e),'err');
+  }
+}
+// 修改员工密码
+async function editEmployeePassword(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
+    var user = employees[idx].username || '';
+    var newPass = prompt('修改员工密码\n用户名：'+user+'\n请输入新密码（至少4位）：');
+    if (newPass === null) return;
+    if (!newPass || newPass.length < 4) { showStatus('manualEmployeeStatus','❌ 密码至少4位','err'); return; }
+    showStatus('manualEmployeeStatus','正在修改密码…','info');
+    employees[idx].password = _u8b64(newPass);
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '修改员工密码: '+user);
+    if (!res) throw new Error('写入失败');
+    showStatus('manualEmployeeStatus','✅ 员工「'+user+'」的密码已修改','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('manualEmployeeStatus','❌ 修改失败：'+(e && e.message || e),'err');
   }
 }
 // ========== 网站文件部署（绕过 git push，用 GitHub API） ==========
