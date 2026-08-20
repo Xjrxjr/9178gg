@@ -484,6 +484,52 @@
       </div>
     </div>
 
+    <!-- 员工账号管理 -->
+    <div class="card" data-card="employeereg" data-collapsed="false">
+      <div class="card-header" onclick="toggleCard('employeereg')">
+        <h2>👥 员工账号管理</h2>
+        <span class="card-toggle" id="card-toggle-employeereg">▼ 折叠</span>
+      </div>
+      <div class="card-body" id="card-body-employeereg">
+        <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
+          在此创建员工账号，写入 <code>employees.json</code>。员工可登录 <code>employee.html</code> 查看与修改个人信息。
+        </p>
+        <!-- 手动添加员工账号 -->
+        <div style="border:1.5px dashed #1976d2;border-radius:10px;padding:14px;background:#f5f9ff;margin-bottom:14px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label>用户名 <span class="req">*</span></label>
+              <input type="text" id="manualEmployeeUser" placeholder="员工用户名">
+            </div>
+            <div>
+              <label>密码 <span class="req">*</span></label>
+              <input type="password" id="manualEmployeePass" placeholder="设置登录密码">
+            </div>
+            <div>
+              <label>所属团队 <span class="req">*</span></label>
+              <select id="manualEmployeeTeam"><option value="">— 请选择 —</option></select>
+            </div>
+            <div>
+              <label>员工姓名 <span class="req">*</span></label>
+              <input type="text" id="manualEmployeeName" placeholder="员工姓名">
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <label>身份 / 警号 <span style="color:#888;font-weight:normal;">（可选）</span></label>
+            <input type="text" id="manualEmployeeDesc" placeholder="例：警员-警号2010">
+          </div>
+          <div style="margin-top:10px;">
+            <label>个人简介 <span style="color:#888;font-weight:normal;">（可选）</span></label>
+            <input type="text" id="manualEmployeeBio" placeholder="一句话介绍">
+          </div>
+          <button class="btn-primary" id="manualAddEmployeeBtn" type="button" style="margin-top:12px;padding:10px 20px;font-size:14px;" onclick="manualAddEmployee()">➕ 创建员工账号</button>
+          <span id="manualEmployeeStatus" class="status" style="display:inline-block;margin-left:10px;"></span>
+        </div>
+        <h3 style="font-size:15px;margin-bottom:10px;">📋 已批准员工账号（employees.json）</h3>
+        <div id="employeeAccountsList"></div>
+      </div>
+    </div>
+
     <!-- 网站文件部署（绕过 git push，直接用 GitHub API） -->
     <div class="card" data-card="deploy" data-collapsed="false">
       <div class="card-header" onclick="toggleCard('deploy')">
@@ -1651,6 +1697,8 @@ function loadAll(){
     try { fetchPendingFromIssues(); } catch(e){}
     try { refreshCoachRegAll(); } catch(e){}
     try { loadManualCoachTeams(); } catch(e){}
+    try { loadManualEmployeeTeams(); } catch(e){}
+    try { renderEmployeeAccounts(); } catch(e){}
     try { refreshJsonPanel(); } catch(e){}
   })
   .catch(function(err){ showStatus('saveStatus','加载失败: '+err.message,'err'); });
@@ -3089,6 +3137,137 @@ async function manualAddCoach(){
     showStatus('manualCoachStatus','❌ 创建失败：'+(e && e.message || e),'err');
   }
 }
+
+// ========== 员工账号管理 ==========
+var EMPLOYEES_FILE = 'employees.json';
+function loadManualEmployeeTeams(){
+  var sel = document.getElementById('manualEmployeeTeam');
+  if (!sel) return;
+  var teams = allTeams();
+  sel.innerHTML = '<option value="">— 请选择 —</option>';
+  teams.forEach(function(t){
+    if (!t || t.enabled !== true || !t.name) return;
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = (t.icon||'') + ' ' + t.name;
+    sel.appendChild(opt);
+  });
+}
+async function manualAddEmployee(){
+  if (!PAT){ alert('请先登录后台。'); return; }
+  var user = (document.getElementById('manualEmployeeUser').value||'').trim();
+  var pass = (document.getElementById('manualEmployeePass').value||'').trim();
+  var teamVal = document.getElementById('manualEmployeeTeam').value;
+  var nameVal = (document.getElementById('manualEmployeeName').value||'').trim();
+  var desc = (document.getElementById('manualEmployeeDesc').value||'').trim();
+  var bio = (document.getElementById('manualEmployeeBio').value||'').trim();
+
+  if (!user){ showStatus('manualEmployeeStatus','❌ 请填写用户名','err'); return; }
+  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{2,30}$/.test(user)){ showStatus('manualEmployeeStatus','❌ 用户名只能用中文、字母、数字、下划线，2-30位','err'); return; }
+  if (!pass || pass.length < 4){ showStatus('manualEmployeeStatus','❌ 密码至少4位','err'); return; }
+  if (!teamVal){ showStatus('manualEmployeeStatus','❌ 请选择团队','err'); return; }
+  if (!nameVal){ showStatus('manualEmployeeStatus','❌ 请填写员工姓名','err'); return; }
+
+  var team = allTeams().find(function(t){ return +t.id === +teamVal; });
+  var teamName = team ? team.name : ('团队'+teamVal);
+
+  showStatus('manualEmployeeStatus','正在创建…','info');
+  try {
+    var employeesData = [];
+    try {
+      var cur = await getContent(EMPLOYEES_FILE);
+      if (cur && cur.content) employeesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    } catch(e){}
+    if (!Array.isArray(employeesData)) employeesData = [];
+    var exist = employeesData.find(function(e){ return e && String(e.username||'').toLowerCase() === user.toLowerCase(); });
+    if (exist){ showStatus('manualEmployeeStatus','⚠️ 用户名「'+user+'」已存在','err'); return; }
+    var newAccount = {
+      username: user,
+      password: _u8b64(pass),
+      employeeName: nameVal,
+      team: +teamVal,
+      teamName: teamName,
+      desc: desc,
+      bio: bio,
+      enabled: true,
+      createdAt: Date.now()
+    };
+    employeesData.push(newAccount);
+    var content = utf8ToBase64(JSON.stringify(employeesData, null, 2));
+    var sha = null;
+    try { var existing = await getContent(EMPLOYEES_FILE); if (existing) sha = existing.sha; } catch(e){}
+    var res = await writeFile(EMPLOYEES_FILE, content, sha, '手动创建员工账号: '+user+' → '+nameVal);
+    if (!res) throw new Error('写入 employees.json 失败');
+    showStatus('manualEmployeeStatus','✅ 员工账号「'+user+'」已创建，员工可登录 employee.html','ok');
+    document.getElementById('manualEmployeeUser').value = '';
+    document.getElementById('manualEmployeePass').value = '';
+    document.getElementById('manualEmployeeName').value = '';
+    document.getElementById('manualEmployeeDesc').value = '';
+    document.getElementById('manualEmployeeBio').value = '';
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('manualEmployeeStatus','❌ 创建失败：'+(e && e.message || e),'err');
+  }
+}
+async function renderEmployeeAccounts(){
+  var box = document.getElementById('employeeAccountsList');
+  if (!box) return;
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    if (!cur || !cur.content) { box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">employees.json 尚未创建（暂无员工账号）。</div>'; return; }
+    var employees = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    if (!employees.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无员工账号。</div>'; return; }
+    var html = employees.map(function(e, i){
+      var en = e.enabled !== false;
+      return '<div style="border:1px solid #d8e2ef;border-radius:8px;padding:10px;margin-bottom:8px;background:#fbfdff;">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+          '<span style="font-weight:bold;font-size:14px;color:#222;">'+joinEsc(e.username||'')+'</span>' +
+          '<span style="font-size:12px;color:#888;">→ '+joinEsc(e.employeeName||'')+'</span>' +
+          '<span class="badge badge-team">'+joinEsc(e.teamName||('团队'+e.team))+'</span>' +
+          '<span style="margin-left:auto;cursor:pointer;font-size:12px;padding:4px 10px;border-radius:6px;'+(en?'background:#e8f5e9;color:#2e7d32;border:1px solid #66bb6a;':'background:#fbe9e7;color:#c62828;border:1px solid #ef9a9a;')+'" onclick="toggleEmployeeAccount('+i+')">'+(en?'🟢 已启用':'⚫ 已停用')+'</span>' +
+          '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delEmployeeAccount('+i+')">🗑️ 删除</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = html;
+  } catch(e){
+    box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">employees.json 尚未创建或读取失败。</div>';
+  }
+}
+async function toggleEmployeeAccount(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  showStatus('manualEmployeeStatus','正在更新 employees.json…','info');
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
+    employees[idx].enabled = employees[idx].enabled === false ? true : false;
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '切换员工账号: '+employees[idx].username+' → '+(employees[idx].enabled?'启用':'停用'));
+    if (!res) throw new Error('写入失败');
+    showStatus('manualEmployeeStatus','✅ 员工账号「'+employees[idx].username+'」已'+(employees[idx].enabled?'启用':'停用')+'。','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('manualEmployeeStatus','❌ 操作失败：'+(e && e.message || e),'err');
+  }
+}
+async function delEmployeeAccount(idx){
+  if (!PAT) { alert('请先登录后台。'); return; }
+  if (!confirm('确定删除该员工账号？此操作不可撤销。')) return;
+  showStatus('manualEmployeeStatus','正在删除员工账号…','info');
+  try {
+    var cur = await getContent(EMPLOYEES_FILE);
+    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var removed = employees.splice(idx, 1)[0];
+    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '删除员工账号: '+(removed && removed.username || ''));
+    if (!res) throw new Error('写入失败');
+    showStatus('manualEmployeeStatus','✅ 已删除员工账号「'+(removed && removed.username || '')+'」。','ok');
+    renderEmployeeAccounts();
+  } catch(e){
+    showStatus('manualEmployeeStatus','❌ 删除失败：'+(e && e.message || e),'err');
+  }
+}
 // ========== 网站文件部署（绕过 git push，用 GitHub API） ==========
 async function deploySiteFiles(){
   if (!PAT){ alert('请先登录后台（需要 PAT）。'); return; }
@@ -3115,7 +3294,8 @@ async function deploySiteFiles(){
   // 部署文件列表
   var files = [
     'coach.html','admin.html','join.html','index.html','join-worker.js',
-    'coaches.json','teams.json','data.json'
+    'coaches.json','teams.json','data.json',
+    'employee.html','employees.json'
   ];
   appendLog('🚀 开始部署 ' + files.length + ' 个文件到 GitHub Pages...');
   appendLog('   当前地址: ' + location.origin + location.pathname);
