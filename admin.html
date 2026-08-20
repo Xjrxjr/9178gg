@@ -2959,6 +2959,8 @@ async function renderCoachAccounts(){
     if (!coaches.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无已批准教官账号。</div>'; return; }
     var html = coaches.map(function(c, i){
       var en = c.enabled !== false;
+      var showPass = '';
+      try { showPass = b64ToU8(c.password || ''); } catch(e){ showPass = ''; }
       return '<div style="border:1px solid #d8e2ef;border-radius:8px;padding:10px;margin-bottom:8px;background:#fbfdff;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
           '<span style="font-weight:bold;font-size:14px;color:#222;">'+joinEsc(c.username||'')+'</span>' +
@@ -2968,6 +2970,12 @@ async function renderCoachAccounts(){
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachUsername('+i+')">✏️ 改用户名</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editCoachPassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delCoachAccount('+i+')">🗑️ 删除</button>' +
+        '</div>' +
+        '<div style="margin-top:8px;padding:8px 10px;background:#f5f5f5;border-radius:6px;font-size:12px;font-family:monospace;color:#333;display:flex;gap:16px;flex-wrap:wrap;">' +
+          '<span>👤 用户名：<b style="color:#1565c0;">'+joinEsc(c.username||'')+'</b></span>' +
+          '<span>🔑 密码：<b style="color:#c62828;">'+joinEsc(showPass)+'</b></span>' +
+          '<span>🧑‍🏫 教官名：'+joinEsc(c.coachName||'')+'</span>' +
+          '<span>📅 创建：'+joinEsc(c.createdAt?new Date(+c.createdAt).toLocaleString('zh-CN'):'-')+'</span>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -3271,6 +3279,8 @@ async function renderEmployeeAccounts(){
     if (!employees.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无员工账号。</div>'; return; }
     var html = employees.map(function(e, i){
       var en = e.enabled !== false;
+      var showPass = '';
+      try { showPass = b64ToU8(e.password || ''); } catch(err){ showPass = ''; }
       return '<div style="border:1px solid #d8e2ef;border-radius:8px;padding:10px;margin-bottom:8px;background:#fbfdff;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
           '<span style="font-weight:bold;font-size:14px;color:#222;">'+joinEsc(e.username||'')+'</span>' +
@@ -3280,6 +3290,13 @@ async function renderEmployeeAccounts(){
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeeUsername('+i+')">✏️ 改用户名</button>' +
           '<button class="btn-primary" style="padding:4px 8px;font-size:12px;" onclick="editEmployeePassword('+i+')">🔑 改密码</button>' +
           '<button class="btn-danger" style="padding:4px 8px;font-size:12px;" onclick="delEmployeeAccount('+i+')">🗑️ 删除</button>' +
+        '</div>' +
+        '<div style="margin-top:8px;padding:8px 10px;background:#f5f5f5;border-radius:6px;font-size:12px;font-family:monospace;color:#333;display:flex;gap:16px;flex-wrap:wrap;">' +
+          '<span>👤 用户名：<b style="color:#1565c0;">'+joinEsc(e.username||'')+'</b></span>' +
+          '<span>🔑 密码：<b style="color:#c62828;">'+joinEsc(showPass)+'</b></span>' +
+          '<span>🙋 员工名：'+joinEsc(e.employeeName||'')+'</span>' +
+          (e.desc ? '<span>🏷️ 身份：'+joinEsc(e.desc)+'</span>' : '') +
+          '<span>📅 创建：'+joinEsc(e.createdAt?new Date(+e.createdAt).toLocaleString('zh-CN'):'-')+'</span>' +
         '</div>' +
       '</div>';
     }).join('');
