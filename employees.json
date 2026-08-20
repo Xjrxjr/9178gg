@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "username": "雷克夫",
+    "password": "MjAxMzA4MTA=",
+    "employeeName": "雷克夫",
+    "team": 1,
+    "teamName": "LSPD",
+    "desc": "2005",
+    "bio": "",
+    "enabled": true,
+    "createdAt": 1787205114760
+  }
+]
