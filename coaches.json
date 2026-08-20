@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "username": "12",
+    "password": "MTIzNA==",
+    "coachName": "12",
+    "team": 3,
+    "teamName": "网站维护",
+    "bio": "",
+    "enabled": true,
+    "createdAt": 1787204269357,
+    "approvedAt": 1787204269357
+  }
+]
