@@ -2877,7 +2877,7 @@ async function approveCoachReg(rid){
     var coachesData = [];
     try {
       var cur = await getContent(COACHES_FILE);
-      if (cur && cur.content) coachesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+      if (cur && cur.content) coachesData = JSON.parse(cur.content) || [];
     } catch(e){ /* 首次创建，文件不存在 */ }
     if (!Array.isArray(coachesData)) coachesData = [];
     // 检查用户名是否已存在
@@ -2955,7 +2955,7 @@ async function renderCoachAccounts(){
   try {
     var cur = await getContent(COACHES_FILE);
     if (!cur || !cur.content) { box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">coaches.json 尚未创建（暂无已批准教官账号）。</div>'; return; }
-    var coaches = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    var coaches = JSON.parse(cur.content) || [];
     if (!coaches.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无已批准教官账号。</div>'; return; }
     var html = coaches.map(function(c, i){
       var en = c.enabled !== false;
@@ -2990,7 +2990,7 @@ async function toggleCoachAccount(idx){
   showStatus('coachRegStatus','正在更新 coaches.json…','info');
   try {
     var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
     coaches[idx].enabled = coaches[idx].enabled === false ? true : false;
     var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
@@ -3009,7 +3009,7 @@ async function delCoachAccount(idx){
   showStatus('coachRegStatus','正在删除教官账号…','info');
   try {
     var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
     var removed = coaches.splice(idx, 1)[0];
     var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
     var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '删除教官账号: '+(removed && removed.username || ''));
@@ -3025,7 +3025,7 @@ async function editCoachUsername(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   try {
     var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
     var oldUser = coaches[idx].username || '';
     var newUser = prompt('修改教官用户名\n当前用户名：'+oldUser+'\n请输入新用户名（中文/字母/数字/下划线，2-30位）：', oldUser);
@@ -3053,7 +3053,7 @@ async function editCoachPassword(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   try {
     var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
     var user = coaches[idx].username || '';
     var newPass = prompt('修改教官密码\n用户名：'+user+'\n请输入新密码（至少4位）：');
@@ -3163,7 +3163,7 @@ async function manualAddCoach(){
     var coachesData = [];
     try {
       var cur = await getContent(COACHES_FILE);
-      if (cur && cur.content) coachesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+      if (cur && cur.content) coachesData = JSON.parse(cur.content) || [];
     } catch(e){}
     if (!Array.isArray(coachesData)) coachesData = [];
     // 检查用户名是否已存在
@@ -3236,7 +3236,7 @@ async function manualAddEmployee(){
     var employeesData = [];
     try {
       var cur = await getContent(EMPLOYEES_FILE);
-      if (cur && cur.content) employeesData = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+      if (cur && cur.content) employeesData = JSON.parse(cur.content) || [];
     } catch(e){}
     if (!Array.isArray(employeesData)) employeesData = [];
     var exist = employeesData.find(function(e){ return e && String(e.username||'').toLowerCase() === user.toLowerCase(); });
@@ -3275,7 +3275,7 @@ async function renderEmployeeAccounts(){
   try {
     var cur = await getContent(EMPLOYEES_FILE);
     if (!cur || !cur.content) { box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">employees.json 尚未创建（暂无员工账号）。</div>'; return; }
-    var employees = JSON.parse(atob(cur.content.replace(/\n/g,''))) || [];
+    var employees = JSON.parse(cur.content) || [];
     if (!employees.length){ box.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">暂无员工账号。</div>'; return; }
     var html = employees.map(function(e, i){
       var en = e.enabled !== false;
@@ -3310,7 +3310,7 @@ async function toggleEmployeeAccount(idx){
   showStatus('manualEmployeeStatus','正在更新 employees.json…','info');
   try {
     var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
     employees[idx].enabled = employees[idx].enabled === false ? true : false;
     var content = utf8ToBase64(JSON.stringify(employees, null, 2));
@@ -3328,7 +3328,7 @@ async function delEmployeeAccount(idx){
   showStatus('manualEmployeeStatus','正在删除员工账号…','info');
   try {
     var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
     var removed = employees.splice(idx, 1)[0];
     var content = utf8ToBase64(JSON.stringify(employees, null, 2));
     var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '删除员工账号: '+(removed && removed.username || ''));
@@ -3344,7 +3344,7 @@ async function editEmployeeUsername(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   try {
     var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
     var oldUser = employees[idx].username || '';
     var newUser = prompt('修改员工用户名\n当前用户名：'+oldUser+'\n请输入新用户名（中文/字母/数字/下划线，2-30位）：', oldUser);
@@ -3371,7 +3371,7 @@ async function editEmployeePassword(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   try {
     var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(atob(cur.content.replace(/\n/g,''))) : [];
+    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
     if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
     var user = employees[idx].username || '';
     var newPass = prompt('修改员工密码\n用户名：'+user+'\n请输入新密码（至少4位）：');
