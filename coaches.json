@@ -20,16 +20,5 @@
     "enabled": true,
     "createdAt": 1788030000002,
     "approvedAt": 1788030000002
-  },
-  {
-    "username": "1234",
-    "password": "MTIzNA==",
-    "coachName": "7879",
-    "team": 3,
-    "teamName": "网站维护",
-    "bio": "",
-    "enabled": true,
-    "createdAt": 1788026605916,
-    "approvedAt": 1788026605916
   }
 ]
