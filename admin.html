@@ -1611,6 +1611,25 @@ function getContent(path){
     throw err;
   });
 }
+// 409 冲突自动重试：GitHub 在连续快速操作时（如连续删除、删完马上改），
+// GET 可能返回稍旧的 sha，PUT 时就报 409「file does not match xxx」。
+// 这里把「读取最新→修改→写入」整体重做（op 内部必须自己 getContent 拿最新数据），最多 4 次。
+async function withConflictRetry(op, onStatus){
+  var maxTries = 4;
+  for (var i=1; i<=maxTries; i++){
+    try {
+      return await op();
+    } catch(e){
+      var msg = String(e && e.message || e);
+      if (msg.indexOf('409') >= 0 && i < maxTries){
+        if (onStatus) onStatus('⚠️ 文件刚被更新过（409 冲突），正在用最新数据自动重试 '+i+'/'+(maxTries-1)+' …');
+        await new Promise(function(r){ setTimeout(r, 350*i); });
+        continue;
+      }
+      throw e;
+    }
+  }
+}
 function writeFile(path, contentBase64, sha, message){
   var body = { message: message || ('后台更新: '+path), content: contentBase64, branch: BRANCH };
   if (sha) body.sha = sha;
@@ -3119,14 +3138,19 @@ async function toggleCoachAccount(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   showStatus('coachRegStatus','正在更新 coaches.json…','info');
   try {
-    var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
-    if (!coaches[idx]) { showStatus('coachRegStatus','❌ 找不到该账号。','err'); return; }
-    coaches[idx].enabled = coaches[idx].enabled === false ? true : false;
-    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
-    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '切换教官账号: '+coaches[idx].username+' → '+(coaches[idx].enabled?'启用':'停用'));
-    if (!res) throw new Error('写入失败');
-    showStatus('coachRegStatus','✅ 教官账号「'+coaches[idx].username+'」已'+(coaches[idx].enabled?'启用':'停用')+'。','ok');
+    var finalState = null, finalUser = '';
+    await withConflictRetry(async function(){
+      var cur = await getContent(COACHES_FILE);
+      var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
+      if (!coaches[idx]) { throw new Error('找不到该账号。'); }
+      coaches[idx].enabled = coaches[idx].enabled === false ? true : false;
+      finalState = coaches[idx].enabled;
+      finalUser = coaches[idx].username || '';
+      var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+      var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '切换教官账号: '+finalUser+' → '+(finalState?'启用':'停用'));
+      if (!res) throw new Error('写入失败');
+    }, function(m){ showStatus('coachRegStatus', m, 'info'); });
+    showStatus('coachRegStatus','✅ 教官账号「'+finalUser+'」已'+(finalState?'启用':'停用')+'。','ok');
     renderCoachAccounts();
   } catch(e){
     showStatus('coachRegStatus','❌ 操作失败：'+(e && e.message || e),'err');
@@ -3138,13 +3162,17 @@ async function delCoachAccount(idx){
   if (!confirm('确定删除该教官账号？此操作不可撤销。')) return;
   showStatus('coachRegStatus','正在删除教官账号…','info');
   try {
-    var cur = await getContent(COACHES_FILE);
-    var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
-    var removed = coaches.splice(idx, 1)[0];
-    var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
-    var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '删除教官账号: '+(removed && removed.username || ''));
-    if (!res) throw new Error('写入失败');
-    showStatus('coachRegStatus','✅ 已删除教官账号「'+(removed && removed.username || '')+'」。','ok');
+    var removedName = '';
+    await withConflictRetry(async function(){
+      var cur = await getContent(COACHES_FILE);
+      var coaches = (cur && cur.content) ? JSON.parse(cur.content) : [];
+      var removed = coaches.splice(idx, 1)[0];
+      removedName = (removed && removed.username) || '';
+      var content = utf8ToBase64(JSON.stringify(coaches, null, 2));
+      var res = await writeFile(COACHES_FILE, content, cur ? cur.sha : null, '删除教官账号: '+(removedName||''));
+      if (!res) throw new Error('写入失败');
+    }, function(m){ showStatus('coachRegStatus', m, 'info'); });
+    showStatus('coachRegStatus','✅ 已删除教官账号「'+removedName+'」。','ok');
     renderCoachAccounts();
   } catch(e){
     showStatus('coachRegStatus','❌ 删除失败：'+(e && e.message || e),'err');
@@ -3525,14 +3553,19 @@ async function toggleEmployeeAccount(idx){
   if (!PAT) { alert('请先登录后台。'); return; }
   showStatus('manualEmployeeStatus','正在更新 employees.json…','info');
   try {
-    var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
-    if (!employees[idx]) { showStatus('manualEmployeeStatus','❌ 找不到该账号。','err'); return; }
-    employees[idx].enabled = employees[idx].enabled === false ? true : false;
-    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
-    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '切换员工账号: '+employees[idx].username+' → '+(employees[idx].enabled?'启用':'停用'));
-    if (!res) throw new Error('写入失败');
-    showStatus('manualEmployeeStatus','✅ 员工账号「'+employees[idx].username+'」已'+(employees[idx].enabled?'启用':'停用')+'。','ok');
+    var finalState = null, finalUser = '';
+    await withConflictRetry(async function(){
+      var cur = await getContent(EMPLOYEES_FILE);
+      var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
+      if (!employees[idx]) { throw new Error('找不到该账号。'); }
+      employees[idx].enabled = employees[idx].enabled === false ? true : false;
+      finalState = employees[idx].enabled;
+      finalUser = employees[idx].username || '';
+      var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+      var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '切换员工账号: '+finalUser+' → '+(finalState?'启用':'停用'));
+      if (!res) throw new Error('写入失败');
+    }, function(m){ showStatus('manualEmployeeStatus', m, 'info'); });
+    showStatus('manualEmployeeStatus','✅ 员工账号「'+finalUser+'」已'+(finalState?'启用':'停用')+'。','ok');
     renderEmployeeAccounts();
   } catch(e){
     showStatus('manualEmployeeStatus','❌ 操作失败：'+(e && e.message || e),'err');
@@ -3543,13 +3576,17 @@ async function delEmployeeAccount(idx){
   if (!confirm('确定删除该员工账号？此操作不可撤销。')) return;
   showStatus('manualEmployeeStatus','正在删除员工账号…','info');
   try {
-    var cur = await getContent(EMPLOYEES_FILE);
-    var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
-    var removed = employees.splice(idx, 1)[0];
-    var content = utf8ToBase64(JSON.stringify(employees, null, 2));
-    var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '删除员工账号: '+(removed && removed.username || ''));
-    if (!res) throw new Error('写入失败');
-    showStatus('manualEmployeeStatus','✅ 已删除员工账号「'+(removed && removed.username || '')+'」。','ok');
+    var removedName = '';
+    await withConflictRetry(async function(){
+      var cur = await getContent(EMPLOYEES_FILE);
+      var employees = (cur && cur.content) ? JSON.parse(cur.content) : [];
+      var removed = employees.splice(idx, 1)[0];
+      removedName = (removed && removed.username) || '';
+      var content = utf8ToBase64(JSON.stringify(employees, null, 2));
+      var res = await writeFile(EMPLOYEES_FILE, content, cur ? cur.sha : null, '删除员工账号: '+(removedName||''));
+      if (!res) throw new Error('写入失败');
+    }, function(m){ showStatus('manualEmployeeStatus', m, 'info'); });
+    showStatus('manualEmployeeStatus','✅ 已删除员工账号「'+removedName+'」。','ok');
     renderEmployeeAccounts();
   } catch(e){
     showStatus('manualEmployeeStatus','❌ 删除失败：'+(e && e.message || e),'err');
