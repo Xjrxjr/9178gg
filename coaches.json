@@ -1,16 +1,5 @@
 [
   {
-    "username": "轩辕玄女",
-    "password": "MTIzNA==",
-    "coachName": "轩辕玄女",
-    "team": 1,
-    "teamName": "LSPD",
-    "bio": "LSPD 总教官，负责新警员入队教学",
-    "enabled": true,
-    "createdAt": 1788030000000,
-    "approvedAt": 1788030000000
-  },
-  {
     "username": "罗伯特",
     "password": "MTIzNA==",
     "coachName": "罗伯特",
