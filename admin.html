@@ -679,6 +679,13 @@
           <div class="col"><label>选择教官 <span style="color:#757575;font-weight:normal;">（该学员名字会出现在主站此教官卡片的学员列表中）</span></label>
             <select id="p_coach"><option value="">— 不选择教官 —</option></select>
           </div>
+          <div class="col">
+            <label>离职状态 <span style="color:#757575;font-weight:normal;">（开启后主站头像显示灰色「已离职」标记）</span></label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 12px;border:1px solid #ddd;border-radius:8px;background:#fafafa;user-select:none;">
+              <input type="checkbox" id="p_resigned" style="width:18px;height:18px;accent-color:#5d4037;cursor:pointer;">
+              <span id="p_resignedText" style="font-weight:bold;color:#555;">🚪 已离职：关</span>
+            </label>
+          </div>
         </div>
         <div class="row" style="margin-top: 10px;">
           <div class="col"><label>简历 / 介绍</label><textarea id="p_bio" placeholder="多行文本，人员详细介绍"></textarea></div>
@@ -2140,9 +2147,15 @@ function renderPeople(){
       'object-fit:' + ((+av.c===1)?'cover':'contain'),
       'display:block','border:0','padding:0','margin:0'
     ].join(';')+';';
+    // 已离职：头像灰度 + 底部标记条
+    if (p.resigned) imgStyle += 'filter:grayscale(1);opacity:.72;';
+    var resignedMark = p.resigned
+      ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(30,30,30,0.68);color:#fff;font-size:10px;line-height:16px;text-align:center;letter-spacing:3px;text-indent:3px;font-weight:bold;pointer-events:none;z-index:2;">已离职</div>'
+      : '';
     item.innerHTML =
       '<div style="'+clipStyle+'">' +
         '<img src="'+imgSrc+'" alt="头像" style="'+imgStyle+'" onerror="this.src=\'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22><rect width=%2280%22 height=%2280%22 fill=%22%23e0e0e0%22/><text x=%2240%22 y=%2245%22 font-size=%2230%22 text-anchor=%22middle%22 fill=%22%23aaa%22>👤</text></svg>\'">' +
+        resignedMark +
       '</div>' +
       '<div class="p-info">' +
         '<div class="p-name">'+(p.name||'(无姓名)')+'</div>' +
@@ -2156,10 +2169,20 @@ function renderPeople(){
       '<div class="p-actions">' +
         '<button class="btn-secondary" data-act="code" style="background:#00695c;color:#fff;border-color:#004d40;">{'+'}'+'} 代码</button>' +
         '<button class="btn-secondary" data-act="edit">✏️ 编辑</button>' +
+        '<button class="btn-secondary" data-act="resign" style="'+(p.resigned?'background:#5d4037;color:#fff;border-color:#3e2723;':'')+'">'+(p.resigned?'🚪 取消离职':'🚪 标记离职')+'</button>' +
         '<button class="btn-danger" data-act="del">🗑️ 删除</button>' +
       '</div>';
     item.querySelector('[data-act=code]').onclick = function(){ openPersonJsonModal(p); };
     item.querySelector('[data-act=edit]').onclick = function(){ editPerson(p); };
+    // 已离职快速开关：直接在列表切换，点「保存所有改动」后同步到主站
+    item.querySelector('[data-act=resign]').onclick = function(){
+      p.resigned = !p.resigned;
+      DIRTY_PEOPLE = true;
+      renderPeople();
+      showStatus('saveStatus', p.resigned
+        ? '已将「'+(p.name||'')+'」标记为已离职（草稿生效），点「🚀 保存所有改动」后主站头像显示灰色「已离职」标记。'
+        : '已取消「'+(p.name||'')+'」的已离职标记（草稿生效），点「🚀 保存所有改动」后主站恢复正常显示。', 'info');
+    };
     item.querySelector('[data-act=del]').onclick = function(){
       if (confirm('确定删除「'+(p.name||'')+'」吗？这个操作只影响本地草稿，点了「保存所有改动」才会真正同步到网站。')){
         PEOPLE = PEOPLE.filter(function(x){ return String(x.id) !== String(p.id); });
@@ -2222,11 +2245,22 @@ document.getElementById('useQQAvatarBtn').onclick = function(){
 document.getElementById('resetPersonBtn').onclick = resetPersonForm;
 document.getElementById('savePersonBtn').onclick = savePersonForm;
 
+// 已离职开关：切换开关文字
+(function(){
+  var cb = document.getElementById('p_resigned');
+  var tx = document.getElementById('p_resignedText');
+  function sync(){ tx.textContent = cb.checked ? '🚪 已离职：开（主站头像显示灰色标记）' : '🚪 已离职：关'; tx.style.color = cb.checked ? '#5d4037' : '#555'; }
+  cb.addEventListener('change', sync);
+  window.__syncResignedText = sync;
+})();
+
 function resetPersonForm(){
   editingId = null;
   document.getElementById('p_editid').value = '';
   document.getElementById('formTitle').textContent = '➕ 添加新人员';
   ['p_name','p_phone','p_email','p_wechat','p_qq','p_desc','p_bio','avatarName'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('p_resigned').checked = false;
+  if (window.__syncResignedText) window.__syncResignedText();
   document.getElementById('p_team').value = activeTeams()[0] ? activeTeams()[0].id : '';
   try {
     // 重置教官下拉：根据当前团队刷新，默认不选
@@ -2262,6 +2296,8 @@ function editPerson(p){
   document.getElementById('p_qq').value     = p.qqcontact || qqFromAvatar || '';
   document.getElementById('p_desc').value   = p.desc || '';
   document.getElementById('p_bio').value    = p.bio || '';
+  document.getElementById('p_resigned').checked = !!p.resigned;
+  if (window.__syncResignedText) window.__syncResignedText();
   document.getElementById('avatarName').value = p.image || '';
   document.getElementById('avatarPreview').src = resolveAvatar(p.image || '');
   // 教官回选：先刷新该团队的教官列表，再按名字回选
@@ -2312,6 +2348,8 @@ function savePersonForm(){
     bio: document.getElementById('p_bio').value.trim(),
     wechat: document.getElementById('p_wechat').value.trim(),
     qqcontact: document.getElementById('p_qq').value.trim(),
+    // 已离职标记：开启后主站头像显示灰色「已离职」
+    resigned: document.getElementById('p_resigned').checked,
     // 头像调节：卡片4 + 详情4，共 8 个独立字段（头像框永远固定，只动图片）
     cAvatarScale:   av.c.s,
     cAvatarClip:    av.c.c,
