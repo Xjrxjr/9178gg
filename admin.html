@@ -631,9 +631,10 @@
         <p style="font-size:13px;color:#555;margin:4px 0 12px;line-height:1.7;">
           因 <code>github.com</code> 被 SNI 阻断，<code>git push</code> 无法使用。
           此功能通过 <code>api.github.com</code>（可访问）直接写入文件，绕过 git。
-          <b>必须从本地 HTTP 服务器（如 http://127.0.0.1:8080/admin.html）打开本页才能使用。</b>
+          <b>必须从本地 HTTP 服务器（如 http://127.0.0.1:8080/admin.html）打开本页才能使用。</b><br>
+          ⚠️ 只部署代码页面（html/js）。<b>数据文件（人员/团队/账号 json）不在此列</b>——它们由后台各操作实时保存到 GitHub，用旧文件部署会覆盖丢失数据。
         </p>
-        <button class="btn-primary" id="deploySiteBtn" type="button" style="padding:10px 20px;font-size:14px;" onclick="deploySiteFiles()">🚀 部署所有网站文件到 GitHub Pages</button>
+        <button class="btn-primary" id="deploySiteBtn" type="button" style="padding:10px 20px;font-size:14px;" onclick="deploySiteFiles()">🚀 部署网站代码文件到 GitHub Pages</button>
         <span id="deployStatus" style="font-size:13px;margin-left:10px;"></span>
         <div id="deployLog" style="margin-top:12px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:10px;"></div>
       </div>
@@ -1570,7 +1571,9 @@ function explainNetworkError(err){
 }
 
 function ghGet(path){
-  return fetch('https://api.github.com' + path, { headers: ghHeaders() })
+  // cache:'no-store' 关键：GitHub API 响应带 Cache-Control: max-age=60，
+  // 浏览器默认缓存 60 秒 → 连续操作时 GET 拿到旧 sha → PUT 报 409「does not match」。
+  return fetch('https://api.github.com' + path, { headers: ghHeaders(), cache: 'no-store' })
   .then(function(r){
     if(r.status===401 || r.status===403 || r.status===404){ throw new Error(explainGhError(r.status)); }
     if(r.status===304) return null;
@@ -1612,10 +1615,10 @@ function getContent(path){
   });
 }
 // 409 冲突自动重试：GitHub 在连续快速操作时（如连续删除、删完马上改），
-// GET 可能返回稍旧的 sha，PUT 时就报 409「file does not match xxx」。
-// 这里把「读取最新→修改→写入」整体重做（op 内部必须自己 getContent 拿最新数据），最多 4 次。
+// GET 可能拿到旧 sha，PUT 时就报 409「file does not match xxx」。
+// 这里把「读取最新→修改→写入」整体重做（op 内部必须自己 getContent 拿最新数据），最多 6 次。
 async function withConflictRetry(op, onStatus){
-  var maxTries = 4;
+  var maxTries = 6;
   for (var i=1; i<=maxTries; i++){
     try {
       return await op();
@@ -1623,10 +1626,13 @@ async function withConflictRetry(op, onStatus){
       var msg = String(e && e.message || e);
       if (msg.indexOf('409') >= 0 && i < maxTries){
         if (onStatus) onStatus('⚠️ 文件刚被更新过（409 冲突），正在用最新数据自动重试 '+i+'/'+(maxTries-1)+' …');
-        await new Promise(function(r){ setTimeout(r, 350*i); });
+        await new Promise(function(r){ setTimeout(r, 500*i); });
         continue;
       }
-      throw e;
+      if (msg.indexOf('409') >= 0){
+        msg += '\n💡 多次重试仍冲突：请确认没有其他后台标签页正在操作，也没有正在进行的「网站文件部署」，稍等几秒再试一次。';
+      }
+      throw new Error(msg);
     }
   }
 }
@@ -3804,10 +3810,12 @@ async function deploySiteFiles(){
   function appendLog(msg){ if(log){ log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; } }
 
   // 部署文件列表
+  // ⚠️ 只部署代码文件！数据文件（data.json/teams.json/coaches.json/employees.json/team_recruit.json）
+  // 由后台各操作实时「读最新→修改→写回」维护；如果用本地旧文件部署覆盖，
+  // 会丢掉线上刚保存的账号/人员数据，还会与正在进行的操作撞 409。
   var files = [
     'coach.html','admin.html','join.html','index.html','join-worker.js',
-    'coaches.json','teams.json','data.json',
-    'employee.html','employees.json'
+    'employee.html'
   ];
   appendLog('🚀 开始部署 ' + files.length + ' 个文件到 GitHub Pages...');
   appendLog('   当前地址: ' + location.origin + location.pathname);
