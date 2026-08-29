@@ -157,16 +157,25 @@
     "bio": ""
   },
   {
-    "id": "1786513288223ddvy",
-    "name": "泰森",
+    "name": "局长泰森",
     "team": 1,
     "image": "lzD33250792C77D835226473.jpg",
     "desc": "警员-警号2004",
     "phone": "",
     "email": "",
+    "bio": "",
     "wechat": "",
     "qqcontact": "",
-    "bio": ""
+    "resigned": false,
+    "cAvatarScale": 1,
+    "cAvatarClip": 1,
+    "cAvatarOffsetX": 0,
+    "cAvatarOffsetY": 0,
+    "dAvatarScale": 1,
+    "dAvatarClip": 1,
+    "dAvatarOffsetX": 0,
+    "dAvatarOffsetY": 0,
+    "id": "1786513288223ddvy"
   },
   {
     "id": "1786513325782sks7",
