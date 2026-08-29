@@ -19,12 +19,6 @@
     "joinOpen": true,
     "coaches": [
       {
-        "name": "轩辕玄女",
-        "image": "",
-        "bio": "LSPD 总教官，负责新警员入队教学",
-        "enabled": true
-      },
-      {
         "name": "罗伯特",
         "image": "ldt26473.jpg",
         "bio": "警督 · 警号2002 · 实战教学",
