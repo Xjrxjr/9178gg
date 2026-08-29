@@ -9,7 +9,8 @@
     "bio": "5000块一小时",
     "wechat": "",
     "qqcontact": "4512318",
-    "id": 1
+    "id": 1,
+    "resigned": true
   },
   {
     "name": "罗伯特",
